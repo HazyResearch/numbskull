@@ -35,11 +35,17 @@ class FactorGraph(object):
         self.count[:] = 0
         self.threadpool.shutdown()
 
-    def burnIn(self, epochs, var_copy=0, weight_copy=0):
-        print ("FACTOR "+str(self.fid)+": STARTED BURN-IN...")
-        shardID, nshards = 0, 1
-        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.count, self.var_value, self.weight_value, True) # NUMBA-based method. Implemented in inference.py
-        print ("FACTOR "+str(self.fid)+": DONE WITH BURN-IN")
+
+    #################
+    #### GETTERS ####
+    #################
+
+    def getWeights(self, weight_copy=0):
+        return self.weight_value[weight_copy][:]
+
+    #####################
+    #### DIAGNOSTICS ####
+    #####################
 
     def diagnostics(self, epochs):
         print('Inference took %.03f sec.' % self.inference_total_time)
@@ -58,6 +64,16 @@ class FactorGraph(object):
             print("        isFixed:", w["isFixed"])
             print("        weight: ", self.weight_value[weight_copy][i])
             print()
+
+    ################################
+    #### INFERENCE AND LEARNING ####
+    ################################
+
+    def burnIn(self, epochs, var_copy=0, weight_copy=0):
+        print ("FACTOR "+str(self.fid)+": STARTED BURN-IN...")
+        shardID, nshards = 0, 1
+        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.count, self.var_value, self.weight_value, True) # NUMBA-based method. Implemented in inference.py
+        print ("FACTOR "+str(self.fid)+": DONE WITH BURN-IN")
 
     def inference(self,burnin_epochs, epochs, diagnostics=False, var_copy=0, weight_copy=0):
         ## Burn-in
