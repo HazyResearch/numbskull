@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import sys
 import argparse
 import factorgraph
@@ -247,7 +248,6 @@ def main(argv=None):
     args = parser.parse_args(argv)
     ns  = NumbSkull(**vars(args))
     ns.loadFGFromFile()
-    ns.inference()
     return ns
 
 if __name__ == "__main__":
