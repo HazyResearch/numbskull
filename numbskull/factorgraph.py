@@ -15,7 +15,15 @@ class FactorGraph(object):
         self.vstart    = vstart
         self.vmap      = vmap
         self.equalPred = equalPredicate
-        self.count     = np.zeros(self.variable.shape[0], np.int64)
+
+        # This is just cumsum shifted by 1
+        self.cstart    = np.zeros(self.variable.shape[0] + 1, np.int64)
+        for i in range(self.variable.shape[0]):
+            c = self.variable[i]["cardinality"]
+            if c == 2:
+                c = 1
+            self.cstart[i + 1] = self.cstart[i] + c
+        self.count     = np.zeros(self.cstart[self.variable.shape[0]], np.int64)
 
         self.var_value  = np.tile(self.variable[:]['initialValue'],(var_copies,1))
         self.weight_value = np.tile(self.weight[:]['initialValue'],(weight_copies,1))
@@ -72,7 +80,7 @@ class FactorGraph(object):
     def burnIn(self, epochs, var_copy=0, weight_copy=0):
         print ("FACTOR "+str(self.fid)+": STARTED BURN-IN...")
         shardID, nshards = 0, 1
-        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.count, self.var_value, self.weight_value, True) # NUMBA-based method. Implemented in inference.py
+        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.cstart, self.count, self.var_value, self.weight_value, True) # NUMBA-based method. Implemented in inference.py
         print ("FACTOR "+str(self.fid)+": DONE WITH BURN-IN")
 
     def inference(self,burnin_epochs, epochs, diagnostics=False, var_copy=0, weight_copy=0):
@@ -84,7 +92,7 @@ class FactorGraph(object):
         print ("FACTOR "+str(self.fid)+": STARTED INFERENCE")
         for ep in range(epochs):
             with Timer() as timer:
-                future_to_samples = {self.threadpool.submit(gibbsthread, threadID, self.threads, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.count, self.var_value, self.weight_value, False): threadID for threadID in range(self.threads)}
+                future_to_samples = {self.threadpool.submit(gibbsthread, threadID, self.threads, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.cstart, self.count, self.var_value, self.weight_value, False): threadID for threadID in range(self.threads)}
                 concurrent.futures.wait(future_to_samples)
             self.inference_epoch_time = timer.interval
             self.inference_total_time += timer.interval

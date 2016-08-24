@@ -5,7 +5,7 @@ import numpy as np
 import math
 
 @jit(nopython=True,cache=True,nogil=True)
-def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value, burnin):
+def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, cstart, count, var_value, weight_value, burnin):
     # Indentify start and end variable
     nvar  = variable.shape[0]
     start = ((nvar / nshards) + 1) * shardID
@@ -18,7 +18,10 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable, facto
             v = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
             var_value[var_copy][var_samp] = v
             if not burnin:
-                count[var_samp] += v
+                if variable[var_samp]["cardinality"] == 2:
+                    count[cstart[var_samp]] += v
+                else:
+                    count[cstart[var_samp] + v] += 1
 
     var_value[var_copy][var_samp] = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
     return var_value[var_copy][var_samp]
