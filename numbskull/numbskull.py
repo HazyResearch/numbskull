@@ -8,20 +8,67 @@ from numbskulltypes import *
 import numpy as np
 
 class NumbSkull(object):
+    """
+    Main class for numbskull. 
+    """
+    def __init__(self, **kwargs):
+        # Default arguments
+        arg_defaults = {
+            "directory": None,
+            "metafile": None,
+            "weightfile": None,
+            "variablefile": None,
+            "factorfile": None,
+            "nthreads": 1, 
+            "n_learning_epoch": 0,
+            "n_inference_epoch": 0,
+            "burn_in": 0,
+            "stepsize": 0.01,
+            "decay": 0.95,
+            "reg_param": 1,
+            "quiet": True,
+            "verbose": False,
+            "version": "0.0"
+        }
 
-    def __init__(self, args=None):
-        self.args = args
+        for (arg, default) in arg_defaults.iteritems():
+            setattr(self, arg, kwargs.get(arg, default))
+
         self.factorGraphs = []
 
-    def loadFGFromFile(self, var_copies=1, weight_copies=1):
+    def loadFactorGraph(self, weight, variable, factor, equalPredicate, edges, var_copies=1, weight_copies=1):
+        print("Not fully implemented yet")
+        return
+
+        # Assert input arguments correspond to NUMPY arrays
+        assert(type(weight) == np.ndarray and weight.dtype == Weight)
+        assert(type(variable) == np.ndarray and variable.dtype == Variable)
+        assert(type(factor) == np.ndarray and factor.dtype == Factor)
+        assert(type(equalPredicate) == np.ndarray and equalPredicate.dtype == np.int32)
+        assert(type(edges) == int or type(edges) == np.int64)
+
+        # Initialize metadata
+        meta = {}
+        meta['weights'] = weight.shape[0]
+        meta['variables'] = variable.shape[0]
+        meta['factors'] = factor.shape[0]
+        meta['edges'] = edges
+        
+
+    def loadFGFromFile(self, directory=None, metafile=None, weightfile=None, variablefile=None, factorfile=None, var_copies=1, weight_copies=1):
         # init necessary input arguments
-        directory       = self.args.directory
-        metafile        = self.args.meta
-        weightfile      = self.args.weight
-        variablefile    = self.args.variable
-        factorfile      = self.args.factor
-        print_info      = self.args.quiet
-        print_only_meta = self.args.verbose
+        if not self.directory:
+            print("No factor graph specified")
+            return
+        else:
+            directory = self.directory
+        
+        metafile        = 'graph.meta' if not metafile else metafile
+        weightfile      = 'graph.weights' if not weightfile else weightfile
+        variablefile    = 'graph.variables' if not variablefile else variablefile
+        factorfile      = 'graph.factors' if not factorfile else factorfile
+        print_info      = self.quiet
+        print_only_meta = self.verbose
 
         # load metadata
         meta = np.loadtxt(directory + "/" + metafile,
@@ -77,24 +124,24 @@ class NumbSkull(object):
         vmap = np.zeros(meta["edges"], np.int64)
         compute_var_map(fstart, fmap, vstart, vmap) #Numba-based method. Defined in dataloading.py
 
-        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies, len(self.factorGraphs), self.args.threads)
+        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies, len(self.factorGraphs), self.nthreads)
         self.factorGraphs.append(fg)
 
     def getFactorGraph(self, fgID=0):
         return self.factorGraphs[fgID]
 
     def inference(self,fgID=0):
-        burnin = self.args.burnin
-        epochs = self.args.inference
+        burn_in = self.burn_in
+        n_inference_epoch = self.n_inference_epoch
 
-        self.factorGraphs[fgID].inference(burnin,epochs,diagnostics=True)
+        self.factorGraphs[fgID].inference(burn_in,n_inference_epoch,diagnostics=self.quiet)
 
     def learning(self,fgID=0):
-        burnin = self.args.burnin
-        learning_epochs = self.args.learn
-        stepsize = self.args.stepsize
+        burn_in = self.burn_in
+        n_learning_epoch = self.n_learning_epoch
+        stepsize = self.stepsize
 
-        self.factorGraphs[fgID].learn(burnin,learning_epochs,stepsize,diagnostics=True)
+        self.factorGraphs[fgID].learn(burn_in,n_learning_epoch,stepsize,diagnostics=self.quiet)
 
 
 def main(argv=None):
@@ -134,13 +181,13 @@ def main(argv=None):
                         default="graph.factors",
                         type=str,
                         help="factor file")
-    parser.add_argument("-l", "--learn",
+    parser.add_argument("-l", "--n_learning_epoch",
                         metavar="NUM_LEARN_EPOCHS",
                         dest="learn",
                         default=0,
                         type=int,
                         help="number of learning epochs")
-    parser.add_argument("-i", "--inference",
+    parser.add_argument("-i", "--n_inference_epoch",
                         metavar="NUM_INFERENCE_EPOCHS",
                         dest="inference",
                         default=0,
@@ -149,12 +196,24 @@ def main(argv=None):
     parser.add_argument("-s", "--stepsize",
                         metavar="LEARNING_STEPSIZE",
                         dest="stepsize",
-                        default=0,
+                        default=0.01,
                         type=float,
                         help="stepsize for learning")
-    parser.add_argument("-b", "--burnin",
+    parser.add_argument("-d", "--decay",
+                        metavar="LEARNING_DECAY",
+                        dest="decay",
+                        default=0.95,
+                        type=float,
+                        help="decay for learning")
+    parser.add_argument("-r", "--reg_param",
+                        metavar="LEARNING_REGULARIZATION_PARAM",
+                        dest="reg_param",
+                        default=1.0,
+                        type=float,
+                        help="regularization parameter for learning")
+    parser.add_argument("-b", "--burn_in",
                         metavar="BURN_IN",
-                        dest="burnin",
+                        dest="burn_in",
                         default=0,
                         type=int,
                         help="number of burn-in epochs")
@@ -186,7 +245,9 @@ def main(argv=None):
 
     ## Initialize NumbSkull ##
     args = parser.parse_args(argv)
-    ns  = NumbSkull(args)
+    ns  = NumbSkull(**vars(args))
+    ns.loadFGFromFile()
+    ns.inference()
     return ns
 
 if __name__ == "__main__":
