@@ -1,5 +1,6 @@
 import time
 
+
 class Timer:
     def __enter__(self):
         self.start = time.time()
@@ -8,4 +9,3 @@ class Timer:
     def __exit__(self, *args):
         self.end = time.time()
         self.interval = self.end - self.start
-

@@ -5,28 +5,29 @@ from timer import Timer
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
+
 class FactorGraph(object):
     def __init__(self, weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies, fid, workers):
-        self.weight    = weight
-        self.variable  = variable
-        self.factor    = factor
-        self.fstart    = fstart
-        self.fmap      = fmap
-        self.vstart    = vstart
-        self.vmap      = vmap
+        self.weight = weight
+        self.variable = variable
+        self.factor = factor
+        self.fstart = fstart
+        self.fmap = fmap
+        self.vstart = vstart
+        self.vmap = vmap
         self.equalPred = equalPredicate
 
         # This is just cumsum shifted by 1
-        self.cstart    = np.zeros(self.variable.shape[0] + 1, np.int64)
+        self.cstart = np.zeros(self.variable.shape[0] + 1, np.int64)
         for i in range(self.variable.shape[0]):
             c = self.variable[i]["cardinality"]
             if c == 2:
                 c = 1
             self.cstart[i + 1] = self.cstart[i] + c
-        self.count     = np.zeros(self.cstart[self.variable.shape[0]], np.int64)
+        self.count = np.zeros(self.cstart[self.variable.shape[0]], np.int64)
 
-        self.var_value  = np.tile(self.variable[:]['initialValue'],(var_copies,1))
-        self.weight_value = np.tile(self.weight[:]['initialValue'],(weight_copies,1))
+        self.var_value = np.tile(self.variable[:]['initialValue'], (var_copies, 1))
+        self.weight_value = np.tile(self.weight[:]['initialValue'], (weight_copies, 1))
 
         self.Z = np.zeros(max(self.variable[:]['cardinality']))
 
@@ -43,16 +44,15 @@ class FactorGraph(object):
         self.count[:] = 0
         self.threadpool.shutdown()
 
-
     #################
-    #### GETTERS ####
+    #    GETTERS    #
     #################
 
     def getWeights(self, weight_copy=0):
         return self.weight_value[weight_copy][:]
 
     #####################
-    #### DIAGNOSTICS ####
+    #    DIAGNOSTICS    #
     #####################
 
     def diagnostics(self, epochs):
@@ -64,7 +64,7 @@ class FactorGraph(object):
         for i in range(bins):
             print(i, hist[i])
 
-    def diagnosticsLearning(self,weight_copy=0):
+    def diagnosticsLearning(self, weight_copy=0):
         print('Learning epoch took %.03f sec.' % self.learning_epoch_time)
         print("Weights:")
         for (i, w) in enumerate(self.weight):
@@ -74,21 +74,21 @@ class FactorGraph(object):
             print()
 
     ################################
-    #### INFERENCE AND LEARNING ####
+    #    INFERENCE AND LEARNING    #
     ################################
 
     def burnIn(self, epochs, var_copy=0, weight_copy=0):
         print ("FACTOR "+str(self.fid)+": STARTED BURN-IN...")
         shardID, nshards = 0, 1
-        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.cstart, self.count, self.var_value, self.weight_value, True) # NUMBA-based method. Implemented in inference.py
+        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy, self.weight, self.variable, self.factor, self.fstart, self.fmap, self.vstart, self.vmap, self.equalPred, self.Z, self.cstart, self.count, self.var_value, self.weight_value, True)  # NUMBA-based method. Implemented in inference.py
         print ("FACTOR "+str(self.fid)+": DONE WITH BURN-IN")
 
-    def inference(self,burnin_epochs, epochs, diagnostics=False, var_copy=0, weight_copy=0):
-        ## Burn-in
+    def inference(self, burnin_epochs, epochs, diagnostics=False, var_copy=0, weight_copy=0):
+        # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)
 
-        ## Run inference
+        # Run inference
         print ("FACTOR "+str(self.fid)+": STARTED INFERENCE")
         for ep in range(epochs):
             with Timer() as timer:
@@ -119,4 +119,3 @@ class FactorGraph(object):
                 print ("FACTOR "+str(self.fid)+": EPOCH "+str(ep))
                 self.diagnosticsLearning(weight_copy)
         print ("FACTOR "+str(self.fid)+": DONE WITH LEARNING")
-

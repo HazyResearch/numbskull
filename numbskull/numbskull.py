@@ -8,9 +8,10 @@ from dataloading import *
 from numbskulltypes import *
 import numpy as np
 
+
 class NumbSkull(object):
     """
-    Main class for numbskull. 
+    Main class for numbskull.
     """
     def __init__(self, **kwargs):
         # Default arguments
@@ -20,7 +21,7 @@ class NumbSkull(object):
             "weightfile": None,
             "variablefile": None,
             "factorfile": None,
-            "nthreads": 1, 
+            "nthreads": 1,
             "n_learning_epoch": 0,
             "n_inference_epoch": 0,
             "burn_in": 0,
@@ -54,7 +55,6 @@ class NumbSkull(object):
         meta['variables'] = variable.shape[0]
         meta['factors'] = factor.shape[0]
         meta['edges'] = edges
-        
 
     def loadFGFromFile(self, directory=None, metafile=None, weightfile=None, variablefile=None, factorfile=None, var_copies=1, weight_copies=1):
         # init necessary input arguments
@@ -63,18 +63,18 @@ class NumbSkull(object):
             return
         else:
             directory = self.directory
-        
-        metafile        = 'graph.meta' if not metafile else metafile
-        weightfile      = 'graph.weights' if not weightfile else weightfile
-        variablefile    = 'graph.variables' if not variablefile else variablefile
-        factorfile      = 'graph.factors' if not factorfile else factorfile
-        print_info      = self.quiet
+
+        metafile = 'graph.meta' if not metafile else metafile
+        weightfile = 'graph.weights' if not weightfile else weightfile
+        variablefile = 'graph.variables' if not variablefile else variablefile
+        factorfile = 'graph.factors' if not factorfile else factorfile
+        print_info = self.quiet
         print_only_meta = self.verbose
 
         # load metadata
         meta = np.loadtxt(directory + "/" + metafile,
-                      delimiter=',',
-                      dtype=Meta)
+                          delimiter=',',
+                          dtype=Meta)
         meta = meta[()]
 
         if print_info:
@@ -89,7 +89,7 @@ class NumbSkull(object):
         weight_data = np.memmap(directory + "/" + weightfile, mode="c")
         weight = np.empty(meta["weights"], Weight)
 
-        load_weights(weight_data, meta["weights"], weight) # NUMBA-based function. Defined in dataloading.py
+        load_weights(weight_data, meta["weights"], weight)  # NUMBA-based function. Defined in dataloading.py
         if print_info and not print_only_meta:
             print("Weights:")
             for (i, w) in enumerate(weight):
@@ -101,7 +101,7 @@ class NumbSkull(object):
         # load variables
         variable_data = np.memmap(directory + "/" + variablefile, mode="c")
         variable = np.empty(meta["variables"], Variable)
-        load_variables(variable_data, meta["variables"], variable) #NUMBA-based method. Defined in dataloading.py
+        load_variables(variable_data, meta["variables"], variable)  # NUMBA-based method. Defined in dataloading.py
         if print_info and not print_only_meta:
             print("Variables:")
             for (i, v) in enumerate(variable):
@@ -118,12 +118,12 @@ class NumbSkull(object):
         fstart = np.zeros(meta["factors"] + 1, np.int64)
         fmap = np.zeros(meta["edges"], np.int64)
         equalPredicate = np.zeros(meta["edges"], np.int32)
-        load_factors(factor_data, meta["factors"], factor, fstart, fmap, equalPredicate) #Numba-based method. Defined in dataloading.py
+        load_factors(factor_data, meta["factors"], factor, fstart, fmap, equalPredicate)  # Numba-based method. Defined in dataloading.py
 
         # generate variable-to-factor map
         vstart = np.zeros(meta["variables"] + 1, np.int64)
         vmap = np.zeros(meta["edges"], np.int64)
-        compute_var_map(fstart, fmap, vstart, vmap) #Numba-based method. Defined in dataloading.py
+        compute_var_map(fstart, fmap, vstart, vmap)  # Numba-based method. Defined in dataloading.py
 
         fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies, len(self.factorGraphs), self.nthreads)
         self.factorGraphs.append(fg)
@@ -131,18 +131,18 @@ class NumbSkull(object):
     def getFactorGraph(self, fgID=0):
         return self.factorGraphs[fgID]
 
-    def inference(self,fgID=0):
+    def inference(self, fgID=0):
         burn_in = self.burn_in
         n_inference_epoch = self.n_inference_epoch
 
-        self.factorGraphs[fgID].inference(burn_in,n_inference_epoch,diagnostics=self.quiet)
+        self.factorGraphs[fgID].inference(burn_in, n_inference_epoch, diagnostics=self.quiet)
 
-    def learning(self,fgID=0):
+    def learning(self, fgID=0):
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
         stepsize = self.stepsize
 
-        self.factorGraphs[fgID].learn(burn_in,n_learning_epoch,stepsize,diagnostics=self.quiet)
+        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch, stepsize, diagnostics=self.quiet)
 
 
 def main(argv=None):
@@ -163,7 +163,7 @@ def main(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file") # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")  # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",
@@ -225,31 +225,30 @@ def main(argv=None):
                         type=int,
                         help="number of threads per copy")
     parser.add_argument("-q", "--quiet",
-                        #metavar="QUIET",
+                        # metavar="QUIET",
                         dest="quiet",
                         default=False,
                         action="store_true",
-                        #type=bool,
+                        # type=bool,
                         help="quiet")
     # TODO: verbose option (print all info)
     parser.add_argument("--verbose",
-    #                    metavar="VERBOSE",
+                        # metavar="VERBOSE",
                         dest="verbose",
                         default=False,
                         action="store_true",
-    #                    type=bool,
+                        # type=bool,
                         help="verbose")
     parser.add_argument("--version",
                         action='version',
                         version="%(prog)s 0.0",
                         help="print version number")
 
-    ## Initialize NumbSkull ##
+    # Initialize NumbSkull #
     args = parser.parse_args(argv)
-    ns  = NumbSkull(**vars(args))
+    ns = NumbSkull(**vars(args))
     ns.loadFGFromFile()
     return ns
 
 if __name__ == "__main__":
     main()
-
