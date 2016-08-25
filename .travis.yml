@@ -5,6 +5,7 @@ python:
 
 install:
   - pip install enum34
+  - pip install -r requirements.txt
 
 script: ./test.py
 
