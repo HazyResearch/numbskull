@@ -6,6 +6,7 @@ install:
   - pip install conda
   - conda create -y -n newenv numba
   - source activate newenv
+  - pip install futures
 
 script: ./test.py
 
