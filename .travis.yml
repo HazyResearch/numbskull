@@ -8,11 +8,12 @@ install:
   - conda create -y -n newenv numba
   - source activate newenv
   - pip install futures
+  - pip install codecov
 
 script:
   - pep8 .
-  - ./test.py
+  - coverage run test.py
 
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - codecov
 
