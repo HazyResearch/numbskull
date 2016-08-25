@@ -63,33 +63,30 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
         if weight[weight_id]["isFixed"]:
             continue
         # Compute Gradient
-        # Boolean variable
-        if variable[var_samp]["dataType"] == 0:
-            p0 = eval_factor(factor_id, var_samp,
-                             evidence, var_copy, weight,
-                             variable, factor, fstart, fmap,
-                             vstart, vmap, equalPred, Z, count,
-                             var_value, weight_value)
-            p1 = eval_factor(factor_id, var_samp,
-                             proposal, var_copy, weight,
-                             variable, factor, fstart, fmap,
-                             vstart, vmap, equalPred, Z, count,
-                             var_value, weight_value)
-            gradient = p1 - p0
-        # Categorical variable
-        elif variable[var_samp]["dataType"] == 1:
-            gradient = 0.0
+        p0 = eval_factor(factor_id, var_samp,
+                         evidence, var_copy, weight,
+                         variable, factor, fstart, fmap,
+                         vstart, vmap, equalPred, Z, count,
+                         var_value, weight_value)
+        p1 = eval_factor(factor_id, var_samp,
+                         proposal, var_copy, weight,
+                         variable, factor, fstart, fmap,
+                         vstart, vmap, equalPred, Z, count,
+                         var_value, weight_value)
+        gradient = p1 - p0
         # Update weight
         weight = weight_value[weight_copy][weight_id]
         if regularization == 'l2':
             weight *= (1.0 / (1.0 + reg_param * step))
             weight -= step * gradient
-        else:
+        elif regularization == 'l1':
             # Truncated Gradient
             # "Sparse Online Learning via Truncated Gradient"
             #  Langford et al. 2009
             l1delta = reg_param * step
             weight -= step * gradient
             weight = max(0, weight - l1delta) if weight > 0 \
-                else min(0, weight - lidelta)
+                else min(0, weight + lidelta)
+        else:
+            weight -= step * gradient
         weight_value[weight_copy][weight_id] = weight
