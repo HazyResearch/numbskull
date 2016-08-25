@@ -1,7 +1,2 @@
-numpy>=1.7
-llvmlite>=0.13
-argparse
-funcsigs ; python_version < '3.4'
-singledispatch ; python_version < '3.4'
-numba
+enum34
 
