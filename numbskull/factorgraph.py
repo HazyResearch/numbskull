@@ -102,7 +102,7 @@ class FactorGraph(object):
         if diagnostics:
             self.diagnostics(epochs)
 
-    def learn(self, burnin_epochs, epochs, stepsize, diagnostics=False, var_copy=0, weight_copy=0):
+    def learn(self, burnin_epochs, epochs, stepsize, regularization, reg_param, diagnostics=False, var_copy=0, weight_copy=0):
         # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)

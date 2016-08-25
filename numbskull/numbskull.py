@@ -26,7 +26,10 @@ class NumbSkull(object):
             "burn_in": 0,
             "stepsize": 0.01,
             "decay": 0.95,
+            "regularization": "l2",
             "reg_param": 1,
+            "sample_evidence": False,
+            "learn_non_evidence": False,
             "quiet": True,
             "verbose": False,
             "version": "0.0"
@@ -141,8 +144,10 @@ class NumbSkull(object):
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
         stepsize = self.stepsize
+        regularization = self.regularization
+        reg_param = self.reg_param
 
-        self.factorGraphs[fgID].learn(burn_in,n_learning_epoch,stepsize,diagnostics=self.quiet)
+        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch, stepsize, regularization, reg_param, diagnostics=self.quiet)
 
 
 def main(argv=None):
@@ -212,6 +217,12 @@ def main(argv=None):
                         default=1.0,
                         type=float,
                         help="regularization parameter for learning")
+    parser.add_argument("-p", "--regularization",
+                        metavar="REGULARIZATION",
+                        dest="regularization",
+                        default="l2",
+                        type=str,
+                        help="regularization (l1 or l2)")
     parser.add_argument("-b", "--burn_in",
                         metavar="BURN_IN",
                         dest="burn_in",
@@ -225,19 +236,25 @@ def main(argv=None):
                         type=int,
                         help="number of threads per copy")
     parser.add_argument("-q", "--quiet",
-                        #metavar="QUIET",
                         dest="quiet",
                         default=False,
                         action="store_true",
-                        #type=bool,
                         help="quiet")
+    parser.add_argument("--sample_evidence",
+                        dest="sample_evidence",
+                        default=False,
+                        action="store_true",
+                        help="sample evidence")
+    parser.add_argument("--learn_non_evidence",
+                        dest="learn_non_evidence",
+                        default=False,
+                        action="store_true",
+                        help="learn non evidence")
     # TODO: verbose option (print all info)
     parser.add_argument("--verbose",
-    #                    metavar="VERBOSE",
                         dest="verbose",
                         default=False,
                         action="store_true",
-    #                    type=bool,
                         help="verbose")
     parser.add_argument("--version",
                         action='version',
