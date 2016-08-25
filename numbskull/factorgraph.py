@@ -124,8 +124,9 @@ class FactorGraph(object):
         if diagnostics:
             self.diagnostics(epochs)
 
-    def learn(self, burnin_epochs, epochs, stepsize, regularization, reg_param,
-              diagnostics=False, learn_non_evidence=False, var_copy=0, weight_copy=0):
+    def learn(self, burnin_epochs, epochs, stepsize,
+              regularization, reg_param, diagnostics=False,
+              learn_non_evidence=False, var_copy=0, weight_copy=0):
         # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)
@@ -145,7 +146,8 @@ class FactorGraph(object):
                                             self.vstart, self.vmap,
                                             self.equalPred, self.Z,
                                             self.count, self.var_value,
-                                            self.weight_value, learn_non_evidence):
+                                            self.weight_value,
+                                            learn_non_evidence):
                      threadID for threadID in range(self.threads)}
                 concurrent.futures.wait(future_to_learn)
             self.learning_epoch_time = timer.interval

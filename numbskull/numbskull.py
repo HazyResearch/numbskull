@@ -31,7 +31,7 @@ class NumbSkull(object):
             "regularization": "l2",
             "reg_param": 1,
             "sample_evidence": False,
-            "learn_non_evidence": False,
+            "learn_non_evid": False,
             "quiet": True,
             "verbose": False,
             "version": "0.0"
@@ -167,7 +167,7 @@ class NumbSkull(object):
         self.factorGraphs[fgID].learn(burn_in, n_learning_epoch,
                                       stepsize, regularization, reg_param,
                                       diagnostics=self.quiet,
-                                      learn_non_evidence=self.learn_non_evidence)
+                                      learn_non_evidence=self.learn_non_evid)
 
 
 def main(argv=None):
@@ -267,7 +267,7 @@ def main(argv=None):
                         action="store_true",
                         help="sample evidence")
     parser.add_argument("--learn_non_evidence",
-                        dest="learn_non_evidence",
+                        dest="learn_non_evid",
                         default=False,
                         action="store_true",
                         help="learn non evidence")
