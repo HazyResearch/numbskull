@@ -7,34 +7,42 @@ import random
 from inference import draw_sample, eval_factor
 
 @jit(nopython=True,cache=True,nogil=True)
-def learnthread(shardID, nshards, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value, learn_non_evidence):
+def learnthread(shardID, nshards, step, regularization, reg_param, var_copy, weight_copy, weight, 
+                variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, 
+                count, var_value, weight_value, learn_non_evidence):
     # Identify start and end variable
-    nvar  = variable.shape[0]
+    nvar = variable.shape[0]
     start = ((nvar / nshards) + 1) * shardID
-    end   = min(((nvar / nshards) +1) * (shardID + 1), nvar)
+    end = min(((nvar / nshards) + 1) * (shardID + 1), nvar)
 
     for var_samp in range(start,end):
         # If variable is an observation do not do anything
         if variable[var_samp]["isEvidence"] == 2:
             pass
         else:
-            sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value, learn_non_evidence)
+            sample_and_sgd(var_samp, step, regularization, reg_param, var_copy, weight_copy, weight, 
+                           variable, factor, fstart, fmap, vstart, vmap, 
+                           equalPred, Z, count, var_value, weight_value, learn_non_evidence)
 
 @jit(nopython=True,cache=True,nogil=True)
-def sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value, learn_non_evidence):
+def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy, weight_copy, weight, variable, 
+                   factor, fstart, fmap, vstart, vmap, equalPred, Z, count, 
+                   var_value, weight_value, learn_non_evidence):
 
-    # If learn_non_evidence then store the previous value in a tmp variable
-    # (corresponds to value with weights from previous iteration) 
-    # then sample and compute the gradient.
+    # If learn_non_evidence sample twice. The method corresponds to expectation-conjugate descent.
     if learn_non_evidence:
-       evidence = var_value[var_copy][var_samp] 
+       evidence = draw_sample(var_samp, var_copy, weight_copy, weight,
+                              variable, factor, fstart, fmap, vstart, vmap,
+                              equalPred, Z, count, var_value, weight_value)
     # If evidence then store the initial value in a tmp variable
     # then sample and compute the gradient.
     else:
        evidence = variable[var_samp]["initialValue"]
 
     # Sample the variable
-    proposal = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
+    proposal = draw_sample(var_samp, var_copy, weight_copy, weight, 
+                           variable, factor, fstart, fmap, vstart, vmap, 
+                           equalPred, Z, count, var_value, weight_value)
 
     var_value[var_copy][var_samp] = proposal
 
@@ -49,29 +57,70 @@ def sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, fact
 
         if weight[weight_id]["isFixed"]:
             continue
+
+        # Compute Gradient 
+
         # Boolean variable
         if variable[var_samp]["dataType"] == 0:
-        # Gradient for SGD
-        p0 = eval_factor(factor_id, var_samp, evidence, var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
-        p1 = eval_factor(factor_id, var_samp, proposal, var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
-        gradient = p1 - p0
+            p0 = eval_factor(factor_id, var_samp, 
+                             evidence, var_copy, weight, 
+                             variable, factor, fstart, fmap, 
+                             vstart, vmap, equalPred, Z, count, 
+                             var_value, weight_value)
+
+            p1 = eval_factor(factor_id, var_samp, 
+                             proposal, var_copy, weight, 
+                             variable, factor, fstart, fmap, 
+                             vstart, vmap, equalPred, Z, count, 
+                             var_value, weight_value)
+
+            gradient = p1 - p0
+        # Categorical variable
+        elif variable[var_samp]["dataType"] == 1:
+            gradient = 0.0
+
+        # Update weight
+        weight =  weight_value[weight_copy][weight_id]
+        if regularization == 'l2':
+            weight *= (1.0 / (1.0 + reg_param * step ))
+        elif:
+            l1delta = reg_param * step
+            l1delta = 0 if abs(l1delta) < 0.000001 else l1delta
+            weight -= l1del 
+
+double l1delta = reg1_param * current_stepsize; //current_stepsize;
+        if (cfg.infrs->weight_values[j] >  l1delta) {
+          cfg.infrs->weight_values[j] -= l1delta;
+        } else if (cfg.infrs->weight_values[j] < -1*l1delta) {
+          cfg.infrs->weight_values[j] += l1delta;
+        } else {
+          cfg.infrs->weight_values[j] = 0; 
+        
    
     # TODO: return none or sampled var?
     # Sample the variable
     var_value[var_copy][var_samp] = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
     
+
+
     # TODO: set initialValue
     # TODO: if isevidence or learn_non_evidence
     if variable[var_samp]["isEvidence"] == 1:
         for i in range(vstart[var_samp], vstart[var_samp + 1]):
             factor_id = vmap[i]
             weight_id = factor[factor_id]["weightId"]
-    
+
             if not weight[weight_id]["isFixed"]:
-                # TODO: save time by checking if initialValue and value are equal first?
-                p0 = eval_factor(factor_id, var_samp, variable[var_samp]["initialValue"], var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
-                p1 = eval_factor(factor_id, var_samp, var_value[var_copy][var_samp], var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
+                # TODO: save time by checking if initialValue
+                # and value are equal first?
+                p0 = eval_factor(factor_id, var_samp,
+                                 variable[var_samp]["initialValue"], var_copy,
+                                 weight, variable, factor, fstart, fmap,
+                                 vstart, vmap, equalPred, Z, count, var_value,
+                                 weight_value)
+                p1 = eval_factor(factor_id, var_samp,
+                                 var_value[var_copy][var_samp], var_copy,
+                                 weight, variable, factor, fstart, fmap,
+                                 vstart, vmap, equalPred, Z, count, var_value,
+                                 weight_value)
                 weight_value[weight_copy][weight_id] += step * (p0 - p1)
-
-
-

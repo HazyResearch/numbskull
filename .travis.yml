@@ -1,0 +1,26 @@
+language: python
+python:
+  - "2.7"
+
+install:
+  - pip install pep8
+  - pip install conda
+  - conda create -y -n newenv numba
+  - source activate newenv
+  - pip install futures
+  - pip install codecov
+  - pip install coveralls
+  - pip install codeclimate-test-reporter
+
+script:
+  - pep8 .
+  - coverage run test.py
+
+after_success:
+  - codecov
+  - coveralls
+  - codeclimate-test-reporter
+
+addons:
+  code_climate:
+    repo_token: 38889ddefbf6e560761ae54ce88dc549a52a143e7ac2ee8a9d036bfd19836d7b

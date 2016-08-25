@@ -8,14 +8,16 @@ import argparse
 import gibbs
 import numpy as np
 
+
 def send_array(socket, A, flags=0, copy=True, track=False):
     """send a numpy array with metadata"""
     md = dict(
-        dtype = str(A.dtype),
-        shape = A.shape,
+        dtype=str(A.dtype),
+        shape=A.shape,
     )
-    socket.send_json(md, flags|zmq.SNDMORE)
+    socket.send_json(md, flags | zmq.SNDMORE)
     return socket.send(A, flags, copy=copy, track=track)
+
 
 def recv_array(socket, flags=0, copy=True, track=False):
     """recv a numpy array"""
@@ -29,6 +31,7 @@ def recv_array(socket, flags=0, copy=True, track=False):
         A = np.frombuffer(buf, dtype=eval(md['dtype']))
 
     return A.reshape(md['shape'])
+
 
 def server(argv=None):
     parser = argparse.ArgumentParser(
@@ -51,7 +54,8 @@ def server(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file") # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")
+    # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",
@@ -96,19 +100,19 @@ def server(argv=None):
                         help="number of inference sweeps")
     # TODO: sample observed variable option
     parser.add_argument("-q", "--quiet",
-                        #metavar="QUIET",
+                        # metavar="QUIET",
                         dest="quiet",
                         default=False,
                         action="store_true",
-                        #type=bool,
+                        # type=bool,
                         help="quiet")
     # TODO: verbose option (print all info)
     parser.add_argument("--verbose",
-    #                    metavar="VERBOSE",
+                        # metavar="VERBOSE",
                         dest="verbose",
                         default=False,
                         action="store_true",
-    #                    type=bool,
+                        # type=bool,
                         help="verbose")
 
     print("Running server...")
@@ -120,8 +124,12 @@ def server(argv=None):
     else:
         var_copies = 1
         weight_copies = 1
-        (meta, weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate) = gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable, arg.factor, not arg.quiet, not arg.verbose)
-        fg_args = (weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies)
+        (meta, weight, variable, factor,
+         fstart, fmap, vstart, vmap, equalPredicate) = \
+            gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable,
+                       arg.factor, not arg.quiet, not arg.verbose)
+        fg_args = (weight, variable, factor, fstart, fmap, vstart,
+                   vmap, equalPredicate, var_copies, weight_copies)
         fg = gibbs.FactorGraph(*fg_args)
 
     context = zmq.Context()
@@ -135,14 +143,14 @@ def server(argv=None):
     while True:
         #  Wait for next request from client
         message = socket.recv()
-        if message == "HELLO": # Initial message from client
+        if message == "HELLO":  # Initial message from client
             print("Received HELLO.")
             socket.send("CLIENT_ID", zmq.SNDMORE)
             socket.send_json("%d" % num_clients)
             num_clients += 1
-        elif message == 'R_FACTOR_GRAPH': # Request for factor graph
+        elif message == 'R_FACTOR_GRAPH':  # Request for factor graph
             client_id = socket.recv_json()
-            print("Received request for factor graph from client #%d." % client_id)
+            print("Received factor graph request from client #%d." % client_id)
             # TODO: check that fg != None
             # TODO
             socket.send("FACTOR_GRAPH", zmq.SNDMORE)
@@ -154,16 +162,18 @@ def server(argv=None):
                     send_array(socket, a, zmq.SNDMORE)
                 else:
                     socket.send_json(a, zmq.SNDMORE)
-            socket.send("DONE") # TODO: could just not send SNDMORE for last arg
-        elif message == "READY": # Client ready
+            # TODO: could just not send SNDMORE for last arg
+            socket.send("DONE")
+        elif message == "READY":  # Client ready
             print("Received ready.")
             # could skip this if arg.burn == 0
             socket.send("BURN", zmq.SNDMORE)
             socket.send_json(arg.burn)
-        elif message == 'DONE_BURN' or message == 'DONE_LEARN': # Client done with burn/learning
-            if message == 'DONE_BURN': # Done burning
+        elif message == 'DONE_BURN' or message == 'DONE_LEARN':
+            # Client done with burn/learning
+            if message == 'DONE_BURN':  # Done burning
                 epochs = 0
-            else: # Done learning
+            else:  # Done learning
                 epochs = socket.recv_json()
                 fg.wv += recv_array(socket)
                 pass
@@ -171,21 +181,23 @@ def server(argv=None):
             if epochs < arg.epoch:
                 socket.send("LEARN", zmq.SNDMORE)
                 socket.send_json(arg.learn, zmq.SNDMORE)
-                socket.send_json(0.001, zmq.SNDMORE) # TODO
+                socket.send_json(0.001, zmq.SNDMORE)  # TODO
                 send_array(socket, fg.wv)
             else:
                 socket.send("INFERENCE", zmq.SNDMORE)
                 socket.send_json(arg.inference, zmq.SNDMORE)
                 send_array(socket, fg.wv)
-        elif message == 'DONE_INFERENCE': # Client done with inference
+        elif message == 'DONE_INFERENCE':  # Client done with inference
             data = recv_array(socket)
             # TODO: handle count
             socket.send("EXIT")
         else:
-            print("Message (%s) cannot be interpreted." % message, file=sys.stderr)
+            print("Message (%s) cannot be interpreted." % message,
+                  file=sys.stderr)
             socket.send("EXIT")
 
     return
+
 
 def client(argv=None):
     parser = argparse.ArgumentParser(
@@ -208,7 +220,8 @@ def client(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file") # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")
+    # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",
@@ -228,18 +241,18 @@ def client(argv=None):
                         type=str,
                         help="factor file")
     parser.add_argument("-q", "--quiet",
-                        #metavar="QUIET",
+                        # metavar="QUIET",
                         dest="quiet",
                         default=False,
                         action="store_true",
-                        #type=bool,
+                        # type=bool,
                         help="quiet")
     parser.add_argument("--verbose",
-    #                    metavar="VERBOSE",
+                        # metavar="VERBOSE",
                         dest="verbose",
                         default=False,
                         action="store_true",
-    #                    type=bool,
+                        # type=bool,
                         help="verbose")
 
     print(argv)
@@ -253,13 +266,17 @@ def client(argv=None):
     else:
         var_copies = 1
         weight_copies = 1
-        (meta, weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate) = gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable, arg.factor, not arg.quiet, not arg.verbose)
-        fg = gibbs.FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies)
+        (meta, weight, variable, factor,
+         fstart, fmap, vstart, vmap, equalPredicate) = \
+            gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable,
+                       arg.factor, not arg.quiet, not arg.verbose)
+        fg = gibbs.FactorGraph(weight, variable, factor, fstart, fmap, vstart,
+                               vmap, equalPredicate, var_copies, weight_copies)
 
     context = zmq.Context()
     print("Connecting to server...")
     socket = context.socket(zmq.REQ)
-    socket.connect ("tcp://localhost:%s" % arg.port)
+    socket.connect("tcp://localhost:%s" % arg.port)
 
     # hello message
     print("Sent HELLO.")
@@ -271,7 +288,7 @@ def client(argv=None):
     print("Received id #%d.\n" % client_id)
 
     # request factor graph if not loaded
-    if fg == None:
+    if fg is None:
         socket.send("R_FACTOR_GRAPH", zmq.SNDMORE)
         socket.send_json(client_id)
 
@@ -279,7 +296,7 @@ def client(argv=None):
         assert(message == "FACTOR_GRAPH")
 
         length = socket.recv_json()
-        fg_args = [None,] * length
+        fg_args = [None, ] * length
         for i in range(length):
             is_array = socket.recv_json()
             if is_array:
@@ -296,13 +313,13 @@ def client(argv=None):
     learning_epochs = 0
     while True:
         message = socket.recv()
-        if message == 'BURN': # request for burn-in
+        if message == 'BURN':  # request for burn-in
             print("Received request for burn-in.")
             burn = socket.recv_json()
             print("Burning", burn, "sweeps.")
             fg.gibbs(burn, 0, 0)
             socket.send("DONE_BURN")
-        elif message == 'LEARN': # Request for learning
+        elif message == 'LEARN':  # Request for learning
             print("Received request for learning.")
             sweeps = socket.recv_json()
             step = socket.recv_json()
@@ -317,7 +334,7 @@ def client(argv=None):
             learning_epochs += 1
             socket.send_json(learning_epochs, zmq.SNDMORE)
             send_array(socket, dw)
-        elif message == 'INFERENCE': # Request for inference
+        elif message == 'INFERENCE':  # Request for inference
             print("Received request for inference.")
             inference = socket.recv_json()
             fg.wv = recv_array(socket)
@@ -326,12 +343,13 @@ def client(argv=None):
             fg.gibbs(inference, 0, 0)
             socket.send("DONE_INFERENCE", zmq.SNDMORE)
             send_array(socket, fg.count)
-        elif message == 'EXIT': # Exit
+        elif message == 'EXIT':  # Exit
             print("Exit")
             break
         else:
             print("Message cannot be interpreted.", file=sys.stderr)
             break
+
 
 def main(argv=None):
     if argv is None:
@@ -348,4 +366,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
-
