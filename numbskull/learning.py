@@ -8,7 +8,9 @@ from inference import draw_sample, eval_factor
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def learnthread(shardID, nshards, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value):
+def learnthread(shardID, nshards, step, var_copy, weight_copy, weight,
+                variable, factor, fstart, fmap, vstart, vmap, equalPred, Z,
+                count, var_value, weight_value):
     # Identify start and end variable
     nvar = variable.shape[0]
     start = ((nvar / nshards) + 1) * shardID
@@ -18,14 +20,21 @@ def learnthread(shardID, nshards, step, var_copy, weight_copy, weight, variable,
         if variable[var_samp]["isEvidence"] == 2:
             pass
         else:
-            sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
+            sample_and_sgd(var_samp, step, var_copy, weight_copy, weight,
+                           variable, factor, fstart, fmap, vstart, vmap,
+                           equalPred, Z, count, var_value, weight_value)
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value):
+def sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable,
+                   factor, fstart, fmap, vstart, vmap, equalPred, Z, count,
+                   var_value, weight_value):
     # TODO: return none or sampled var?
     # TODO: return if is observation
-    var_value[var_copy][var_samp] = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
+    var_value[var_copy][var_samp] = \
+        draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
+                    fstart, fmap, vstart, vmap, equalPred, Z, count, var_value,
+                    weight_value)
 
     # TODO: set initialValue
     # TODO: if isevidence or learn_non_evidence
@@ -35,7 +44,16 @@ def sample_and_sgd(var_samp, step, var_copy, weight_copy, weight, variable, fact
             weight_id = factor[factor_id]["weightId"]
 
             if not weight[weight_id]["isFixed"]:
-                # TODO: save time by checking if initialValue and value are equal first?
-                p0 = eval_factor(factor_id, var_samp, variable[var_samp]["initialValue"], var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
-                p1 = eval_factor(factor_id, var_samp, var_value[var_copy][var_samp], var_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
+                # TODO: save time by checking if initialValue
+                # and value are equal first?
+                p0 = eval_factor(factor_id, var_samp,
+                                 variable[var_samp]["initialValue"], var_copy,
+                                 weight, variable, factor, fstart, fmap,
+                                 vstart, vmap, equalPred, Z, count, var_value,
+                                 weight_value)
+                p1 = eval_factor(factor_id, var_samp,
+                                 var_value[var_copy][var_samp], var_copy,
+                                 weight, variable, factor, fstart, fmap,
+                                 vstart, vmap, equalPred, Z, count, var_value,
+                                 weight_value)
                 weight_value[weight_copy][weight_id] += step * (p0 - p1)

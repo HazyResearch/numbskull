@@ -38,7 +38,8 @@ class NumbSkull(object):
 
         self.factorGraphs = []
 
-    def loadFactorGraph(self, weight, variable, factor, equalPredicate, edges, var_copies=1, weight_copies=1):
+    def loadFactorGraph(self, weight, variable, factor, equalPredicate, edges,
+                        var_copies=1, weight_copies=1):
         print("Not fully implemented yet")
         return
 
@@ -46,7 +47,8 @@ class NumbSkull(object):
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
         assert(type(factor) == np.ndarray and factor.dtype == Factor)
-        assert(type(equalPredicate) == np.ndarray and equalPredicate.dtype == np.int32)
+        assert(type(equalPredicate) == np.ndarray and
+               equalPredicate.dtype == np.int32)
         assert(type(edges) == int or type(edges) == np.int64)
 
         # Initialize metadata
@@ -56,7 +58,9 @@ class NumbSkull(object):
         meta['factors'] = factor.shape[0]
         meta['edges'] = edges
 
-    def loadFGFromFile(self, directory=None, metafile=None, weightfile=None, variablefile=None, factorfile=None, var_copies=1, weight_copies=1):
+    def loadFGFromFile(self, directory=None, metafile=None, weightfile=None,
+                       variablefile=None, factorfile=None, var_copies=1,
+                       weight_copies=1):
         # init necessary input arguments
         if not self.directory:
             print("No factor graph specified")
@@ -89,7 +93,8 @@ class NumbSkull(object):
         weight_data = np.memmap(directory + "/" + weightfile, mode="c")
         weight = np.empty(meta["weights"], Weight)
 
-        load_weights(weight_data, meta["weights"], weight)  # NUMBA-based function. Defined in dataloading.py
+        # NUMBA-based function. Defined in dataloading.py
+        load_weights(weight_data, meta["weights"], weight)
         if print_info and not print_only_meta:
             print("Weights:")
             for (i, w) in enumerate(weight):
@@ -101,14 +106,17 @@ class NumbSkull(object):
         # load variables
         variable_data = np.memmap(directory + "/" + variablefile, mode="c")
         variable = np.empty(meta["variables"], Variable)
-        load_variables(variable_data, meta["variables"], variable)  # NUMBA-based method. Defined in dataloading.py
+
+        # NUMBA-based method. Defined in dataloading.py
+        load_variables(variable_data, meta["variables"], variable)
         if print_info and not print_only_meta:
             print("Variables:")
             for (i, v) in enumerate(variable):
                 print("    variableId:", i)
                 print("        isEvidence:  ", v["isEvidence"])
                 print("        initialValue:", v["initialValue"])
-                print("        dataType:    ", v["dataType"], "(", dataType(v["dataType"]), ")")
+                print("        dataType:    ", v["dataType"],
+                      "(", dataType(v["dataType"]), ")")
                 print("        cardinality: ", v["cardinality"])
                 print()
 
@@ -118,14 +126,21 @@ class NumbSkull(object):
         fstart = np.zeros(meta["factors"] + 1, np.int64)
         fmap = np.zeros(meta["edges"], np.int64)
         equalPredicate = np.zeros(meta["edges"], np.int32)
-        load_factors(factor_data, meta["factors"], factor, fstart, fmap, equalPredicate)  # Numba-based method. Defined in dataloading.py
+
+        # Numba-based method. Defined in dataloading.py
+        load_factors(factor_data, meta["factors"], factor, fstart, fmap,
+                     equalPredicate)
 
         # generate variable-to-factor map
         vstart = np.zeros(meta["variables"] + 1, np.int64)
         vmap = np.zeros(meta["edges"], np.int64)
-        compute_var_map(fstart, fmap, vstart, vmap)  # Numba-based method. Defined in dataloading.py
 
-        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies, len(self.factorGraphs), self.nthreads)
+        # Numba-based method. Defined in dataloading.py
+        compute_var_map(fstart, fmap, vstart, vmap)
+
+        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap,
+                         equalPredicate, var_copies, weight_copies,
+                         len(self.factorGraphs), self.nthreads)
         self.factorGraphs.append(fg)
 
     def getFactorGraph(self, fgID=0):
@@ -135,14 +150,16 @@ class NumbSkull(object):
         burn_in = self.burn_in
         n_inference_epoch = self.n_inference_epoch
 
-        self.factorGraphs[fgID].inference(burn_in, n_inference_epoch, diagnostics=self.quiet)
+        self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
+                                          diagnostics=self.quiet)
 
     def learning(self, fgID=0):
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
         stepsize = self.stepsize
 
-        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch, stepsize, diagnostics=self.quiet)
+        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch, stepsize,
+                                      diagnostics=self.quiet)
 
 
 def main(argv=None):
@@ -163,7 +180,8 @@ def main(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file")  # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")
+    # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",

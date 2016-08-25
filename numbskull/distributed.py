@@ -54,7 +54,8 @@ def server(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file")  # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")
+    # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",
@@ -123,8 +124,12 @@ def server(argv=None):
     else:
         var_copies = 1
         weight_copies = 1
-        (meta, weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate) = gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable, arg.factor, not arg.quiet, not arg.verbose)
-        fg_args = (weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies)
+        (meta, weight, variable, factor,
+         fstart, fmap, vstart, vmap, equalPredicate) = \
+            gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable,
+                       arg.factor, not arg.quiet, not arg.verbose)
+        fg_args = (weight, variable, factor, fstart, fmap, vstart,
+                   vmap, equalPredicate, var_copies, weight_copies)
         fg = gibbs.FactorGraph(*fg_args)
 
     context = zmq.Context()
@@ -145,7 +150,7 @@ def server(argv=None):
             num_clients += 1
         elif message == 'R_FACTOR_GRAPH':  # Request for factor graph
             client_id = socket.recv_json()
-            print("Received request for factor graph from client #%d." % client_id)
+            print("Received factor graph request from client #%d." % client_id)
             # TODO: check that fg != None
             # TODO
             socket.send("FACTOR_GRAPH", zmq.SNDMORE)
@@ -157,13 +162,15 @@ def server(argv=None):
                     send_array(socket, a, zmq.SNDMORE)
                 else:
                     socket.send_json(a, zmq.SNDMORE)
-            socket.send("DONE")  # TODO: could just not send SNDMORE for last arg
+            # TODO: could just not send SNDMORE for last arg
+            socket.send("DONE")
         elif message == "READY":  # Client ready
             print("Received ready.")
             # could skip this if arg.burn == 0
             socket.send("BURN", zmq.SNDMORE)
             socket.send_json(arg.burn)
-        elif message == 'DONE_BURN' or message == 'DONE_LEARN':  # Client done with burn/learning
+        elif message == 'DONE_BURN' or message == 'DONE_LEARN':
+            # Client done with burn/learning
             if message == 'DONE_BURN':  # Done burning
                 epochs = 0
             else:  # Done learning
@@ -185,7 +192,8 @@ def server(argv=None):
             # TODO: handle count
             socket.send("EXIT")
         else:
-            print("Message (%s) cannot be interpreted." % message, file=sys.stderr)
+            print("Message (%s) cannot be interpreted." % message,
+                  file=sys.stderr)
             socket.send("EXIT")
 
     return
@@ -212,7 +220,8 @@ def client(argv=None):
                         dest="meta",
                         default="graph.meta",
                         type=str,
-                        help="meta file")  # TODO: print default for meta, weight, variable, factor in help
+                        help="meta file")
+    # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
                         dest="weight",
@@ -257,8 +266,12 @@ def client(argv=None):
     else:
         var_copies = 1
         weight_copies = 1
-        (meta, weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate) = gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable, arg.factor, not arg.quiet, not arg.verbose)
-        fg = gibbs.FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap, equalPredicate, var_copies, weight_copies)
+        (meta, weight, variable, factor,
+         fstart, fmap, vstart, vmap, equalPredicate) = \
+            gibbs.load(arg.directory, arg.meta, arg.weight, arg.variable,
+                       arg.factor, not arg.quiet, not arg.verbose)
+        fg = gibbs.FactorGraph(weight, variable, factor, fstart, fmap, vstart,
+                               vmap, equalPredicate, var_copies, weight_copies)
 
     context = zmq.Context()
     print("Connecting to server...")
