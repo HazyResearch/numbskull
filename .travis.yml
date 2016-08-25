@@ -9,6 +9,7 @@ install:
   - source activate newenv
   - pip install futures
   - pip install codecov
+  - pip install coveralls
 
 script:
   - pep8 .
@@ -16,4 +17,5 @@ script:
 
 after_success:
   - codecov
+  - coveralls
 
