@@ -5,5 +5,5 @@ python:
 
 install:
 
-script: true
+script: test.py
 
