@@ -84,7 +84,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
             l1delta = reg_param * step
             weight -= step * gradient
             weight = max(0, weight - l1delta) if weight > 0 \
-                else min(0, weight + lidelta)
+                else min(0, weight + l1delta)
         else:
             weight -= step * gradient
         weight_value[weight_copy][weight_id] = weight
