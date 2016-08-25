@@ -14,7 +14,7 @@ install:
 
 script:
   - pep8 .
-  - test.py
+  - ./test.py
   - NUMBA_DISABLE_JIT=1
   - coverage run test.py
 
