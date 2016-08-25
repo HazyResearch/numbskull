@@ -13,6 +13,7 @@ class NumbSkull(object):
     """
     Main class for numbskull.
     """
+
     def __init__(self, **kwargs):
         # Default arguments
         arg_defaults = {
@@ -163,7 +164,10 @@ class NumbSkull(object):
         regularization = self.regularization
         reg_param = self.reg_param
 
-        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch, stepsize, regularization, reg_param, diagnostics=self.quiet)
+        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch,
+                                      stepsize, regularization, reg_param,
+                                      diagnostics=self.quiet,
+                                      learn_non_evidence=self.learn_non_evidence)
 
 
 def main(argv=None):
