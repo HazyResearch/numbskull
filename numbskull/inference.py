@@ -28,12 +28,6 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
                 else:
                     count[cstart[var_samp] + v] += 1
 
-    var_value[var_copy][var_samp] = \
-        draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
-                    fstart, fmap, vstart, vmap, equalPred, Z, var_value,
-                    weight_value)
-    return var_value[var_copy][var_samp]
-
 
 @jit(nopython=True, cache=True, nogil=True)
 def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
