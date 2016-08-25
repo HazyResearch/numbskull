@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/HazyResearch/numbskull.svg?branch=master)](https://travis-ci.org/HazyResearch/numbskull)
 
+[![Coverage Status](https://img.shields.io/codecov/c/github/HazyResearch/numbskull.svg)](https://codecov.io/gh/HazyResearch/numbskull)
+
 [![Coverage Status](https://coveralls.io/repos/github/HazyResearch/numbskull/badge.svg?branch=master)](https://coveralls.io/github/HazyResearch/numbskull?branch=master)
 
 A Gibbs sampling system implemented in Python by a theorist.
