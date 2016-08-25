@@ -4,7 +4,7 @@ python:
 
 install:
   - pip install conda
-  - conda create -n newenv numba
+  - conda create -n -y newenv numba
   - source activiate newenv
 
 script: ./test.py
