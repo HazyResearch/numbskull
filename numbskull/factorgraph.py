@@ -135,7 +135,8 @@ class FactorGraph(object):
             with Timer() as timer:
                 future_to_learn = \
                     {self.threadpool.submit(learnthread, threadID,
-                                            self.threads, stepsize, var_copy,
+                                            self.threads, stepsize, regularization,
+                                            reg_param, var_copy,
                                             weight_copy, self.weight,
                                             self.variable, self.factor,
                                             self.fstart, self.fmap,

@@ -83,44 +83,9 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy, weight_c
         weight =  weight_value[weight_copy][weight_id]
         if regularization == 'l2':
             weight *= (1.0 / (1.0 + reg_param * step ))
-        elif:
+        else:
             l1delta = reg_param * step
             l1delta = 0 if abs(l1delta) < 0.000001 else l1delta
-            weight -= l1del 
+            weight -= l1delta 
 
-double l1delta = reg1_param * current_stepsize; //current_stepsize;
-        if (cfg.infrs->weight_values[j] >  l1delta) {
-          cfg.infrs->weight_values[j] -= l1delta;
-        } else if (cfg.infrs->weight_values[j] < -1*l1delta) {
-          cfg.infrs->weight_values[j] += l1delta;
-        } else {
-          cfg.infrs->weight_values[j] = 0; 
-        
-   
-    # TODO: return none or sampled var?
-    # Sample the variable
-    var_value[var_copy][var_samp] = draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor, fstart, fmap, vstart, vmap, equalPred, Z, count, var_value, weight_value)
-    
-
-
-    # TODO: set initialValue
-    # TODO: if isevidence or learn_non_evidence
-    if variable[var_samp]["isEvidence"] == 1:
-        for i in range(vstart[var_samp], vstart[var_samp + 1]):
-            factor_id = vmap[i]
-            weight_id = factor[factor_id]["weightId"]
-
-            if not weight[weight_id]["isFixed"]:
-                # TODO: save time by checking if initialValue
-                # and value are equal first?
-                p0 = eval_factor(factor_id, var_samp,
-                                 variable[var_samp]["initialValue"], var_copy,
-                                 weight, variable, factor, fstart, fmap,
-                                 vstart, vmap, equalPred, Z, count, var_value,
-                                 weight_value)
-                p1 = eval_factor(factor_id, var_samp,
-                                 var_value[var_copy][var_samp], var_copy,
-                                 weight, variable, factor, fstart, fmap,
-                                 vstart, vmap, equalPred, Z, count, var_value,
-                                 weight_value)
-                weight_value[weight_copy][weight_id] += step * (p0 - p1)
+        weight_value[weight_copy][weight_id] = weight 
