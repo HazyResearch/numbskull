@@ -11,7 +11,7 @@ from inference import draw_sample, eval_factor
 def learnthread(shardID, nshards, step, regularization, reg_param,
                 var_copy, weight_copy, weight,
                 variable, factor, fstart, fmap, vstart,
-                vmap, equalPred, Z, count, var_value,
+                vmap, equalPred, Z, var_value,
                 weight_value, learn_non_evidence):
     # Identify start and end variable
     nvar = variable.shape[0]
@@ -26,14 +26,14 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
             sample_and_sgd(var_samp, step, regularization, reg_param,
                            var_copy, weight_copy, weight, variable,
                            factor, fstart, fmap, vstart, vmap,
-                           equalPred, Z, count, var_value,
+                           equalPred, Z, var_value,
                            weight_value, learn_non_evidence)
 
 
 @jit(nopython=True, cache=True, nogil=True)
 def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
                    weight_copy, weight, variable, factor, fstart, fmap,
-                   vstart, vmap, equalPred, Z, count, var_value,
+                   vstart, vmap, equalPred, Z, var_value,
                    weight_value, learn_non_evidence):
 
     # If learn_non_evidence sample twice.
@@ -42,7 +42,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
         evidence = draw_sample(var_samp, var_copy, weight_copy,
                                weight, variable, factor, fstart,
                                fmap, vstart, vmap, equalPred, Z,
-                               count, var_value, weight_value)
+                               var_value, weight_value)
     # If evidence then store the initial value in a tmp variable
     # then sample and compute the gradient.
     else:
@@ -50,7 +50,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
     # Sample the variable
     proposal = draw_sample(var_samp, var_copy, weight_copy, weight,
                            variable, factor, fstart, fmap, vstart, vmap,
-                           equalPred, Z, count, var_value, weight_value)
+                           equalPred, Z, var_value, weight_value)
 
     var_value[var_copy][var_samp] = proposal
     if not learn_non_evidence and variable[var_sample]["isEvidence"] != 1:
@@ -64,15 +64,13 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
             continue
         # Compute Gradient
         p0 = eval_factor(factor_id, var_samp,
-                         evidence, var_copy, weight,
+                         evidence, var_copy,
                          variable, factor, fstart, fmap,
-                         vstart, vmap, equalPred, Z, count,
-                         var_value, weight_value)
+                         equalPred, var_value)
         p1 = eval_factor(factor_id, var_samp,
-                         proposal, var_copy, weight,
+                         proposal, var_copy,
                          variable, factor, fstart, fmap,
-                         vstart, vmap, equalPred, Z, count,
-                         var_value, weight_value)
+                         equalPred, var_value)
         gradient = p1 - p0
         # Update weight
         weight = weight_value[weight_copy][weight_id]

@@ -30,21 +30,21 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
 
     var_value[var_copy][var_samp] = \
         draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
-                    fstart, fmap, vstart, vmap, equalPred, Z, count, var_value,
+                    fstart, fmap, vstart, vmap, equalPred, Z, var_value,
                     weight_value)
     return var_value[var_copy][var_samp]
 
 
 @jit(nopython=True, cache=True, nogil=True)
 def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
-                fstart, fmap, vstart, vmap, equalPred, Z, count, var_value,
+                fstart, fmap, vstart, vmap, equalPred, Z, var_value,
                 weight_value):
     cardinality = variable[var_samp]["cardinality"]
     for value in range(cardinality):
         Z[value] = np.exp(potential(var_samp, value, var_copy, weight_copy,
                                     weight, variable, factor, fstart, fmap,
-                                    vstart, vmap, equalPred, Z, count,
-                                    var_value, weight_value))
+                                    vstart, vmap, equalPred, Z, var_value,
+                                    weight_value))
 
     for j in range(1, cardinality):
         Z[j] += Z[j - 1]
@@ -57,22 +57,19 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
 
 @jit(nopython=True, cache=True, nogil=True)
 def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
-              fstart, fmap, vstart, vmap, equalPred, Z, count, var_value,
-              weight_value):
+              fstart, fmap, vstart, vmap, equalPred, var_value, weight_value):
     p = 0.0
     for k in range(vstart[var_samp], vstart[var_samp + 1]):
         factor_id = vmap[k]
         p += weight_value[weight_copy][factor[vmap[k]]["weightId"]] * \
-            eval_factor(factor_id, var_samp, value, var_copy, weight, variable,
-                        factor, fstart, fmap, vstart, vmap, equalPred, Z,
-                        count, var_value, weight_value)
+            eval_factor(factor_id, var_samp, value, var_copy, variable,
+                        factor, fstart, fmap, equalPred, var_value)
     return p
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def eval_factor(factor_id, var_samp, value, var_copy, weight, variable, factor,
-                fstart, fmap, vstart, vmap, equalPred, Z, count, var_value,
-                weight_value):
+def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
+                fstart, fmap, equalPred, var_value):
     if factor[factor_id]["factorFunction"] == 0:  # FUNC_IMPLY_NATURAL
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \

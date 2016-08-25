@@ -145,7 +145,7 @@ class FactorGraph(object):
                                             self.fstart, self.fmap,
                                             self.vstart, self.vmap,
                                             self.equalPred, self.Z,
-                                            self.count, self.var_value,
+                                            self.var_value,
                                             self.weight_value,
                                             learn_non_evidence):
                      threadID for threadID in range(self.threads)}
