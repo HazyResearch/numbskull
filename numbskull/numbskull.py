@@ -189,6 +189,7 @@ def main(argv=None):
 
     parser.add_argument("directory",
                         metavar="DIRECTORY",
+                        dest="directory",
                         nargs="?",
                         help="specify directory of factor graph files",
                         default=".",
