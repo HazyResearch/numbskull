@@ -3,6 +3,7 @@
 from __future__ import print_function
 from numba import jit
 
+
 @jit
 def f(x):
     print("x:", x)
@@ -12,5 +13,4 @@ def f(x):
     else:
         print("i:", i)
 
-f(0)
 f(1)
