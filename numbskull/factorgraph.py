@@ -8,23 +8,16 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 def run_pool(threadpool, threads, func, args):
-    # gibbsthread(0,
-    #                            self.threads, var_copy,
-    #                            weight_copy, self.weight,
-    #                            self.variable, self.factor,
-    #                            self.fstart, self.fmap,
-    #                            self.vstart, self.vmap,
-    #                            self.equalPred, self.Z,
-    #                            self.cstart, self.count,
-    #                            self.var_value, self.weight_value,
-    #                            False)
-    future_to_samples = \
-        [threadpool.submit(func, threadID, *args)
-         for threadID in range(threads)]
-    concurrent.futures.wait(future_to_samples)
-    for fts in future_to_samples:
-        if fts.exception() is not None:
-            raise fts.exception()
+    if threads == 1:
+        func(0, *args)
+    else:
+        future_to_samples = \
+            [threadpool.submit(func, threadID, *args)
+             for threadID in range(threads)]
+        concurrent.futures.wait(future_to_samples)
+        for fts in future_to_samples:
+            if fts.exception() is not None:
+                raise fts.exception()
 
 
 class FactorGraph(object):
