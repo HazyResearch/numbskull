@@ -16,7 +16,7 @@ script:
   - pep8 .
   - ./test.py
   - ./loadfg.py
-  - NUMBA_DISABLE_JIT=1; coverage run test.py loadfg.py
+  - NUMBA_DISABLE_JIT=1; coverage run loadfg.py
 
 after_success:
   - codecov
