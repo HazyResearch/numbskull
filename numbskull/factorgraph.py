@@ -18,7 +18,8 @@ def run_pool(threadpool, threads, func, args):
     #                            self.var_value, self.weight_value,
     #                            False)
     future_to_samples = \
-        [threadpool.submit(func, threadID, *args) for threadID in range(threads)]
+        [threadpool.submit(func, threadID, *args)
+         for threadID in range(threads)]
     concurrent.futures.wait(future_to_samples)
     for fts in future_to_samples:
         if fts.exception() is not None:
