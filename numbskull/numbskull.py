@@ -195,38 +195,38 @@ def main(argv=None):
                         type=str)
     parser.add_argument("-m", "--meta",
                         metavar="META_FILE",
-                        dest="meta",
+                        dest="metafile",
                         default="graph.meta",
                         type=str,
                         help="meta file")
     # TODO: print default for meta, weight, variable, factor in help
     parser.add_argument("-w", "--weight",
                         metavar="WEIGHTS_FILE",
-                        dest="weight",
+                        dest="weightfile",
                         default="graph.weights",
                         type=str,
                         help="weight file")
     parser.add_argument("-v", "--variable",
                         metavar="VARIABLES_FILE",
-                        dest="variable",
+                        dest="variablefile",
                         default="graph.variables",
                         type=str,
                         help="variable file")
     parser.add_argument("-f", "--factor",
                         metavar="FACTORS_FILE",
-                        dest="factor",
+                        dest="factorfile",
                         default="graph.factors",
                         type=str,
                         help="factor file")
     parser.add_argument("-l", "--n_learning_epoch",
                         metavar="NUM_LEARN_EPOCHS",
-                        dest="learn",
+                        dest="n_learning_epoch",
                         default=0,
                         type=int,
                         help="number of learning epochs")
     parser.add_argument("-i", "--n_inference_epoch",
                         metavar="NUM_INFERENCE_EPOCHS",
-                        dest="inference",
+                        dest="n_inference_epoch",
                         default=0,
                         type=int,
                         help="number of inference epochs")
@@ -262,7 +262,7 @@ def main(argv=None):
                         help="number of burn-in epochs")
     parser.add_argument("-t", "--threads",
                         metavar="NUM_THREADS",
-                        dest="threads",
+                        dest="nthreads",
                         default=1,
                         type=int,
                         help="number of threads per copy")
