@@ -87,7 +87,7 @@ arguments = [
          'help': 'number of burn-in epochs' } ),
     (('-t', '--threads'),
         {'metavar': 'NUM_THREADS',
-         'dest':'nthread',
+         'dest':'nthreads',
          'default': 1,
          'type': int,
          'help': 'number of threads to be used' } )
@@ -270,7 +270,7 @@ class NumbSkull(object):
         self.factorGraphs[fgID].learn(burn_in, n_learning_epoch,
                                       stepsize, regularization, reg_param,
                                       diagnostics=not self.quiet,
-                                      learn_non_evidence=self.learn_non_evid)
+                                      learn_non_evidence=self.learn_non_evidence)
 
 
 def main(argv=None):
