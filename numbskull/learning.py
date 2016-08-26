@@ -53,7 +53,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
                            equalPred, Z, var_value, weight_value)
 
     var_value[var_copy][var_samp] = proposal
-    if not learn_non_evidence and variable[var_sample]["isEvidence"] != 1:
+    if not learn_non_evidence and variable[var_samp]["isEvidence"] != 1:
         return
     # Compute the gradient and update the weights
     # Iterate over corresponding factors
@@ -73,18 +73,18 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
                          equalPred, var_value)
         gradient = p1 - p0
         # Update weight
-        weight = weight_value[weight_copy][weight_id]
-        if regularization == 'l2':
-            weight *= (1.0 / (1.0 + reg_param * step))
-            weight -= step * gradient
-        elif regularization == 'l1':
+        w = weight_value[weight_copy][weight_id]
+        if regularization == 2:
+            w *= (1.0 / (1.0 + reg_param * step))
+            w -= step * gradient
+        elif regularization == 1:
             # Truncated Gradient
             # "Sparse Online Learning via Truncated Gradient"
             #  Langford et al. 2009
             l1delta = reg_param * step
-            weight -= step * gradient
-            weight = max(0, weight - l1delta) if weight > 0 \
-                else min(0, weight + l1delta)
+            w -= step * gradient
+            w = max(0, w - l1delta) if w > 0 \
+                else min(0, w + l1delta)
         else:
-            weight -= step * gradient
-        weight_value[weight_copy][weight_id] = weight
+            w -= step * gradient
+        weight_value[weight_copy][weight_id] = w
