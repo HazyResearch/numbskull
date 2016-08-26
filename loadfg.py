@@ -30,7 +30,8 @@ factor[0]["weightId"] = 0
 factor[0]["featureValue"] = 0
 
 ns = numbskull.NumbSkull(n_inference_epoch=100, n_learning_epoch=100)
-ns.loadFactorGraph(weight, variable, factor, fstart, fmap, equalPredicate, edges)
+ns.loadFactorGraph(weight, variable, factor, fstart,
+                   fmap, equalPredicate, edges)
 
 ns.learning()
 ns.inference()
