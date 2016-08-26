@@ -20,7 +20,7 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
         if variable[var_samp]["isEvidence"] == 0:
             v = draw_sample(var_samp, var_copy, weight_copy, weight, variable,
                             factor, fstart, fmap, vstart, vmap, equalPred, Z,
-                            count, var_value, weight_value)
+                            var_value, weight_value)
             var_value[var_copy][var_samp] = v
             if not burnin:
                 if variable[var_samp]["cardinality"] == 2:
@@ -37,7 +37,7 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
     for value in range(cardinality):
         Z[value] = np.exp(potential(var_samp, value, var_copy, weight_copy,
                                     weight, variable, factor, fstart, fmap,
-                                    vstart, vmap, equalPred, Z, var_value,
+                                    vstart, vmap, equalPred, var_value,
                                     weight_value))
 
     for j in range(1, cardinality):
