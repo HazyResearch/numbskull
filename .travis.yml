@@ -4,6 +4,7 @@ python:
 
 install:
   - pip install pep8
+  - pip install pep257
   - pip install conda
   - conda create -y -n newenv numba
   - source activate newenv
@@ -14,6 +15,7 @@ install:
 
 script:
   - pep8 .
+  - pep257
   - ./test.py
   - ./loadfg.py
   - NUMBA_DISABLE_JIT=1 coverage run -p test.py
