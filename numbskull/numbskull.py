@@ -43,11 +43,8 @@ class NumbSkull(object):
 
         self.factorGraphs = []
 
-    def loadFactorGraph(self, weight, variable, factor, equalPredicate, edges,
-                        var_copies=1, weight_copies=1):
-        print("Not fully implemented yet")
-        return
-
+    def loadFactorGraph(self, weight, variable, factor, fstart, fmap,
+                        equalPredicate, edges, var_copies=1, weight_copies=1):
         # Assert input arguments correspond to NUMPY arrays
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
@@ -62,6 +59,18 @@ class NumbSkull(object):
         meta['variables'] = variable.shape[0]
         meta['factors'] = factor.shape[0]
         meta['edges'] = edges
+
+        # generate variable-to-factor map
+        vstart = np.zeros(meta["variables"] + 1, np.int64)
+        vmap = np.zeros(meta["edges"], np.int64)
+
+        # Numba-based method. Defined in dataloading.py
+        compute_var_map(fstart, fmap, vstart, vmap)
+
+        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap,
+                         equalPredicate, var_copies, weight_copies,
+                         len(self.factorGraphs), self.nthreads)
+        self.factorGraphs.append(fg)
 
     def loadFGFromFile(self, directory=None, metafile=None, weightfile=None,
                        variablefile=None, factorfile=None, var_copies=1,
@@ -105,7 +114,7 @@ class NumbSkull(object):
             for (i, w) in enumerate(weight):
                 print("    weightId:", i)
                 print("        isFixed:", w["isFixed"])
-                print("        weight: ", w["weight"])
+                print("        weight: ", w["initialValue"])
             print()
 
         # load variables
