@@ -69,7 +69,7 @@ FACTORS = {"FUNC_IMPLY_NATURAL": 0,
            "FUNC_LINEAR": 7,
            "FUNC_RATIO": 8,
            "FUNC_LOGICAL": 9,
-           "FUNC_AND_CATEGORICAL": 12,
+           # "FUNC_AND_CATEGORICAL": 12,
            "FUNC_IMPLY_MLN": 13}
 
 for (key, value) in FACTORS.iteritems():
@@ -148,9 +148,9 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
             if v == head:
                 return 1
         return 0
-    elif factor[factor_id]["factorFunction"] == FUNC_AND_CATEGORICAL:
-        # TODO
-        pass
+    # elif factor[factor_id]["factorFunction"] == FUNC_AND_CATEGORICAL:
+    #     # TODO
+    #     pass
     elif factor[factor_id]["factorFunction"] == FUNC_IMPLY_MLN:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
