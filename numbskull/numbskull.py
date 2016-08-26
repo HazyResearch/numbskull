@@ -12,14 +12,14 @@ import numpy as np
 
 # Define arguments for both parser in main and NumbSkull
 arguments = [
-    (tuple(['directory']), 
-        {'metavar': 'DIRECTORY', 
+    (tuple(['directory']),
+        {'metavar': 'DIRECTORY',
          'nargs': '?',
          'default': '.',
          'type': str,
          'help': 'specify the directory of factor graph files'}),
     # TODO: print default for meta, weight, variable, factor in help
-    (('-m', '--meta'), 
+    (('-m', '--meta'),
         {'metavar': 'META_FILE',
          'dest': 'metafile',
          'default': 'graph.meta',
@@ -51,7 +51,7 @@ arguments = [
          'help': 'number of learning epochs'}),
     (('-i', '--n_inference_epoch'),
         {'metavar': 'NUM_INFERENCE_EPOCHS',
-         'dest':'n_inference_epoch',
+         'dest': 'n_inference_epoch',
          'default': 0,
          'type': int,
          'help': 'number of inference epochs'}),
@@ -81,13 +81,13 @@ arguments = [
          'help': 'regularization (l1 or l2)'}),
     (('-b', '--burn_in'),
         {'metavar': 'BURN_IN',
-         'dest':'burn_in',
+         'dest': 'burn_in',
          'default': 0,
          'type': int,
          'help': 'number of burn-in epochs'}),
     (('-t', '--threads'),
         {'metavar': 'NUM_THREADS',
-         'dest':'nthreads',
+         'dest': 'nthreads',
          'default': 1,
          'type': int,
          'help': 'number of threads to be used'})
@@ -266,11 +266,11 @@ class NumbSkull(object):
         stepsize = self.stepsize
         regularization = self.regularization
         reg_param = self.reg_param
-
-        self.factorGraphs[fgID].learn(burn_in, n_learning_epoch,
-                                    stepsize, regularization, reg_param,
-                                    diagnostics=not self.quiet,
-                                    learn_non_evidence=self.learn_non_evidence)
+        fg = self.factorGraphs[fgID]
+        fg.learn(burn_in, n_learning_epoch,
+                 stepsize, regularization, reg_param,
+                 diagnostics=not self.quiet,
+                 learn_non_evidence=self.learn_non_evidence)
 
 
 def main(argv=None):
