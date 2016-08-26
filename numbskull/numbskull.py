@@ -86,8 +86,8 @@ class NumbSkull(object):
         weightfile = 'graph.weights' if not weightfile else weightfile
         variablefile = 'graph.variables' if not variablefile else variablefile
         factorfile = 'graph.factors' if not factorfile else factorfile
-        print_info = self.quiet
-        print_only_meta = self.verbose
+        print_info = not self.quiet
+        print_only_meta = not self.verbose
 
         # load metadata
         meta = np.loadtxt(directory + "/" + metafile,
@@ -165,7 +165,7 @@ class NumbSkull(object):
         n_inference_epoch = self.n_inference_epoch
 
         self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
-                                          diagnostics=self.quiet)
+                                          diagnostics=not self.quiet)
 
     def learning(self, fgID=0):
         burn_in = self.burn_in
@@ -176,7 +176,7 @@ class NumbSkull(object):
 
         self.factorGraphs[fgID].learn(burn_in, n_learning_epoch,
                                       stepsize, regularization, reg_param,
-                                      diagnostics=self.quiet,
+                                      diagnostics=not self.quiet,
                                       learn_non_evidence=self.learn_non_evid)
 
 
