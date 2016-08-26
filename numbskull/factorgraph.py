@@ -6,6 +6,25 @@ import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
 
+def run_pool(threadpool, threads, func, args):
+    # gibbsthread(0,
+    #                            self.threads, var_copy,
+    #                            weight_copy, self.weight,
+    #                            self.variable, self.factor,
+    #                            self.fstart, self.fmap,
+    #                            self.vstart, self.vmap,
+    #                            self.equalPred, self.Z,
+    #                            self.cstart, self.count,
+    #                            self.var_value, self.weight_value,
+    #                            False)
+    future_to_samples = \
+        [threadpool.submit(func, threadID, *args) for threadID in range(threads)]
+    concurrent.futures.wait(future_to_samples)
+    for fts in future_to_samples:
+        if fts.exception() is not None:
+            raise fts.exception()
+
+
 class FactorGraph(object):
 
     def __init__(self, weight, variable, factor, fstart, fmap, vstart, vmap,
@@ -102,19 +121,12 @@ class FactorGraph(object):
         print ("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
         for ep in range(epochs):
             with Timer() as timer:
-                future_to_samples = \
-                    {self.threadpool.submit(gibbsthread, threadID,
-                                            self.threads, var_copy,
-                                            weight_copy, self.weight,
-                                            self.variable, self.factor,
-                                            self.fstart, self.fmap,
-                                            self.vstart, self.vmap,
-                                            self.equalPred, self.Z,
-                                            self.cstart, self.count,
-                                            self.var_value, self.weight_value,
-                                            False):
-                     threadID for threadID in range(self.threads)}
-                concurrent.futures.wait(future_to_samples)
+                args = (self.threads, var_copy, weight_copy, self.weight,
+                        self.variable, self.factor, self.fstart, self.fmap,
+                        self.vstart, self.vmap, self.equalPred, self.Z,
+                        self.cstart, self.count, self.var_value,
+                        self.weight_value, False)
+                run_pool(self.threadpool, self.threads, gibbsthread, args)
             self.inference_epoch_time = timer.interval
             self.inference_total_time += timer.interval
             if diagnostics:
@@ -135,21 +147,12 @@ class FactorGraph(object):
         print ("FACTOR " + str(self.fid) + ": STARTED LEARNING")
         for ep in range(epochs):
             with Timer() as timer:
-                future_to_learn = \
-                    {self.threadpool.submit(learnthread, threadID,
-                                            self.threads, stepsize,
-                                            regularization,
-                                            reg_param, var_copy,
-                                            weight_copy, self.weight,
-                                            self.variable, self.factor,
-                                            self.fstart, self.fmap,
-                                            self.vstart, self.vmap,
-                                            self.equalPred, self.Z,
-                                            self.var_value,
-                                            self.weight_value,
-                                            learn_non_evidence):
-                     threadID for threadID in range(self.threads)}
-                concurrent.futures.wait(future_to_learn)
+                args = (self.threads, stepsize, regularization, reg_param,
+                        var_copy, weight_copy, self.weight, self.variable,
+                        self.factor, self.fstart, self.fmap, self.vstart,
+                        self.vmap, self.equalPred, self.Z, self.var_value,
+                        self.weight_value, learn_non_evidence)
+                run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval
             self.learning_total_time += timer.interval
             if diagnostics:
