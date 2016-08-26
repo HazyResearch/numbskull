@@ -7,8 +7,8 @@ from numba import jit
 def f(x):
     print("x:", x)
     if x == 0:
-        for i in range(3):
-            print("i:", i)
+        i = 1
+        print("i:", i)
     else:
         print("i:", i)
 
