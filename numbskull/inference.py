@@ -119,7 +119,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
         return 1
     elif factor[factor_id]["factorFunction"] == FUNC_LINEAR:
         res = 0
-        head = value if (fmap[l] == var_samp) \
+        head = value if (fmap[fstart[factor_id + 1] - 1] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
@@ -130,7 +130,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
         return res
     elif factor[factor_id]["factorFunction"] == FUNC_RATIO:
         res = 1
-        head = value if (fmap[l] == var_samp) \
+        head = value if (fmap[fstart[factor_id + 1] - 1] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
@@ -140,7 +140,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
         # This does not match Dimmwitted, but matches the eq in the paper
         return math.log(res)  # TODO: use log2?
     elif factor[factor_id]["factorFunction"] == FUNC_LOGICAL:
-        head = value if (fmap[l] == var_samp) \
+        head = value if (fmap[fstart[factor_id + 1] - 1] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
