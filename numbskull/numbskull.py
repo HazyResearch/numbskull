@@ -10,34 +10,127 @@ from numbskulltypes import *
 import numpy as np
 
 
+# Define arguments for both parser in main and NumbSkull
+arguments = [
+    (tuple(['directory']), 
+        {'metavar': 'DIRECTORY', 
+         'nargs': '?',
+         'default': '.',
+         'type': str,
+         'help': 'specify the directory of factor graph files'} ),
+    # TODO: print default for meta, weight, variable, factor in help
+    (('-m', '--meta'), 
+        {'metavar': 'META_FILE',
+         'dest':'metafile',
+         'default': 'graph.meta',
+         'type': str,
+         'help': 'factor graph metadata file' } ),
+    (('-w', '--weight'),
+        {'metavar': 'WEIGHTS_FILE',
+         'dest':'weightfile',
+         'default': 'graph.weights',
+         'type': str,
+         'help': 'factor weight file' } ),
+    (('-v', '--variable'),
+        {'metavar': 'VARIABLES_FILE',
+         'dest':'variablefile',
+         'default': 'graph.variables',
+         'type': str,
+         'help': 'factor graph variables file' } ),
+    (('-f', '--factor'),
+        {'metavar': 'FACTORS_FILE',
+         'dest':'factorfile',
+         'default': 'graph.factors',
+         'type': str,
+         'help': 'factor file' } ),
+    (('-l', '--n_learning_epoch'),
+        {'metavar': 'NUM_LEARNING_EPOCHS',
+         'dest':'n_learning_epoch',
+         'default': 0,
+         'type': int,
+         'help': 'number of learning epochs' } ),
+    (('-i', '--n_inference_epoch'),
+        {'metavar': 'NUM_INFERENCE_EPOCHS',
+         'dest':'n_inference_epoch',
+         'default': 0,
+         'type': int,
+         'help': 'number of inference epochs' } ),
+    (('-s', '--stepsize'),
+        {'metavar': 'LEARNING_STEPSIZE',
+         'dest':'stepsize',
+         'default': 0.01,
+         'type': float,
+         'help': 'stepsize for learning' } ),
+    (('-d', '--decay'),
+        {'metavar': 'LEARNING_DECAY',
+         'dest':'decay',
+         'default': 0.95,
+         'type': float,
+         'help': 'decay for updating stepsize during learning' } ),
+    (('-r', '--reg_param'),
+        {'metavar': 'LEARNING_REGULARIZATION_PARAM',
+         'dest':'reg_param',
+         'default': 1.0,
+         'type': float,
+         'help': 'regularization penalty' } ),
+    (tuple(['--regularization']),
+        {'metavar': 'REGULARIZATION',
+         'dest':'regularization',
+         'default': 2,
+         'type': int,
+         'help': 'regularization (l1 or l2)' } ),
+    (('-b', '--burn_in'),
+        {'metavar': 'BURN_IN',
+         'dest':'burn_in',
+         'default': 0,
+         'type': int,
+         'help': 'number of burn-in epochs' } ),
+    (('-t', '--threads'),
+        {'metavar': 'NUM_THREADS',
+         'dest':'nthread',
+         'default': 1,
+         'type': int,
+         'help': 'number of threads to be used' } )
+]
+
+flags = [
+    (tuple(['--sample_evidence']),
+        {'default': False,
+         'action': 'store_true',
+         'help': 'sample evidence variables' } ),
+    (tuple(['--learn_non_evidence']),
+        {'default': False,
+         'action': 'store_true',
+         'help': 'learn from non-evidence variables' } ),
+    (tuple(['--quiet']),
+        {'default': False,
+         'action': 'store_true',
+         'help': 'quiet' } ),
+    (tuple(['--verbose']),
+        {'default': False,
+         'action': 'store_true',
+         'help': 'verbose' } )
+]
+
+
 class NumbSkull(object):
     """
     Main class for numbskull.
     """
 
     def __init__(self, **kwargs):
-        # Default arguments
-        arg_defaults = {
-            "directory": None,
-            "metafile": None,
-            "weightfile": None,
-            "variablefile": None,
-            "factorfile": None,
-            "nthreads": 1,
-            "n_learning_epoch": 0,
-            "n_inference_epoch": 0,
-            "burn_in": 0,
-            "stepsize": 0.01,
-            "decay": 0.95,
-            "regularization": 2,
-            "reg_param": 1,
-            "sample_evidence": False,
-            "learn_non_evid": False,
-            "quiet": True,
-            "verbose": False,
-            "version": "0.0"
-        }
-
+        # Set version
+        self.version = "0.0"
+        # Initialize default execution arguments
+        arg_defaults = {}
+        for arg, opts in arguments:
+            if 'directory' in arg[0]:
+                arg_defaults['directory'] = opts['default']
+            else:
+                arg_defaults[opts['dest']] = opts['default']
+        # Initialize default execution flags
+        for arg, opts in flags:
+            arg_defaults[arg[0].strip('--')] = opts['default']
         for (arg, default) in arg_defaults.iteritems():
             setattr(self, arg, kwargs.get(arg, default))
 
@@ -186,112 +279,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Runs a Gibbs sampler",
         epilog="")
-
-    parser.add_argument("directory",
-                        metavar="DIRECTORY",
-                        nargs="?",
-                        help="specify directory of factor graph files",
-                        default=".",
-                        type=str)
-    parser.add_argument("-m", "--meta",
-                        metavar="META_FILE",
-                        dest="metafile",
-                        default="graph.meta",
-                        type=str,
-                        help="meta file")
-    # TODO: print default for meta, weight, variable, factor in help
-    parser.add_argument("-w", "--weight",
-                        metavar="WEIGHTS_FILE",
-                        dest="weightfile",
-                        default="graph.weights",
-                        type=str,
-                        help="weight file")
-    parser.add_argument("-v", "--variable",
-                        metavar="VARIABLES_FILE",
-                        dest="variablefile",
-                        default="graph.variables",
-                        type=str,
-                        help="variable file")
-    parser.add_argument("-f", "--factor",
-                        metavar="FACTORS_FILE",
-                        dest="factorfile",
-                        default="graph.factors",
-                        type=str,
-                        help="factor file")
-    parser.add_argument("-l", "--n_learning_epoch",
-                        metavar="NUM_LEARN_EPOCHS",
-                        dest="n_learning_epoch",
-                        default=0,
-                        type=int,
-                        help="number of learning epochs")
-    parser.add_argument("-i", "--n_inference_epoch",
-                        metavar="NUM_INFERENCE_EPOCHS",
-                        dest="n_inference_epoch",
-                        default=0,
-                        type=int,
-                        help="number of inference epochs")
-    parser.add_argument("-s", "--stepsize",
-                        metavar="LEARNING_STEPSIZE",
-                        dest="stepsize",
-                        default=0.01,
-                        type=float,
-                        help="stepsize for learning")
-    parser.add_argument("-d", "--decay",
-                        metavar="LEARNING_DECAY",
-                        dest="decay",
-                        default=0.95,
-                        type=float,
-                        help="decay for learning")
-    parser.add_argument("-r", "--reg_param",
-                        metavar="LEARNING_REGULARIZATION_PARAM",
-                        dest="reg_param",
-                        default=1.0,
-                        type=float,
-                        help="regularization parameter for learning")
-    parser.add_argument("-p", "--regularization",
-                        metavar="REGULARIZATION",
-                        dest="regularization",
-                        default=2,
-                        type=int,
-                        help="regularization (l1 or l2)")
-    parser.add_argument("-b", "--burn_in",
-                        metavar="BURN_IN",
-                        dest="burn_in",
-                        default=0,
-                        type=int,
-                        help="number of burn-in epochs")
-    parser.add_argument("-t", "--threads",
-                        metavar="NUM_THREADS",
-                        dest="nthreads",
-                        default=1,
-                        type=int,
-                        help="number of threads per copy")
-    parser.add_argument("-q", "--quiet",
-                        dest="quiet",
-                        default=False,
-                        action="store_true",
-                        help="quiet")
-    parser.add_argument("--sample_evidence",
-                        dest="sample_evidence",
-                        default=False,
-                        action="store_true",
-                        help="sample evidence")
-    parser.add_argument("--learn_non_evidence",
-                        dest="learn_non_evid",
-                        default=False,
-                        action="store_true",
-                        help="learn non evidence")
-    # TODO: verbose option (print all info)
-    parser.add_argument("--verbose",
-                        dest="verbose",
-                        default=False,
-                        action="store_true",
-                        help="verbose")
+    # Add version to parser
     parser.add_argument("--version",
                         action='version',
                         version="%(prog)s 0.0",
                         help="print version number")
-
+    # Add execution arguments to parser
+    for arg, opts in arguments:
+        parser.add_argument(*arg, **opts)
+    # Add flags to parser
+    for arg, opts in flags:
+        parser.add_argument(*arg, **opts)
     # Initialize NumbSkull #
     args = parser.parse_args(argv)
     ns = NumbSkull(**vars(args))
