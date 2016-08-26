@@ -61,10 +61,25 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
     return p
 
 
+FACTORS = {"FUNC_IMPLY_NATURAL": 0,
+           "FUNC_OR": 1,
+           "FUNC_EQUAL": 3,
+           "FUNC_AND": 2,
+           "FUNC_ISTRUE": 4,
+           "FUNC_LINEAR": 7,
+           "FUNC_RATIO": 8,
+           "FUNC_LOGICAL": 9,
+           "FUNC_AND_CATEGORICAL": 12,
+           "FUNC_IMPLY_MLN": 13}
+
+for (key, value) in FACTORS.iteritems():
+    exec(key + " = " + str(value))
+
+
 @jit(nopython=True, cache=True, nogil=True)
 def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 fstart, fmap, equalPred, var_value):
-    if factor[factor_id]["factorFunction"] == 0:  # FUNC_IMPLY_NATURAL
+    if factor[factor_id]["factorFunction"] == FUNC_IMPLY_NATURAL:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
                 else var_value[var_copy][fmap[l]]
@@ -78,14 +93,14 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
         if head:
             return 1
         return -1
-    elif factor[factor_id]["factorFunction"] == 1:  # FUNC_OR
+    elif factor[factor_id]["factorFunction"] == FUNC_OR:
         for l in range(fstart[factor_id], fstart[factor_id + 1]):
             v = value if (fmap[l] == var_samp) \
                 else var_value[var_copy][fmap[l]]
             if v == 1:
                 return 1
         return -1
-    elif factor[factor_id]["factorFunction"] == 3:  # FUNC_EQUAL
+    elif factor[factor_id]["factorFunction"] == FUNC_EQUAL:
         v = value if (fmap[fstart[factor_id]] == var_samp) \
             else var_value[var_copy][fmap[fstart[factor_id]]]
         for l in range(fstart[factor_id] + 1, fstart[factor_id + 1]):
@@ -94,16 +109,15 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
             if v != w:
                 return -1
         return 1
-    elif factor[factor_id]["factorFunction"] == 2 \
-            or factor[factor_id]["factorFunction"] == 4:
-        # FUNC_AND or FUNC_ISTRUE
+    elif factor[factor_id]["factorFunction"] == FUNC_AND \
+            or factor[factor_id]["factorFunction"] == FUNC_ISTRUE:
         for l in range(fstart[factor_id], fstart[factor_id + 1]):
             v = value if (fmap[l] == var_samp) \
                 else var_value[var_copy][fmap[l]]
             if v == 0:
                 return -1
         return 1
-    elif factor[factor_id]["factorFunction"] == 7:  # FUNC_LINEAR
+    elif factor[factor_id]["factorFunction"] == FUNC_LINEAR:
         res = 0
         head = value if (fmap[l] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
@@ -114,7 +128,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 res += 1
         # This does not match Dimmwitted, but matches the eq in the paper
         return res
-    elif factor[factor_id]["factorFunction"] == 8:  # FUNC_RATIO
+    elif factor[factor_id]["factorFunction"] == FUNC_RATIO:
         res = 1
         head = value if (fmap[l] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
@@ -125,7 +139,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 res += 1
         # This does not match Dimmwitted, but matches the eq in the paper
         return math.log(res)  # TODO: use log2?
-    elif factor[factor_id]["factorFunction"] == 9:  # FUNC_LOGICAL
+    elif factor[factor_id]["factorFunction"] == FUNC_LOGICAL:
         head = value if (fmap[l] == var_samp) \
             else var_value[var_copy][fmap[factor_id + 1] - 1]
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
@@ -134,10 +148,10 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
             if v == head:
                 return 1
         return 0
-    elif factor[factor_id]["factorFunction"] == 12:  # FUNC_AND_CATEGORICAL
+    elif factor[factor_id]["factorFunction"] == FUNC_AND_CATEGORICAL:
         # TODO
         pass
-    elif factor[factor_id]["factorFunction"] == 13:  # FUNC_IMPLY_MLN
+    elif factor[factor_id]["factorFunction"] == FUNC_IMPLY_MLN:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
                 else var_value[var_copy][fmap[l]]
