@@ -11,7 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+.. automodule:: numbskull
 
+.. autoclass:: NumbSkull
+    :members:
 
 Indices and tables
 ==================
