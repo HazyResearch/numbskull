@@ -61,16 +61,23 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
     return p
 
 
-FACTORS = {"FUNC_IMPLY_NATURAL": 0,
-           "FUNC_OR": 1,
-           "FUNC_EQUAL": 3,
-           "FUNC_AND": 2,
-           "FUNC_ISTRUE": 4,
-           "FUNC_LINEAR": 7,
-           "FUNC_RATIO": 8,
-           "FUNC_LOGICAL": 9,
-           # "FUNC_AND_CATEGORICAL": 12,
-           "FUNC_IMPLY_MLN": 13}
+FACTORS = { # Factor functions for boolean variables
+            "FUNC_IMPLY_NATURAL": 0,
+            "FUNC_OR": 1,
+            "FUNC_EQUAL": 3,
+            "FUNC_AND": 2,
+            "FUNC_ISTRUE": 4,
+            "FUNC_LINEAR": 7,
+            "FUNC_RATIO": 8,
+            "FUNC_LOGICAL": 9,
+            "FUNC_IMPLY_MLN": 13,
+            # Factor functions for categorical variables
+            "FUNC_AND_CAT": 12,
+            "FUNC_OR_CAT": 14,
+            "FUNC_EQUAL_CAT_CONST": 15,
+            "FUNC_IMPLY_NATURAL_CAT": 16,
+            "FUNC_IMPLY_MLN_CAT": 17
+          }
 
 for (key, value) in FACTORS.iteritems():
     exec(key + " = " + str(value))
@@ -79,6 +86,7 @@ for (key, value) in FACTORS.iteritems():
 @jit(nopython=True, cache=True, nogil=True)
 def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 fstart, fmap, equalPred, var_value):
+    # Implementation of factor functions for categorical variables
     if factor[factor_id]["factorFunction"] == FUNC_IMPLY_NATURAL:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
@@ -88,8 +96,9 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 return 0
 
         # If this point is reached, body must be true
+        l = fstart[factor_id + 1] - 1
         head = value if (fmap[l] == var_samp) \
-            else var_value[var_copy][fmap[factor_id + 1] - 1]
+            else var_value[var_copy][l]
         if head:
             return 1
         return -1
@@ -148,9 +157,6 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
             if v == head:
                 return 1
         return 0
-    # elif factor[factor_id]["factorFunction"] == FUNC_AND_CATEGORICAL:
-    #     # TODO
-    #     pass
     elif factor[factor_id]["factorFunction"] == FUNC_IMPLY_MLN:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
             v = value if (fmap[l] == var_samp) \
@@ -160,9 +166,56 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 return 1
 
         # If this point is reached, body must be true
+        l = fstart[factor_id + 1] - 1
         head = value if (fmap[l] == var_samp) \
-            else var_value[var_copy][fmap[factor_id + 1] - 1]
+            else var_value[var_copy][l]
         if head:
+            return 1
+        return 0
+    # Implementation of factor functions for categorical variables
+    elif factor[factor_id]["factorFunction"] == FUNC_AND_CAT \
+            or factor[factor_id]["factorFunction"] == FUNC_EQUAL_CAT_CONST:
+        for l in range(fstart[factor_id], fstart[factor_id + 1]):
+            v = value if (fmap[l] == var_samp) \
+                else var_value[var_copy][fmap[l]]
+            if v != equalPred[l]:
+                return -1
+        return 1
+    elif factor[factor_id]["factorFunction"] == FUNC_OR_CAT:
+        for l in range(fstart[factor_id], fstart[factor_id + 1]):
+            v = value if (fmap[l] == var_samp) \
+                else var_value[var_copy][fmap[l]]
+            if v == equalPred[l]:
+                return 1
+        return -1
+    elif factor[factor_id]["factorFunction"] == FUNC_IMPLY_NATURAL_CAT:
+        for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
+            v = value if (fmap[l] == var_samp) \
+                else var_value[var_copy][fmap[l]]
+            if v != equalPred[l]:
+                # Early return if body is not satisfied
+                return 0
+
+        # If this point is reached, body must be true
+        l = fstart[factor_id + 1] - 1
+        head = value if (fmap[l] == var_samp) \
+            else var_value[var_copy][l]
+        if head == equalPred[l]:
+            return 1
+        return -1
+    elif factor[factor_id]["factorFunction"] == FUNC_IMPLY_MLN_CAT:
+        for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):
+            v = value if (fmap[l] == var_samp) \
+                else var_value[var_copy][fmap[l]]
+            if v != equalPred[l]:
+                # Early return if body is not satisfied
+                return 1
+
+        # If this point is reached, body must be true
+        l = fstart[factor_id + 1] - 1
+        head = value if (fmap[l] == var_samp) \
+            else var_value[var_copy][l]
+        if head == equalPred[l]:
             return 1
         return 0
     else:  # FUNC_UNDEFINED
