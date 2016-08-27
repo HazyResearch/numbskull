@@ -131,7 +131,7 @@ class FactorGraph(object):
         if diagnostics:
             self.diagnostics(epochs)
 
-    def learn(self, burnin_epochs, epochs, stepsize,
+    def learn(self, burnin_epochs, epochs, stepsize, decay,
               regularization, reg_param, diagnostics=False,
               learn_non_evidence=False, var_copy=0, weight_copy=0):
         # Burn-in
@@ -150,6 +150,8 @@ class FactorGraph(object):
                 run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval
             self.learning_total_time += timer.interval
+            # Decay stepsize
+            stepsize *= decay
             if diagnostics:
                 print ("FACTOR " + str(self.fid) + ": EPOCH " + str(ep))
                 self.diagnosticsLearning(weight_copy)

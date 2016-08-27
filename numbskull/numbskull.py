@@ -264,11 +264,12 @@ class NumbSkull(object):
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
         stepsize = self.stepsize
+        decay = self.decay
         regularization = self.regularization
         reg_param = self.reg_param
         fg = self.factorGraphs[fgID]
         fg.learn(burn_in, n_learning_epoch,
-                 stepsize, regularization, reg_param,
+                 stepsize, decay, regularization, reg_param,
                  diagnostics=not self.quiet,
                  learn_non_evidence=self.learn_non_evidence)
 
