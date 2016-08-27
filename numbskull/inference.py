@@ -61,7 +61,7 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
     return p
 
 
-FACTORS = { # Factor functions for boolean variables
+FACTORS = {  # Factor functions for boolean variables
             "FUNC_IMPLY_NATURAL": 0,
             "FUNC_OR": 1,
             "FUNC_EQUAL": 3,
@@ -71,7 +71,7 @@ FACTORS = { # Factor functions for boolean variables
             "FUNC_RATIO": 8,
             "FUNC_LOGICAL": 9,
             "FUNC_IMPLY_MLN": 13,
-            # Factor functions for categorical variables
+             # Factor functions for categorical variables
             "FUNC_AND_CAT": 12,
             "FUNC_OR_CAT": 14,
             "FUNC_EQUAL_CAT_CONST": 15,
