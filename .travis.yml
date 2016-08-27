@@ -6,9 +6,8 @@ install:
   - pip install pep8
   - pip install pep257
   - pip install conda
-  - conda create -y -n newenv numba
+  - conda create -y -n newenv numba futures
   - source activate newenv
-  - conda install -y futures
   - pip install codecov
   - pip install coveralls
   - pip install codeclimate-test-reporter
