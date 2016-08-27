@@ -1,4 +1,5 @@
 name: env
 dependencies:
   - numba
+  - futures
 
