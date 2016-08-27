@@ -154,5 +154,6 @@ class FactorGraph(object):
             stepsize *= decay
             if diagnostics:
                 print ("FACTOR " + str(self.fid) + ": EPOCH " + str(ep))
+                print ("Current stepsize = "+str(stepsize))
                 self.diagnosticsLearning(weight_copy)
         print ("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
