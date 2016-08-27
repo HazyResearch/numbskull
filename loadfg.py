@@ -40,7 +40,9 @@ for (key, value) in numbskull.inference.FACTORS.iteritems():
     for i in range(variables):
         fmap[i] = i
 
-    ns = numbskull.NumbSkull(n_inference_epoch=100, n_learning_epoch=100)
+    ns = numbskull.NumbSkull(n_inference_epoch=100,
+                             n_learning_epoch=100,
+                             quiet=True)
     ns.loadFactorGraph(weight, variable, factor, fstart,
                        fmap, equalPredicate, edges)
 
