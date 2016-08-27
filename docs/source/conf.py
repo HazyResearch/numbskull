@@ -155,8 +155,8 @@ html_theme = 'alabaster'
 # html_logo = None
 
 # The name of an image file (relative to this directory) to use as a favicon of
-# the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
+# the docs.  This file should be a Windows icon file (.ico) being 16x16 or
+# 32x32 pixels large.
 #
 # html_favicon = None
 
@@ -350,7 +350,7 @@ texinfo_documents = [
 
 # Mock modules to avoid ImportErrors when building docs
 # Added by Nathan Keim, 130825
-# See http://docs.readthedocs.org/en/latest/faq.html#my-project-isn-t-building-with-autodoc
+# See http://docs.readthedocs.org/en/latest/faq.html
 # Copied from https://github.com/nkeim/trackpy/blob/numba/doc/source/conf.py
 class Mock(object):
     def __init__(self, *args, **kwargs):
