@@ -370,7 +370,7 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['numba', 'concurrent.futures']
+MOCK_MODULES = ['numba', 'concurrent.futures', 'numpy']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
