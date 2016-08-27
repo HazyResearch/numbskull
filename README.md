@@ -1,5 +1,7 @@
 # Numbskull #
 
+<img src="fig/numbskull.png" width=150>
+
 [![Build Status](https://travis-ci.org/HazyResearch/numbskull.svg?branch=master)](https://travis-ci.org/HazyResearch/numbskull)
 
 [![Coverage Status](https://img.shields.io/codecov/c/github/HazyResearch/numbskull.svg)](https://codecov.io/gh/HazyResearch/numbskull)
