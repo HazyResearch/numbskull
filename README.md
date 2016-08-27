@@ -12,6 +12,8 @@
 
 [![Issue Count](https://codeclimate.com/github/HazyResearch/numbskull/badges/issue_count.svg)](https://codeclimate.com/github/HazyResearch/numbskull)
 
+[![Documentation Status](https://readthedocs.org/projects/numbskull/badge/?version=latest)](http://numbskull.readthedocs.io/en/latest/?badge=latest)
+
 A Gibbs sampling system implemented in Python by a theorist.
 
 > We here highly resolve that these code bases shall not have died in vain—that this system, under God, shall have a new birth of scalability—and that parallelism of the boxes, by the boxes, for the boxes, shall not perish from the earth.
