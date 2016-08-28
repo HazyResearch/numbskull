@@ -368,3 +368,5 @@ def skip(app, what, name, obj, skip, options):
 def setup(app):
     """TODO."""
     app.connect("autodoc-skip-member", skip)
+
+numpydoc_show_class_members = False
