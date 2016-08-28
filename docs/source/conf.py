@@ -353,6 +353,7 @@ texinfo_documents = [
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 
+# Allow __init__ to be autodoc'ed
 def skip(app, what, name, obj, skip, options):
     if name == "__init__":
         return False
