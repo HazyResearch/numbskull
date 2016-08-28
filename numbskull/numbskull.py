@@ -119,6 +119,18 @@ class NumbSkull(object):
     """
 
     def __init__(self, **kwargs):
+        """This is a function named __init__.
+
+        Parameters
+        ----------
+        paramater : type
+           This is a parameter
+
+        Returns
+        -------
+        describe : type
+            Expanation
+        """
         # Set version
         self.version = "0.0"
         # Initialize default execution arguments
@@ -138,6 +150,18 @@ class NumbSkull(object):
 
     def loadFactorGraph(self, weight, variable, factor, fstart, fmap,
                         equalPredicate, edges, var_copies=1, weight_copies=1):
+        """This is a function named loadFGFromFile.
+
+        Parameters
+        ----------
+        parameter : type
+           This is a parameter
+
+        Returns
+        -------
+        describe : type
+            Expanation
+        """
         # Assert input arguments correspond to NUMPY arrays
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
