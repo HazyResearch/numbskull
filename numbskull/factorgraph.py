@@ -1,3 +1,5 @@
+"""TODO."""
+
 from __future__ import print_function
 import numpy as np
 from inference import *
@@ -8,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 def run_pool(threadpool, threads, func, args):
+    """TODO."""
     if threads == 1:
         func(0, *args)
     else:
@@ -21,9 +24,11 @@ def run_pool(threadpool, threads, func, args):
 
 
 class FactorGraph(object):
+    """TODO."""
 
     def __init__(self, weight, variable, factor, fstart, fmap, vstart, vmap,
                  equalPredicate, var_copies, weight_copies, fid, workers):
+        """TODO."""
         self.weight = weight
         self.variable = variable
         self.factor = factor
@@ -59,6 +64,7 @@ class FactorGraph(object):
         self.learning_total_time = 0.0
 
     def clear(self):
+        """TODO."""
         self.count[:] = 0
         self.threadpool.shutdown()
 
@@ -67,6 +73,7 @@ class FactorGraph(object):
     #################
 
     def getWeights(self, weight_copy=0):
+        """TODO."""
         return self.weight_value[weight_copy][:]
 
     #####################
@@ -74,6 +81,7 @@ class FactorGraph(object):
     #####################
 
     def diagnostics(self, epochs):
+        """TODO."""
         print('Inference took %.03f sec.' % self.inference_total_time)
         bins = 10
         hist = np.zeros(bins, dtype=np.int64)
@@ -83,6 +91,7 @@ class FactorGraph(object):
             print(i, hist[i])
 
     def diagnosticsLearning(self, weight_copy=0):
+        """TODO."""
         print('Learning epoch took %.03f sec.' % self.learning_epoch_time)
         print("Weights:")
         for (i, w) in enumerate(self.weight):
@@ -96,6 +105,7 @@ class FactorGraph(object):
     ################################
 
     def burnIn(self, epochs, var_copy=0, weight_copy=0):
+        """TODO."""
         print ("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
         shardID, nshards = 0, 1
         # NUMBA-based method. Implemented in inference.py
@@ -108,6 +118,7 @@ class FactorGraph(object):
 
     def inference(self, burnin_epochs, epochs, diagnostics=False,
                   var_copy=0, weight_copy=0):
+        """TODO."""
         # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)
@@ -134,6 +145,7 @@ class FactorGraph(object):
     def learn(self, burnin_epochs, epochs, stepsize, decay,
               regularization, reg_param, diagnostics=False,
               learn_non_evidence=False, var_copy=0, weight_copy=0):
+        """TODO."""
         # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)

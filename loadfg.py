@@ -1,10 +1,44 @@
 #!/usr/bin/env python
 
+"""TODO."""
+
+from __future__ import print_function
 import numbskull
 from numbskull.numbskulltypes import *
 import numpy as np
 
+
+def factor(f, args):
+    """THIS IS A DOCSTRING."""
+    if f == FUNC_IMPLY_NATURAL:
+        # TODO
+        pass
+    elif f == FUNC_OR:
+        return 1 if any(args) else -1
+    elif f == FUNC_EQUAL:
+        # TODO
+        pass
+    elif f == FUNC_AND or FUNC_ISTRUE:
+        return 1 if all(args) else -1
+    elif f == FUNC_LINEAR:
+        # TODO
+        pass
+    elif f == FUNC_RATIO:
+        # TODO
+        pass
+    elif f == FUNC_LOGICAL:
+        # TODO
+        pass
+    elif f == FUNC_IMPLY_MLN:
+        # TODO
+        pass
+    else:
+        raise NotImplemented("FACTOR " + str(f) + " not implemented.")
+
+
 for (key, value) in numbskull.inference.FACTORS.iteritems():
+
+    print(key)
 
     variables = 2
 

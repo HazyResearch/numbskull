@@ -1,3 +1,5 @@
+"""TODO."""
+
 from __future__ import print_function
 import numba
 from numba import jit
@@ -6,6 +8,7 @@ import numpy as np
 
 # HELPER METHODS #
 def dataType(i):
+    """TODO."""
     return {0: "Boolean",
             1: "Categorical"}.get(i, "Unknown")
 
@@ -13,6 +16,7 @@ def dataType(i):
 # DEFINE NUMBA-BASED DATA LOADING HELPER METHODS #
 @jit(nopython=True, cache=True)
 def compute_var_map(fstart, fmap, vstart, vmap):
+    """TODO."""
     for i in fmap:
         vstart[i + 1] += 1
 
@@ -28,6 +32,7 @@ def compute_var_map(fstart, fmap, vstart, vmap):
 
 @jit(nopython=True, cache=True)
 def reverse(data, start, end):
+    """TODO."""
     end -= 1
     while (start < end):
         data[start], data[end] = data[end], data[start]
@@ -37,6 +42,7 @@ def reverse(data, start, end):
 
 @jit(nopython=True, cache=True)
 def reverse_array(data):
+    """TODO."""
     # TODO: why does this fail?
     # data = np.flipud(data)
     reverse(data, 0, data.size)
@@ -45,6 +51,7 @@ def reverse_array(data):
 # DEFINE NUMBA-BASED DATA LOADING METHODS #
 @jit(nopython=True, cache=True)
 def load_weights(data, nweights, weights):
+    """TODO."""
     for i in range(nweights):
         # TODO: read types from struct?
         # TODO: byteswap only if system is little-endian
@@ -66,6 +73,7 @@ def load_weights(data, nweights, weights):
 
 @jit(nopython=True, cache=True)
 def load_variables(data, nvariables, variables):
+    """TODO."""
     for i in range(nvariables):
         # TODO: read types from struct?
         # TODO: byteswap only if system is little-endian
@@ -97,6 +105,7 @@ def load_variables(data, nvariables, variables):
 
 @jit(nopython=True, cache=True)
 def load_factors(data, nfactors, factors, fstart, fmap, equalPredicate):
+    """TODO."""
     index = 0
     for i in range(nfactors):
         buf = data[index:(index + 2)]

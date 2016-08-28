@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""TODO."""
+
 from __future__ import print_function
 import zmq
 import sys
@@ -10,7 +12,7 @@ import numpy as np
 
 
 def send_array(socket, A, flags=0, copy=True, track=False):
-    """send a numpy array with metadata"""
+    """TODO: send a numpy array with metadata."""
     md = dict(
         dtype=str(A.dtype),
         shape=A.shape,
@@ -20,7 +22,7 @@ def send_array(socket, A, flags=0, copy=True, track=False):
 
 
 def recv_array(socket, flags=0, copy=True, track=False):
-    """recv a numpy array"""
+    """TODO: recv a numpy array."""
     md = socket.recv_json(flags=flags)
     msg = socket.recv(flags=flags, copy=copy, track=track)
     buf = buffer(msg)
@@ -34,6 +36,7 @@ def recv_array(socket, flags=0, copy=True, track=False):
 
 
 def server(argv=None):
+    """TODO.""""
     parser = argparse.ArgumentParser(
         description="Run Gibbs worker",
         epilog="")
@@ -200,6 +203,7 @@ def server(argv=None):
 
 
 def client(argv=None):
+    """TODO."""
     parser = argparse.ArgumentParser(
         description="Run Gibbs worker",
         epilog="")
@@ -352,6 +356,7 @@ def client(argv=None):
 
 
 def main(argv=None):
+    """TODO."""
     if argv is None:
         argv = sys.argv[1:]
 

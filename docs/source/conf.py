@@ -16,6 +16,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+
+"""TODO."""
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
@@ -355,10 +358,12 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # Allow __init__ to be autodoc'ed
 def skip(app, what, name, obj, skip, options):
+    """TODO."""
     if name == "__init__":
         return False
     return skip
 
 
 def setup(app):
+    """TODO."""
     app.connect("autodoc-skip-member", skip)

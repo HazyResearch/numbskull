@@ -1,3 +1,5 @@
+"""TODO."""
+
 from __future__ import print_function
 import numba
 from numba import jit
@@ -13,6 +15,7 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
                 variable, factor, fstart, fmap, vstart,
                 vmap, equalPred, Z, var_value,
                 weight_value, learn_non_evidence):
+    """TODO."""
     # Identify start and end variable
     nvar = variable.shape[0]
     start = ((nvar / nshards) + 1) * shardID
@@ -35,7 +38,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
                    weight_copy, weight, variable, factor, fstart, fmap,
                    vstart, vmap, equalPred, Z, var_value,
                    weight_value, learn_non_evidence):
-
+    """TODO."""
     # If learn_non_evidence sample twice.
     # The method corresponds to expectation-conjugate descent.
     if learn_non_evidence:

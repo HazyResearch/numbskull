@@ -1,3 +1,5 @@
+"""TODO."""
+
 from __future__ import print_function
 import numba
 from numba import jit
@@ -9,6 +11,7 @@ import math
 def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
                 factor, fstart, fmap, vstart, vmap, equalPred, Z, cstart,
                 count, var_value, weight_value, burnin):
+    """TODO."""
     # Indentify start and end variable
     nvar = variable.shape[0]
     start = ((nvar / nshards) + 1) * shardID
@@ -33,6 +36,7 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
 def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
                 fstart, fmap, vstart, vmap, equalPred, Z, var_value,
                 weight_value):
+    """TODO."""
     cardinality = variable[var_samp]["cardinality"]
     for value in range(cardinality):
         Z[value] = np.exp(potential(var_samp, value, var_copy, weight_copy,
@@ -52,6 +56,7 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
 @jit(nopython=True, cache=True, nogil=True)
 def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
               fstart, fmap, vstart, vmap, equalPred, var_value, weight_value):
+    """TODO."""
     p = 0.0
     for k in range(vstart[var_samp], vstart[var_samp + 1]):
         factor_id = vmap[k]
@@ -86,6 +91,7 @@ for (key, value) in FACTORS.iteritems():
 @jit(nopython=True, cache=True, nogil=True)
 def eval_factor(factor_id, var_samp, value, var_copy, variable, factor,
                 fstart, fmap, equalPred, var_value):
+    """TODO."""
     # Implementation of factor functions for categorical variables
     if factor[factor_id]["factorFunction"] == FUNC_IMPLY_NATURAL:
         for l in range(fstart[factor_id], fstart[factor_id + 1] - 1):

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""TODO: This is a docstring."""
+
 from __future__ import print_function
 import sys
 import argparse
@@ -114,12 +116,10 @@ flags = [
 
 
 class NumbSkull(object):
-    """
-    Main class for numbskull.
-    """
+    """TODO: Main class for numbskull."""
 
     def __init__(self, **kwargs):
-        """This is a function named __init__.
+        """TODO.
 
         Parameters
         ----------
@@ -150,18 +150,7 @@ class NumbSkull(object):
 
     def loadFactorGraph(self, weight, variable, factor, fstart, fmap,
                         equalPredicate, edges, var_copies=1, weight_copies=1):
-        """This is a function named loadFGFromFile.
-
-        Parameters
-        ----------
-        parameter : type
-           This is a parameter
-
-        Returns
-        -------
-        describe : type
-            Expanation
-        """
+        """TODO."""
         # Assert input arguments correspond to NUMPY arrays
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
@@ -192,6 +181,7 @@ class NumbSkull(object):
     def loadFGFromFile(self, directory=None, metafile=None, weightfile=None,
                        variablefile=None, factorfile=None, var_copies=1,
                        weight_copies=1):
+        """TODO."""
         # init necessary input arguments
         if not self.directory:
             print("No factor graph specified")
@@ -275,9 +265,11 @@ class NumbSkull(object):
         self.factorGraphs.append(fg)
 
     def getFactorGraph(self, fgID=0):
+        """TODO."""
         return self.factorGraphs[fgID]
 
     def inference(self, fgID=0):
+        """TODO."""
         burn_in = self.burn_in
         n_inference_epoch = self.n_inference_epoch
 
@@ -285,6 +277,7 @@ class NumbSkull(object):
                                           diagnostics=not self.quiet)
 
     def learning(self, fgID=0):
+        """TODO."""
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
         stepsize = self.stepsize
@@ -299,6 +292,7 @@ class NumbSkull(object):
 
 
 def main(argv=None):
+    """TODO."""
     if argv is None:
         argv = sys.argv[1:]
     parser = argparse.ArgumentParser(
