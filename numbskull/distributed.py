@@ -36,7 +36,7 @@ def recv_array(socket, flags=0, copy=True, track=False):
 
 
 def server(argv=None):
-    """TODO.""""
+    """TODO."""
     parser = argparse.ArgumentParser(
         description="Run Gibbs worker",
         epilog="")
