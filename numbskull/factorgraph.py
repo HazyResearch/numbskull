@@ -58,6 +58,7 @@ class FactorGraph(object):
         assert(workers > 0)
         self.threads = workers
         self.threadpool = ThreadPoolExecutor(self.threads)
+        self.marginals = np.zeros(self.cstart[self.variable.shape[0]])
         self.inference_epoch_time = 0.0
         self.inference_total_time = 0.0
         self.learning_epoch_time = 0.0
@@ -88,7 +89,9 @@ class FactorGraph(object):
         for i in range(len(self.count)):
             hist[min(self.count[i] * bins / epochs, bins - 1)] += 1
         for i in range(bins):
-            print(i, hist[i])
+            start = i/10.0
+            end = (i+1)/10.0
+            print("Prob. "+str(start)+".."+str(end)+": "+str(hist[i])+" variables")
 
     def diagnosticsLearning(self, weight_copy=0):
         """TODO."""
@@ -139,6 +142,8 @@ class FactorGraph(object):
                 print('Inference epoch took %.03f sec.' %
                       self.inference_epoch_time)
         print ("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
+        # compute marginals
+        self.marginals = self.count/float(epochs)
         if diagnostics:
             self.diagnostics(epochs)
 
