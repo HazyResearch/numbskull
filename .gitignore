@@ -1,4 +1,5 @@
 *.pyc
 *.swp
 __pycache__/
-
+inference_result.out.*
+numbskull.egg-info

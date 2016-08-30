@@ -1,6 +1,7 @@
 """TODO."""
 
 from __future__ import print_function
+import sys
 import numpy as np
 from inference import *
 from learning import *
@@ -91,6 +92,7 @@ class FactorGraph(object):
     def diagnostics(self, epochs):
         """TODO."""
         print('Inference took %.03f sec.' % self.inference_total_time)
+        epochs = epochs or 1
         bins = 10
         hist = np.zeros(bins, dtype=np.int64)
         for i in range(len(self.count)):
@@ -147,8 +149,8 @@ class FactorGraph(object):
             self.inference_epoch_time = timer.interval
             self.inference_total_time += timer.interval
             if diagnostics:
-                print('Inference epoch took %.03f sec.' %
-                      self.inference_epoch_time)
+                print('Inference epoch #%d took %.03f sec.' %
+                      (ep, self.inference_epoch_time))
         print ("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
         # compute marginals
         self.marginals = self.count/float(epochs)
@@ -156,7 +158,7 @@ class FactorGraph(object):
             self.diagnostics(epochs)
 
     def learn(self, burnin_epochs, epochs, stepsize, decay,
-              regularization, reg_param, diagnostics=False,
+              regularization, reg_param, diagnostics=False, verbose=False,
               learn_non_evidence=False, var_copy=0, weight_copy=0):
         """TODO."""
         # Burn-in
@@ -178,7 +180,30 @@ class FactorGraph(object):
             # Decay stepsize
             stepsize *= decay
             if diagnostics:
-                print ("FACTOR " + str(self.fid) + ": EPOCH " + str(ep))
+                print ("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
                 print ("Current stepsize = "+str(stepsize))
-                self.diagnosticsLearning(weight_copy)
+                if verbose:
+                    self.diagnosticsLearning(weight_copy)
+                sys.stdout.flush()  # otherwise output refuses to show in DD
         print ("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
+
+    def dump_weights(self, fout, weight_copy=0):
+        """Dump <wid, weight> text file in DW format."""
+        with open(fout, 'w') as out:
+            for i, w in enumerate(self.weight):
+                out.write('%d %f\n' % (i, self.weight_value[weight_copy][i]))
+
+    def dump_probabilities(self, fout, epochs):
+        """Dump <vid, value, prob> text file in DW format."""
+        epochs = epochs or 1
+        with open(fout, 'w') as out:
+            for i, v in enumerate(self.variable):
+                if v["cardinality"] == 2:
+                    prob = float(self.count[self.cstart[i]]) / epochs
+                    out.write('%d %d %.3f\n' % (i, 1, prob))
+                else:
+                    # assuming "dense" categorical for now
+                    # TODO: handle "sparse" catgorical domain mapping
+                    for k in range(v["cardinality"]):
+                        prob = float(self.count[self.cstart[i] + k]) / epochs
+                        out.write('%d %d %.3f\n' % (i, k, prob))
