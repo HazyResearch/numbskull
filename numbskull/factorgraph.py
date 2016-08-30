@@ -76,6 +76,7 @@ class FactorGraph(object):
     def getWeights(self, weight_copy=0):
         """TODO."""
         return self.weight_value[weight_copy][:]
+
     def getMarginals(self, varIds=None):
         """TODO."""
         if not varIds:
