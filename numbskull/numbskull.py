@@ -3,6 +3,7 @@
 """TODO: This is a docstring."""
 
 from __future__ import print_function
+import os
 import sys
 import argparse
 import factorgraph
@@ -21,6 +22,13 @@ arguments = [
          'type': str,
          'help': 'specify the directory of factor graph files'}),
     # TODO: print default for meta, weight, variable, factor in help
+    (('-o', '--output_dir'),
+        {'metavar': 'OUTPUT_DIR',
+         'dest': 'output_dir',
+         'default': '.',
+         'type': str,
+         'help': 'Output dir to contain inference_result.out.text ' +
+                 'and inference_result.out.weights.text'}),
     (('-m', '--meta'),
         {'metavar': 'META_FILE',
          'dest': 'metafile',
@@ -275,6 +283,8 @@ class NumbSkull(object):
 
         self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
                                           diagnostics=not self.quiet)
+        output_file = os.path.join(self.output_dir, "inference_result.out.text")
+        self.factorGraphs[fgID].dump_probabilities(output_file, n_inference_epoch)
 
     def learning(self, fgID=0):
         """TODO."""
@@ -288,10 +298,13 @@ class NumbSkull(object):
         fg.learn(burn_in, n_learning_epoch,
                  stepsize, decay, regularization, reg_param,
                  diagnostics=not self.quiet,
+                 verbose=self.verbose,
                  learn_non_evidence=self.learn_non_evidence)
+        output_file = os.path.join(self.output_dir, "inference_result.out.weights.text")
+        self.factorGraphs[fgID].dump_weights(output_file)
 
 
-def main(argv=None):
+def load(argv=None):
     """TODO."""
     if argv is None:
         argv = sys.argv[1:]
@@ -314,6 +327,13 @@ def main(argv=None):
     ns = NumbSkull(**vars(args))
     ns.loadFGFromFile()
     return ns
+
+
+def main(argv=None):
+    ns = load(argv)
+    ns.learning()
+    ns.inference()
+
 
 if __name__ == "__main__":
     main()

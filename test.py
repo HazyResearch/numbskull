@@ -12,7 +12,7 @@ args = ['test',
         '--regularization', '2',
         '-r', '0.1',
         '--quiet']
-ns = numbskull.main(args)
+ns = numbskull.load(args)
 ns.learning()
 ns.inference()
 print(ns.factorGraphs[0].count)
