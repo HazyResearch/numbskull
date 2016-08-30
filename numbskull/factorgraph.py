@@ -175,11 +175,13 @@ class FactorGraph(object):
         print ("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
 
     def dump_weights(self, fout, weight_copy=0):
+        """Dump <wid, weight> text file in DW format."""
         with open(fout, 'w') as out:
             for i, w in enumerate(self.weight):
                 out.write('%d %f\n' % (i, self.weight_value[weight_copy][i]))
 
     def dump_probabilities(self, fout, epochs):
+        """Dump <vid, value, prob> text file in DW format."""
         epochs = epochs or 1
         with open(fout, 'w') as out:
             for i, v in enumerate(self.variable):

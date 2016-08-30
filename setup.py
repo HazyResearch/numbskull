@@ -1,3 +1,5 @@
+"""For pip."""
+
 from setuptools import setup, find_packages
 
 setup(
@@ -6,7 +8,7 @@ setup(
     description='sample away',
     packages=find_packages(),
     install_requires=[],
-    entry_points = {
+    entry_points={
         'console_scripts': [
             'numbskull = numbskull.numbskull:main',
         ],

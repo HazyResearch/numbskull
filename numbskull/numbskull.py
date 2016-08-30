@@ -283,8 +283,10 @@ class NumbSkull(object):
 
         self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
                                           diagnostics=not self.quiet)
-        output_file = os.path.join(self.output_dir, "inference_result.out.text")
-        self.factorGraphs[fgID].dump_probabilities(output_file, n_inference_epoch)
+        output_file = os.path.join(
+            self.output_dir, "inference_result.out.text")
+        self.factorGraphs[fgID].dump_probabilities(output_file,
+                                                   n_inference_epoch)
 
     def learning(self, fgID=0):
         """TODO."""
@@ -300,7 +302,8 @@ class NumbSkull(object):
                  diagnostics=not self.quiet,
                  verbose=self.verbose,
                  learn_non_evidence=self.learn_non_evidence)
-        output_file = os.path.join(self.output_dir, "inference_result.out.weights.text")
+        output_file = os.path.join(
+            self.output_dir, "inference_result.out.weights.text")
         self.factorGraphs[fgID].dump_weights(output_file)
 
 
@@ -330,6 +333,7 @@ def load(argv=None):
 
 
 def main(argv=None):
+    """Duh."""
     ns = load(argv)
     ns.learning()
     ns.inference()
