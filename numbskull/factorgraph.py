@@ -76,6 +76,12 @@ class FactorGraph(object):
     def getWeights(self, weight_copy=0):
         """TODO."""
         return self.weight_value[weight_copy][:]
+    def getMarginals(self, varIds=None):
+        """TODO."""
+        if not varIds:
+            return self.marginals
+        else:
+            return self.marginals[varIds]
 
     #####################
     #    DIAGNOSTICS    #
@@ -91,7 +97,8 @@ class FactorGraph(object):
         for i in range(bins):
             start = i/10.0
             end = (i+1)/10.0
-            print("Prob. "+str(start)+".."+str(end)+": "+str(hist[i])+" variables")
+            print("Prob. "+str(start)+".."+str(end)+": \
+                  "+str(hist[i])+" variables")
 
     def diagnosticsLearning(self, weight_copy=0):
         """TODO."""
