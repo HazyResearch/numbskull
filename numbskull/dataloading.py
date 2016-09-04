@@ -78,23 +78,23 @@ def load_variables(data, nvariables, variables):
         # TODO: read types from struct?
         # TODO: byteswap only if system is little-endian
 
-        buf = data[(19 * i):(19 * i + 8)]
+        buf = data[(27 * i):(27 * i + 8)]
         reverse_array(buf)
         variableId = np.frombuffer(buf, dtype=np.int64)[0]
 
-        isEvidence = data[19 * i + 8]
+        isEvidence = data[27 * i + 8]
 
-        buf = data[(19 * i + 9):(19 * i + 13)]
+        buf = data[(27 * i + 9):(27 * i + 17)]
         reverse_array(buf)
-        initialValue = np.frombuffer(buf, dtype=np.int32)[0]
+        initialValue = np.frombuffer(buf, dtype=np.int64)[0]
 
-        buf = data[(19 * i + 13):(19 * i + 15)]
+        buf = data[(27 * i + 17):(27 * i + 19)]
         reverse_array(buf)
         dataType = np.frombuffer(buf, dtype=np.int16)[0]
 
-        buf = data[(19 * i + 15):(19 * i + 19)]
+        buf = data[(27 * i + 19):(27 * i + 27)]
         reverse_array(buf)
-        cardinality = np.frombuffer(buf, dtype=np.int32)[0]
+        cardinality = np.frombuffer(buf, dtype=np.int64)[0]
 
         variables[variableId]["isEvidence"] = isEvidence
         variables[variableId]["initialValue"] = initialValue
@@ -112,11 +112,11 @@ def load_factors(data, nfactors, factors, fstart, fmap, equalPredicate):
         reverse_array(buf)
         factors[i]["factorFunction"] = np.frombuffer(buf, dtype=np.int16)[0]
 
-        buf = data[(index + 2):(index + 6)]
+        buf = data[(index + 2):(index + 10)]
         reverse_array(buf)
-        arity = np.frombuffer(buf, dtype=np.int32)[0]
+        arity = np.frombuffer(buf, dtype=np.int64)[0]
 
-        index += 6  # TODO: update index once per loop?
+        index += 10  # TODO: update index once per loop?
 
         fstart[i + 1] = fstart[i] + arity
         for j in range(arity):
@@ -124,14 +124,13 @@ def load_factors(data, nfactors, factors, fstart, fmap, equalPredicate):
             reverse_array(buf)
             fmap[fstart[i] + j] = np.frombuffer(buf, dtype=np.int64)[0]
 
-            buf = data[(index + 8):(index + 12)]
+            buf = data[(index + 8):(index + 16)]
             reverse_array(buf)
             equalPredicate[fstart[i] + j] = \
-                np.frombuffer(buf, dtype=np.int32)[0]
+                np.frombuffer(buf, dtype=np.int64)[0]
 
-            index += 12
+            index += 16
 
-        # TODO: handle FUNC_AND_CATEGORICAL
         buf = data[index:(index + 8)]
         reverse_array(buf)
         factors[i]["weightId"] = np.frombuffer(buf, dtype=np.int64)[0]

@@ -164,7 +164,7 @@ class NumbSkull(object):
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
         assert(type(factor) == np.ndarray and factor.dtype == Factor)
         assert(type(equalPredicate) == np.ndarray and
-               equalPredicate.dtype == np.int32)
+               equalPredicate.dtype == np.int64)
         assert(type(edges) == int or type(edges) == np.int64)
 
         # Initialize metadata
@@ -254,7 +254,7 @@ class NumbSkull(object):
         factor = np.empty(meta["factors"], Factor)
         fstart = np.zeros(meta["factors"] + 1, np.int64)
         fmap = np.zeros(meta["edges"], np.int64)
-        equalPredicate = np.zeros(meta["edges"], np.int32)
+        equalPredicate = np.zeros(meta["edges"], np.int64)
 
         # Numba-based method. Defined in dataloading.py
         load_factors(factor_data, meta["factors"], factor, fstart, fmap,

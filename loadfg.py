@@ -45,7 +45,7 @@ for (key, value) in numbskull.inference.FACTORS.iteritems():
     weight = np.empty(1, Weight)
     variable = np.empty(variables, Variable)
     factor = np.empty(1, Factor)
-    equalPredicate = np.empty(variables, np.int32)  # TODO: for binary?
+    equalPredicate = np.empty(variables, np.int64)  # TODO: for binary?
     fstart = np.empty(2, np.int64)
     fmap = np.empty(variables, np.int64)
 

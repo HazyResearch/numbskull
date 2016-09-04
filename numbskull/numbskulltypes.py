@@ -11,9 +11,9 @@ Weight = np.dtype([("isFixed",      np.bool),
                    ("initialValue", np.float64)])
 
 Variable = np.dtype([("isEvidence",   np.int8),
-                     ("initialValue", np.int32),
+                     ("initialValue", np.int64),
                      ("dataType",     np.int16),
-                     ("cardinality",  np.int32)])
+                     ("cardinality",  np.int64)])
 
 Factor = np.dtype([("factorFunction", np.int16),
                    ("weightId",       np.int64),
