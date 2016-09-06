@@ -279,7 +279,8 @@ class NumbSkull(object):
         # load domains
         # whether a var has domain spec
         domain_mask = np.zeros(meta["variables"], np.bool)
-        if os.path.isfile(directory + "/" + domainfile):
+        domain_file = directory + "/" + domainfile
+        if os.path.isfile(domain_file) and os.stat(domain_file).st_size > 0:
             domain_data = np.memmap(directory + "/" + domainfile, mode="c")
             load_domains(domain_data, domain_mask, vmap, variable)
             sys.stdout.flush()
