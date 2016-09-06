@@ -64,7 +64,8 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
     end = start + vtf["factor_index_length"]
     for k in range(start, end):
         factor_id = factor_index[k]
-        p += weight_value[weight_copy][factor[factor_id]["weightId"]] * factor[factor_id]["featureValue"] * \
+        p += weight_value[weight_copy][factor[factor_id]["weightId"]] * \
+            factor[factor_id]["featureValue"] * \
             eval_factor(factor_id, var_samp, value, var_copy, variable,
                         factor, fmap, var_value)
     return p
@@ -93,7 +94,8 @@ for (key, value) in FACTORS.iteritems():
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap, var_value):
+def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
+                var_value):
     """TODO."""
     # Implementation of factor functions for categorical variables
     fac = factor[factor_id]

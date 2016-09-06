@@ -25,7 +25,6 @@ def run_pool(threadpool, threads, func, args):
 
 
 class FactorGraph(object):
-
     """TODO."""
 
     def __init__(self, weight, variable, factor, fmap, vmap,
