@@ -41,15 +41,13 @@ for (key, value) in numbskull.inference.FACTORS.iteritems():
     print(key)
 
     variables = 2
-
-    weight = np.empty(1, Weight)
-    variable = np.empty(variables, Variable)
-    factor = np.empty(1, Factor)
-    equalPredicate = np.empty(variables, np.int64)  # TODO: for binary?
-    fstart = np.empty(2, np.int64)
-    fmap = np.empty(variables, np.int64)
-
     edges = variables
+
+    weight = np.zeros(1, Weight)
+    variable = np.zeros(variables, Variable)
+    factor = np.zeros(1, Factor)
+    fmap = np.zeros(edges, FactorToVar)
+    domain_mask = np.zeros(variables, np.bool)
 
     weight[0]["isFixed"] = True
     weight[0]["initialValue"] = 1
@@ -66,19 +64,18 @@ for (key, value) in numbskull.inference.FACTORS.iteritems():
 
     factor[0]["factorFunction"] = value
     factor[0]["weightId"] = 0
-    factor[0]["featureValue"] = 0
+    factor[0]["featureValue"] = 1
+    factor[0]["arity"] = 2
+    factor[0]["ftv_offset"] = 0
 
-    fstart[0] = 0
-    fstart[1] = variables
-
-    for i in range(variables):
-        fmap[i] = i
+    fmap[0]["vid"] = 0
+    fmap[1]["vid"] = 1
 
     ns = numbskull.NumbSkull(n_inference_epoch=100,
                              n_learning_epoch=100,
                              quiet=True)
-    ns.loadFactorGraph(weight, variable, factor, fstart,
-                       fmap, equalPredicate, edges)
+
+    ns.loadFactorGraph(weight, variable, factor, fmap, domain_mask, edges)
 
     ns.learning()
     ns.inference()
