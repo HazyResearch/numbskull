@@ -1,9 +1,6 @@
 """TODO."""
 
-import numbskull
-import dataloading
-import factorgraph
-import inference
-import learning
-import timer
-from numbskull import *
+from numbskull import NumbSkull
+from numbskull import main
+
+__all__ = ['numbskull', 'factorgraph', 'timer']
