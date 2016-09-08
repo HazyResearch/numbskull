@@ -80,7 +80,7 @@ arguments = [
     (('-r', '--reg_param'),
         {'metavar': 'LEARNING_REGULARIZATION_PARAM',
          'dest': 'reg_param',
-         'default': 1.0,
+         'default': 0.01,
          'type': float,
          'help': 'regularization penalty'}),
     (tuple(['--regularization']),
@@ -105,7 +105,7 @@ arguments = [
 
 flags = [
     (tuple(['--sample_evidence']),
-        {'default': False,
+        {'default': True,
          'action': 'store_true',
          'help': 'sample evidence variables'}),
     (tuple(['--learn_non_evidence']),
@@ -156,15 +156,16 @@ class NumbSkull(object):
 
         self.factorGraphs = []
 
-    def loadFactorGraph(self, weight, variable, factor, fstart, fmap,
-                        equalPredicate, edges, var_copies=1, weight_copies=1):
+    def loadFactorGraph(self, weight, variable, factor, fmap, domain_mask,
+                        edges, var_copies=1, weight_copies=1):
         """TODO."""
         # Assert input arguments correspond to NUMPY arrays
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
         assert(type(factor) == np.ndarray and factor.dtype == Factor)
-        assert(type(equalPredicate) == np.ndarray and
-               equalPredicate.dtype == np.int32)
+        assert(type(fmap) == np.ndarray and fmap.dtype == FactorToVar)
+        assert(type(domain_mask) == np.ndarray and
+               domain_mask.dtype == np.bool)
         assert(type(edges) == int or type(edges) == np.int64)
 
         # Initialize metadata
@@ -174,21 +175,30 @@ class NumbSkull(object):
         meta['factors'] = factor.shape[0]
         meta['edges'] = edges
 
-        # generate variable-to-factor map
-        vstart = np.zeros(meta["variables"] + 1, np.int64)
-        vmap = np.zeros(meta["edges"], np.int64)
+        # count total number of VTF records needed
+        num_vtfs = 0
+        for var in variable:
+            var["vtf_offset"] = num_vtfs
+            if var["dataType"] == 0:  # boolean
+                num_vtfs += 1
+            else:
+                num_vtfs += var["cardinality"]
+
+        vmap = np.zeros(num_vtfs, VarToFactor)
+        factor_index = np.zeros(meta["edges"], np.int64)
 
         # Numba-based method. Defined in dataloading.py
-        compute_var_map(fstart, fmap, vstart, vmap)
+        compute_var_map(variable, factor, fmap, vmap,
+                        factor_index, domain_mask)
 
-        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap,
-                         equalPredicate, var_copies, weight_copies,
+        fg = FactorGraph(weight, variable, factor, fmap, vmap, factor_index,
+                         var_copies, weight_copies,
                          len(self.factorGraphs), self.nthreads)
         self.factorGraphs.append(fg)
 
     def loadFGFromFile(self, directory=None, metafile=None, weightfile=None,
-                       variablefile=None, factorfile=None, var_copies=1,
-                       weight_copies=1):
+                       variablefile=None, factorfile=None, domainfile=None,
+                       var_copies=1, weight_copies=1):
         """TODO."""
         # init necessary input arguments
         if not self.directory:
@@ -201,6 +211,7 @@ class NumbSkull(object):
         weightfile = 'graph.weights' if not weightfile else weightfile
         variablefile = 'graph.variables' if not variablefile else variablefile
         factorfile = 'graph.factors' if not factorfile else factorfile
+        domainfile = 'graph.domains' if not domainfile else domainfile
         print_info = not self.quiet
         print_only_meta = not self.verbose
 
@@ -220,7 +231,7 @@ class NumbSkull(object):
 
         # load weights
         weight_data = np.memmap(directory + "/" + weightfile, mode="c")
-        weight = np.empty(meta["weights"], Weight)
+        weight = np.zeros(meta["weights"], Weight)
 
         # NUMBA-based function. Defined in dataloading.py
         load_weights(weight_data, meta["weights"], weight)
@@ -234,10 +245,11 @@ class NumbSkull(object):
 
         # load variables
         variable_data = np.memmap(directory + "/" + variablefile, mode="c")
-        variable = np.empty(meta["variables"], Variable)
+        variable = np.zeros(meta["variables"], Variable)
 
         # NUMBA-based method. Defined in dataloading.py
         load_variables(variable_data, meta["variables"], variable)
+        sys.stdout.flush()
         if print_info and not print_only_meta:
             print("Variables:")
             for (i, v) in enumerate(variable):
@@ -249,26 +261,48 @@ class NumbSkull(object):
                 print("        cardinality: ", v["cardinality"])
                 print()
 
-        # load factors
-        factor_data = np.memmap(directory + "/" + factorfile, mode="c")
-        factor = np.empty(meta["factors"], Factor)
-        fstart = np.zeros(meta["factors"] + 1, np.int64)
-        fmap = np.zeros(meta["edges"], np.int64)
-        equalPredicate = np.zeros(meta["edges"], np.int32)
-
-        # Numba-based method. Defined in dataloading.py
-        load_factors(factor_data, meta["factors"], factor, fstart, fmap,
-                     equalPredicate)
+        # count total number of VTF records needed
+        num_vtfs = 0
+        for var in variable:
+            var["vtf_offset"] = num_vtfs
+            if var["dataType"] == 0:  # boolean
+                num_vtfs += 1
+            else:
+                num_vtfs += var["cardinality"]
+        print("#VTF = %s" % num_vtfs)
+        sys.stdout.flush()
 
         # generate variable-to-factor map
-        vstart = np.zeros(meta["variables"] + 1, np.int64)
-        vmap = np.zeros(meta["edges"], np.int64)
+        vmap = np.zeros(num_vtfs, VarToFactor)
+        factor_index = np.zeros(meta["edges"], np.int64)
+
+        # load domains
+        # whether a var has domain spec
+        domain_mask = np.zeros(meta["variables"], np.bool)
+        domain_file = directory + "/" + domainfile
+        if os.path.isfile(domain_file) and os.stat(domain_file).st_size > 0:
+            domain_data = np.memmap(directory + "/" + domainfile, mode="c")
+            load_domains(domain_data, domain_mask, vmap, variable)
+            sys.stdout.flush()
+
+        # load factors
+        factor_data = np.memmap(directory + "/" + factorfile, mode="c")
+        factor = np.zeros(meta["factors"], Factor)
+        fmap = np.zeros(meta["edges"], FactorToVar)
 
         # Numba-based method. Defined in dataloading.py
-        compute_var_map(fstart, fmap, vstart, vmap)
+        load_factors(factor_data, meta["factors"],
+                     factor, fmap, domain_mask, variable, vmap)
+        sys.stdout.flush()
 
-        fg = FactorGraph(weight, variable, factor, fstart, fmap, vstart, vmap,
-                         equalPredicate, var_copies, weight_copies,
+        # Numba-based method. Defined in dataloading.py
+        compute_var_map(variable, factor, fmap, vmap,
+                        factor_index, domain_mask)
+        print("COMPLETED VMAP INDEXING")
+        sys.stdout.flush()
+
+        fg = FactorGraph(weight, variable, factor, fmap, vmap, factor_index,
+                         var_copies, weight_copies,
                          len(self.factorGraphs), self.nthreads)
         self.factorGraphs.append(fg)
 
@@ -282,6 +316,7 @@ class NumbSkull(object):
         n_inference_epoch = self.n_inference_epoch
 
         self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
+                                          sample_evidence=self.sample_evidence,
                                           diagnostics=not self.quiet)
         output_file = os.path.join(
             self.output_dir, "inference_result.out.text")

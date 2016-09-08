@@ -27,27 +27,27 @@ def run_pool(threadpool, threads, func, args):
 class FactorGraph(object):
     """TODO."""
 
-    def __init__(self, weight, variable, factor, fstart, fmap, vstart, vmap,
-                 equalPredicate, var_copies, weight_copies, fid, workers):
+    def __init__(self, weight, variable, factor, fmap, vmap,
+                 factor_index, var_copies, weight_copies, fid, workers):
         """TODO."""
         self.weight = weight
         self.variable = variable
         self.factor = factor
-        self.fstart = fstart
         self.fmap = fmap
-        self.vstart = vstart
         self.vmap = vmap
-        self.equalPred = equalPredicate
+        self.factor_index = factor_index
 
         # This is just cumsum shifted by 1
         self.cstart = np.zeros(self.variable.shape[0] + 1, np.int64)
         for i in range(self.variable.shape[0]):
             c = self.variable[i]["cardinality"]
-            if c == 2:
+            if self.variable[i]["dataType"] == 0:
                 c = 1
             self.cstart[i + 1] = self.cstart[i] + c
         self.count = np.zeros(self.cstart[self.variable.shape[0]], np.int64)
 
+        self.var_value_evid = \
+            np.tile(self.variable[:]['initialValue'], (var_copies, 1))
         self.var_value = \
             np.tile(self.variable[:]['initialValue'], (var_copies, 1))
         self.weight_value = \
@@ -98,10 +98,10 @@ class FactorGraph(object):
         for i in range(len(self.count)):
             hist[min(self.count[i] * bins / epochs, bins - 1)] += 1
         for i in range(bins):
-            start = i/10.0
-            end = (i+1)/10.0
-            print("Prob. "+str(start)+".."+str(end)+": \
-                  "+str(hist[i])+" variables")
+            start = i / 10.0
+            end = (i + 1) / 10.0
+            print("Prob. " + str(start) + ".." + str(end) + ": \
+                  " + str(hist[i]) + " variables")
 
     def diagnosticsLearning(self, weight_copy=0):
         """TODO."""
@@ -119,41 +119,41 @@ class FactorGraph(object):
 
     def burnIn(self, epochs, var_copy=0, weight_copy=0):
         """TODO."""
-        print ("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
+        print("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
         shardID, nshards = 0, 1
         # NUMBA-based method. Implemented in inference.py
         gibbsthread(shardID, nshards, epochs, var_copy, weight_copy,
                     self.weight, self.variable, self.factor,
-                    self.fstart, self.fmap, self.vstart, self.vmap,
-                    self.equalPred, self.Z, self.cstart, self.count,
-                    self.var_value, self.weight_value, True)
-        print ("FACTOR " + str(self.fid) + ": DONE WITH BURN-IN")
+                    self.fmap, self.vmap,
+                    self.factor_index, self.Z, self.cstart, self.count,
+                    self.var_value, self.weight_value, sample_evidence, True)
+        print("FACTOR " + str(self.fid) + ": DONE WITH BURN-IN")
 
-    def inference(self, burnin_epochs, epochs, diagnostics=False,
-                  var_copy=0, weight_copy=0):
+    def inference(self, burnin_epochs, epochs, sample_evidence=False,
+                  diagnostics=False, var_copy=0, weight_copy=0):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
             self.burnIn(burnin_epochs)
 
         # Run inference
-        print ("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
+        print("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
         for ep in range(epochs):
             with Timer() as timer:
                 args = (self.threads, var_copy, weight_copy, self.weight,
-                        self.variable, self.factor, self.fstart, self.fmap,
-                        self.vstart, self.vmap, self.equalPred, self.Z,
+                        self.variable, self.factor, self.fmap,
+                        self.vmap, self.factor_index, self.Z,
                         self.cstart, self.count, self.var_value,
-                        self.weight_value, False)
+                        self.weight_value, sample_evidence, False)
                 run_pool(self.threadpool, self.threads, gibbsthread, args)
             self.inference_epoch_time = timer.interval
             self.inference_total_time += timer.interval
             if diagnostics:
                 print('Inference epoch #%d took %.03f sec.' %
                       (ep, self.inference_epoch_time))
-        print ("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
+        print("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
         # compute marginals
-        self.marginals = self.count/float(epochs)
+        self.marginals = self.count / float(epochs)
         if diagnostics:
             self.diagnostics(epochs)
 
@@ -166,13 +166,20 @@ class FactorGraph(object):
             self.burnIn(burnin_epochs)
 
         # Run learning
-        print ("FACTOR " + str(self.fid) + ": STARTED LEARNING")
+        print("FACTOR " + str(self.fid) + ": STARTED LEARNING")
         for ep in range(epochs):
+            if diagnostics:
+                print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
+                print("Current stepsize = " + str(stepsize))
+                if verbose:
+                    self.diagnosticsLearning(weight_copy)
+                sys.stdout.flush()  # otherwise output refuses to show in DD
             with Timer() as timer:
                 args = (self.threads, stepsize, regularization, reg_param,
                         var_copy, weight_copy, self.weight, self.variable,
-                        self.factor, self.fstart, self.fmap, self.vstart,
-                        self.vmap, self.equalPred, self.Z, self.var_value,
+                        self.factor, self.fmap,
+                        self.vmap, self.factor_index, self.Z, self.var_value,
+                        self.var_value_evid,
                         self.weight_value, learn_non_evidence)
                 run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval
@@ -198,12 +205,12 @@ class FactorGraph(object):
         epochs = epochs or 1
         with open(fout, 'w') as out:
             for i, v in enumerate(self.variable):
-                if v["cardinality"] == 2:
+                if v["dataType"] == 0:
                     prob = float(self.count[self.cstart[i]]) / epochs
                     out.write('%d %d %.3f\n' % (i, 1, prob))
                 else:
-                    # assuming "dense" categorical for now
-                    # TODO: handle "sparse" catgorical domain mapping
                     for k in range(v["cardinality"]):
                         prob = float(self.count[self.cstart[i] + k]) / epochs
-                        out.write('%d %d %.3f\n' % (i, k, prob))
+                        original_value = self.vmap[
+                            v["vtf_offset"] + k]["value"]
+                        out.write('%d %d %.3f\n' % (i, original_value, prob))
