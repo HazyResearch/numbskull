@@ -65,7 +65,7 @@ arguments = [
          'default': 0,
          'type': int,
          'help': 'number of inference epochs'}),
-    (('-s', '--stepsize'),
+    (('-s', '--stepsize', '-a', '--alpha'),
         {'metavar': 'LEARNING_STEPSIZE',
          'dest': 'stepsize',
          'default': 0.01,
