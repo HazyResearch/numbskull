@@ -89,7 +89,7 @@ FACTORS = {  # Factor functions for boolean variables
     "FUNC_IMPLY_MLN_CAT": 17
 }
 
-for (key, value) in FACTORS.iteritems():
+for (key, value) in FACTORS.items():
     exec(key + " = " + str(value))
 
 

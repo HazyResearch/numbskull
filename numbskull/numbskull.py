@@ -161,7 +161,7 @@ class NumbSkull(object):
         # Initialize default execution flags
         for arg, opts in flags:
             arg_defaults[opts['dest']] = opts['default']
-        for (arg, default) in arg_defaults.iteritems():
+        for (arg, default) in arg_defaults.items():
             setattr(self, arg, kwargs.get(arg, default))
 
         self.factorGraphs = []
