@@ -27,3 +27,8 @@ pip install -e .
 numbskull test -l 10 -i 10
 cat inference_result.out*
 ```
+
+## Usage ###
+```
+python -m numbskull
+```

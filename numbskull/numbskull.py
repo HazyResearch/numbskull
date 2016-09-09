@@ -2,14 +2,14 @@
 
 """TODO: This is a docstring."""
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
 import sys
 import argparse
-import factorgraph
-from factorgraph import FactorGraph
-from dataloading import *
-from numbskulltypes import *
+import numbskull.factorgraph
+from numbskull.factorgraph import FactorGraph
+from numbskull.dataloading import *
+from numbskull.numbskulltypes import *
 import numpy as np
 
 
@@ -382,7 +382,3 @@ def main(argv=None):
     ns = load(argv)
     ns.learning()
     ns.inference()
-
-
-if __name__ == "__main__":
-    main()

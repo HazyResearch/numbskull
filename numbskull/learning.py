@@ -1,12 +1,12 @@
 """TODO."""
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import numba
 from numba import jit
 import numpy as np
 import math
 import random
-from inference import draw_sample, eval_factor
+from numbskull.inference import draw_sample, eval_factor
 
 
 @jit(nopython=True, cache=True, nogil=True)

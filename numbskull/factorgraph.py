@@ -1,11 +1,11 @@
 """TODO."""
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import sys
 import numpy as np
-from inference import *
-from learning import *
-from timer import Timer
+from numbskull.inference import *
+from numbskull.learning import *
+from numbskull.timer import Timer
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 

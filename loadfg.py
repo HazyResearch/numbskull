@@ -36,7 +36,7 @@ def factor(f, args):
         raise NotImplemented("FACTOR " + str(f) + " not implemented.")
 
 
-for (key, value) in numbskull.inference.FACTORS.iteritems():
+for (key, value) in numbskull.inference.FACTORS.items():
 
     print(key)
 
