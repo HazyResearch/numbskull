@@ -71,7 +71,7 @@ arguments = [
          'default': 0.01,
          'type': float,
          'help': 'stepsize for learning'}),
-    (('-d', '--decay'),
+    (('-d', '--decay', '--diminish'),
         {'metavar': 'LEARNING_DECAY',
          'dest': 'decay',
          'default': 0.95,
@@ -88,14 +88,14 @@ arguments = [
          'dest': 'regularization',
          'default': 2,
          'type': int,
-         'help': 'regularization (l1 or l2)'}),
+         'help': 'regularization (l1 or l2) [Enter as "1" or "2"]'}),
     (('-b', '--burn_in'),
         {'metavar': 'BURN_IN',
          'dest': 'burn_in',
          'default': 0,
          'type': int,
          'help': 'number of burn-in epochs'}),
-    (('-t', '--threads'),
+    (('-t', '--threads', '--n_threads'),
         {'metavar': 'NUM_THREADS',
          'dest': 'nthreads',
          'default': 1,
@@ -106,18 +106,22 @@ arguments = [
 flags = [
     (tuple(['--sample_evidence']),
         {'default': True,
+         'dest': 'sample_evidence',
          'action': 'store_true',
          'help': 'sample evidence variables'}),
     (tuple(['--learn_non_evidence']),
         {'default': False,
+         'dest': 'learn_non_evidence',
          'action': 'store_true',
          'help': 'learn from non-evidence variables'}),
-    (tuple(['--quiet']),
+    (('-q', '--quiet'),
         {'default': False,
+         'dest': 'quiet',
          'action': 'store_true',
          'help': 'quiet'}),
     (tuple(['--verbose']),
         {'default': False,
+         'dest': 'verbose',
          'action': 'store_true',
          'help': 'verbose'})
 ]
@@ -150,7 +154,7 @@ class NumbSkull(object):
                 arg_defaults[opts['dest']] = opts['default']
         # Initialize default execution flags
         for arg, opts in flags:
-            arg_defaults[arg[0].strip('--')] = opts['default']
+            arg_defaults[opts['dest']] = opts['default']
         for (arg, default) in arg_defaults.iteritems():
             setattr(self, arg, kwargs.get(arg, default))
 
