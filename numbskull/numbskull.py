@@ -53,6 +53,12 @@ arguments = [
          'default': 'graph.factors',
          'type': str,
          'help': 'factor file'}),
+    (tuple(['--domains']),
+        {'metavar': 'DOMAINS_FILE',
+         'dest': 'domainfile',
+         'default': 'graph.domains',
+         'type': str,
+         'help': 'domain file'}),
     (('-l', '--n_learning_epoch'),
         {'metavar': 'NUM_LEARNING_EPOCHS',
          'dest': 'n_learning_epoch',
@@ -211,11 +217,11 @@ class NumbSkull(object):
         else:
             directory = self.directory
 
-        metafile = 'graph.meta' if not metafile else metafile
-        weightfile = 'graph.weights' if not weightfile else weightfile
-        variablefile = 'graph.variables' if not variablefile else variablefile
-        factorfile = 'graph.factors' if not factorfile else factorfile
-        domainfile = 'graph.domains' if not domainfile else domainfile
+        metafile = self.metafile if not metafile else metafile
+        weightfile = self.weightfile if not weightfile else weightfile
+        variablefile = self.variablefile if not variablefile else variablefile
+        factorfile = self.factorfile if not factorfile else factorfile
+        domainfile = self.domainfile if not domainfile else domainfile
         print_info = not self.quiet
         print_only_meta = not self.verbose
 
