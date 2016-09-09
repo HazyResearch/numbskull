@@ -18,8 +18,8 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
     """TODO."""
     # Identify start and end variable
     nvar = variable.shape[0]
-    start = ((nvar / nshards) + 1) * shardID
-    end = min(((nvar / nshards) + 1) * (shardID + 1), nvar)
+    start = (shardID * nvar) // nshards
+    end = ((shardID + 1) * nvar) // nshards
     Z = Z.copy()
     for var_samp in range(start, end):
         sample_and_sgd(var_samp, step, regularization, reg_param,

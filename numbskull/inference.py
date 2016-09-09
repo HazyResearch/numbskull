@@ -14,8 +14,8 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
     """TODO."""
     # Indentify start and end variable
     nvar = variable.shape[0]
-    start = ((nvar / nshards) + 1) * shardID
-    end = min(((nvar / nshards) + 1) * (shardID + 1), nvar)
+    start = (shardID * nvar) // nshards
+    end = ((shardID + 1) * nvar) // nshards
     Z = Z.copy()
     # TODO: give option do not store result, or just store tally
     for var_samp in range(start, end):
