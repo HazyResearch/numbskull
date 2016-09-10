@@ -53,7 +53,7 @@ class FactorGraph(object):
         self.weight_value = \
             np.tile(self.weight[:]['initialValue'], (weight_copies, 1))
 
-        self.Z = np.zeros(max(self.variable[:]['cardinality']))
+        self.Z = np.zeros((workers, max(self.variable[:]['cardinality'])))
 
         self.fid = fid
         assert(workers > 0)

@@ -16,12 +16,11 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
     nvar = variable.shape[0]
     start = (shardID * nvar) // nshards
     end = ((shardID + 1) * nvar) // nshards
-    Z = Z.copy()
     # TODO: give option do not store result, or just store tally
     for var_samp in range(start, end):
         if variable[var_samp]["isEvidence"] == 0 or sample_evidence:
             v = draw_sample(var_samp, var_copy, weight_copy, weight, variable,
-                            factor, fmap, vmap, factor_index, Z,
+                            factor, fmap, vmap, factor_index, Z[shardID],
                             var_value, weight_value)
             var_value[var_copy][var_samp] = v
             if not burnin:

@@ -20,12 +20,11 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
     nvar = variable.shape[0]
     start = (shardID * nvar) // nshards
     end = ((shardID + 1) * nvar) // nshards
-    Z = Z.copy()
     for var_samp in range(start, end):
         sample_and_sgd(var_samp, step, regularization, reg_param,
                        var_copy, weight_copy, weight, variable,
                        factor, fmap, vmap,
-                       factor_index, Z, var_value, var_value_evid,
+                       factor_index, Z[shardID], var_value, var_value_evid,
                        weight_value, learn_non_evidence)
 
 
