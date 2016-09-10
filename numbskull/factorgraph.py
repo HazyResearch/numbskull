@@ -190,14 +190,14 @@ class FactorGraph(object):
             self.learning_epoch_time = timer.interval
             self.learning_total_time += timer.interval
             if diagnostics:
-                print ("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
-                print ("Current stepsize = "+str(stepsize))
+                print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
+                print("Current stepsize = "+str(stepsize))
                 if verbose:
                     self.diagnosticsLearning(weight_copy)
                 sys.stdout.flush()  # otherwise output refuses to show in DD
             # Decay stepsize
             stepsize *= decay
-        print ("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
+        print("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
 
     def dump_weights(self, fout, weight_copy=0):
         """Dump <wid, weight> text file in DW format."""
