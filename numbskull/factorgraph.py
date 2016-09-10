@@ -96,7 +96,9 @@ class FactorGraph(object):
         bins = 10
         hist = np.zeros(bins, dtype=np.int64)
         for i in range(len(self.count)):
-            hist[min(self.count[i] * bins / epochs, bins - 1)] += 1
+            assert(self.count[i] >= 0)
+            assert(self.count[i] <= epochs)
+            hist[min(self.count[i] * bins // epochs, bins - 1)] += 1
         for i in range(bins):
             start = i / 10.0
             end = (i + 1) / 10.0
