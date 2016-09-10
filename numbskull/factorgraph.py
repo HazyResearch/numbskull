@@ -54,6 +54,8 @@ class FactorGraph(object):
             np.tile(self.weight[:]['initialValue'], (weight_copies, 1))
 
         self.Z = np.zeros((workers, max(self.variable[:]['cardinality'])))
+        size = (workers, 2 * max(self.vmap['factor_index_length']))
+        self.fids = np.zeros(size, factor_index.dtype)
 
         self.fid = fid
         assert(workers > 0)
@@ -181,8 +183,8 @@ class FactorGraph(object):
                 args = (self.threads, stepsize, regularization, reg_param,
                         var_copy, weight_copy, self.weight, self.variable,
                         self.factor, self.fmap,
-                        self.vmap, self.factor_index, self.Z, self.var_value,
-                        self.var_value_evid,
+                        self.vmap, self.factor_index, self.Z, self.fids,
+                        self.var_value, self.var_value_evid,
                         self.weight_value, learn_non_evidence)
                 run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval

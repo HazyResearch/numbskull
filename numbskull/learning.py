@@ -13,7 +13,7 @@ from numbskull.inference import draw_sample, eval_factor
 def learnthread(shardID, nshards, step, regularization, reg_param,
                 var_copy, weight_copy, weight,
                 variable, factor, fmap,
-                vmap, factor_index, Z, var_value, var_value_evid,
+                vmap, factor_index, Z, fids, var_value, var_value_evid,
                 weight_value, learn_non_evidence):
     """TODO."""
     # Identify start and end variable
@@ -24,8 +24,8 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
         sample_and_sgd(var_samp, step, regularization, reg_param,
                        var_copy, weight_copy, weight, variable,
                        factor, fmap, vmap,
-                       factor_index, Z[shardID], var_value, var_value_evid,
-                       weight_value, learn_non_evidence)
+                       factor_index, Z[shardID], fids[shardID], var_value,
+                       var_value_evid, weight_value, learn_non_evidence)
 
 
 @jit(nopython=True, cache=True, nogil=True)
@@ -43,7 +43,7 @@ def get_factor_id_range(variable, vmap, var_samp, val):
 @jit(nopython=True, cache=True, nogil=True)
 def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
                    weight_copy, weight, variable, factor, fmap,
-                   vmap, factor_index, Z, var_value, var_value_evid,
+                   vmap, factor_index, Z, fids, var_value, var_value_evid,
                    weight_value, learn_non_evidence):
     """TODO."""
     # If learn_non_evidence sample twice.
@@ -70,17 +70,22 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
     # Iterate over corresponding factors
 
     range_fids = get_factor_id_range(variable, vmap, var_samp, evidence)
+    # TODO: is it possible to avoid copying around fids
     if evidence != proposal:
         range_prop = get_factor_id_range(variable, vmap, var_samp, proposal)
-        fids = np.concatenate((factor_index[range_fids[0]:range_fids[1]],
-                               factor_index[range_prop[0]:range_prop[1]]))
-        fids.sort()
+        s1 = range_fids[1] - range_fids[0]
+        s2 = range_prop[1] - range_prop[0]
+        s = s1 + s2
+        fids[:s1] = factor_index[range_fids[0]:range_fids[1]]
+        fids[s1:s] = factor_index[range_prop[0]:range_prop[1]]
+        fids[:s].sort()
     else:
-        fids = factor_index[range_fids[0]:range_fids[1]]
+        s = range_fids[1] - range_fids[0]
+        fids[:s] = factor_index[range_fids[0]:range_fids[1]]
 
     # go over all factor ids, ignoring dupes
     last_fid = -1  # numba 0.28 would complain if this were None
-    for factor_id in fids:
+    for factor_id in fids[:s]:
         if factor_id == last_fid:
             continue
         last_fid = factor_id

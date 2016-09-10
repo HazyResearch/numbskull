@@ -53,7 +53,7 @@ arguments = [
          'default': 'graph.factors',
          'type': str,
          'help': 'factor file'}),
-    (tuple(['--domain', '--domains']),
+    (('--domain', '--domains'),
         {'metavar': 'DOMAINS_FILE',
          'dest': 'domainfile',
          'default': 'graph.domains',
