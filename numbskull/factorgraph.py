@@ -153,7 +153,8 @@ class FactorGraph(object):
                       (ep, self.inference_epoch_time))
         print("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
         # compute marginals
-        self.marginals = self.count / float(epochs)
+        if epochs != 0:
+            self.marginals = self.count / float(epochs)
         if diagnostics:
             self.diagnostics(epochs)
 
