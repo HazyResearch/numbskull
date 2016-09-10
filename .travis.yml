@@ -1,6 +1,7 @@
 language: python
 python:
   - "2.7"
+  - "3.5"
 
 install:
   - pip install pep8
@@ -19,8 +20,6 @@ script:
   - ./loadfg.py
   - NUMBA_DISABLE_JIT=1 coverage run -p test.py
   - NUMBA_DISABLE_JIT=1 coverage run -p loadfg.py
-  - python3 test.py
-  - python3 loadfg.py
   - coverage combine
 
 after_success:
