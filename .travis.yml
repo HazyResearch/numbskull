@@ -13,7 +13,7 @@ install:
   - pip install enum34
   - pip install ruamel.yaml
   - pip install pycosat
-  - pip install urllib3
+  - pip install requests
 
   - conda create -y -n newenv numba futures
   - source activate newenv
