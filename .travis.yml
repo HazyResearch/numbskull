@@ -12,6 +12,9 @@ install:
   - pip install auxlib
 
   - pip install conda
+  - conda create -y -n newenv numba futures
+  - source activate newenv
+
   - pip install codecov
   - pip install coveralls
   - pip install codeclimate-test-reporter
@@ -22,8 +25,6 @@ install:
   - pip install pycosat
   - pip install requests
 
-  - conda create -y -n newenv numba futures
-  - source activate newenv
 
 script:
   - pep8 .
