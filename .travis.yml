@@ -14,6 +14,9 @@ install:
   - pip install requests
   - pip install pycosat
 
+  # TODO: apparently it's not safe to use pip to install conda
+  # https://github.com/conda/conda/issues/2420
+  # http://conda.pydata.org/docs/travis.html
   - pip install conda
   - conda create -y -n newenv numba futures
   - source activate newenv
