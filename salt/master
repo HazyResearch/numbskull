@@ -13,6 +13,7 @@
 
 # The address of the interface to bind to:
 #interface: 0.0.0.0
+interface: ${interface}
 
 # Whether the master should listen for IPv6 connections. If this is set to True,
 # the interface option must be adjusted, too. (For example: "interface: '::'")
@@ -26,6 +27,7 @@
 # the job cache, which must be deleted if this user is changed. If the
 # modified files cause conflicts, set verify_env to False.
 #user: root
+user: ${user}
 
 # The port used by the communication interface. The ret (return) port is the
 # interface used for the file server, authentication, job returns, etc.
@@ -38,6 +40,7 @@
 # sock_dir, log_file, autosign_file, autoreject_file, extension_modules,
 # key_logfile, pidfile:
 #root_dir: /
+root_dir: ${root_dir}
 
 # The path to the master's configuration file.
 #conf_file: /etc/salt/master
@@ -505,6 +508,9 @@
 #  base:
 #    - /srv/salt
 #
+file_roots:
+  base:
+    - ${root_dir}/srv/salt
 
 # When using multiple environments, each with their own top file, the
 # default behaviour is an unordered merge. To prevent top files from
