@@ -10,7 +10,11 @@ install:
   - pip install codecov
   - pip install coveralls
   - pip install codeclimate-test-reporter
+
+  # conda dependencies that pip does not install
   - pip install enum34
+  - pip install ruamel.yaml
+
   - conda create -y -n newenv numba futures
   - source activate newenv
 
