@@ -8,6 +8,7 @@ install:
   - pip install pep8
   - pip install pep257
   - pip install conda
+  - conda --version
 
   # conda dependencies that pip does not install
   - pip install enum34
