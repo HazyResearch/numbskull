@@ -14,7 +14,6 @@ install:
   - pip install ruamel.yaml
   - pip install pycosat
 
-  - conda --version
   - conda create -y -n newenv numba futures
   - source activate newenv
 
