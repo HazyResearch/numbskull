@@ -7,6 +7,10 @@ install:
   - pip install --upgrade pip
   - pip install pep8
   - pip install pep257
+
+  # Must be installed before conda for python3
+  - pip install auxlib
+
   - pip install conda
   - pip install codecov
   - pip install coveralls
@@ -17,7 +21,6 @@ install:
   - pip install ruamel.yaml
   - pip install pycosat
   - pip install requests
-  - pip install auxlib
 
   - conda create -y -n newenv numba futures
   - source activate newenv
