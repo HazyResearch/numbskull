@@ -7,7 +7,7 @@ install:
   - pip install pep8
   - pip install pep257
   - pip install conda
-  - conda create -y -n newenv numba futures
+  - conda create -y -n newenv numba futures enum34
   - source activate newenv
   - pip install codecov
   - pip install coveralls
