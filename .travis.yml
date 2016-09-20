@@ -10,9 +10,9 @@ install:
   - pip install conda
 
   # conda dependencies that pip does not install
-  # - pip install enum34
-  # - pip install ruamel.yaml
-  # - pip install pycosat
+  - pip install enum34
+  - pip install ruamel.yaml
+  - pip install pycosat
 
   - conda create -y -n newenv numba futures
   - source activate newenv
