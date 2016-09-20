@@ -8,6 +8,9 @@ install:
   - pip install pep8
   - pip install pep257
   - pip install conda
+  - pip install codecov
+  - pip install coveralls
+  - pip install codeclimate-test-reporter
 
   # conda dependencies that pip does not install
   - pip install enum34
@@ -28,9 +31,6 @@ script:
   - coverage combine
 
 after_success:
-  - pip install codecov
-  - pip install coveralls
-  - pip install codeclimate-test-reporter
   - codecov
   - coveralls
   - codeclimate-test-reporter
