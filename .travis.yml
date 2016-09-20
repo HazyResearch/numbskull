@@ -10,6 +10,7 @@ install:
 
   # Must be installed before conda for python3
   - pip install auxlib
+  - pip install ruamel.yaml
 
   - pip install conda
   - conda create -y -n newenv numba futures
@@ -21,7 +22,6 @@ install:
 
   # conda dependencies that pip does not install
   - pip install enum34
-  - pip install ruamel.yaml
   - pip install pycosat
   - pip install requests
 
