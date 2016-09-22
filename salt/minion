@@ -14,7 +14,8 @@
 # Set the location of the salt master server. If the master server cannot be
 # resolved, then the minion will fail to start.
 #master: salt
-master: ${master}
+master: raiders1
+#master: ${master}
 
 # Set http proxy information for the minion when doing requests
 #proxy_host:
