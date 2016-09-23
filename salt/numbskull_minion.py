@@ -7,10 +7,26 @@ A simple test engine, not intended for real use but as an example
 from __future__ import absolute_import
 import json
 
+
 import logging
 
 # Import salt libs
 import salt.utils.event
+
+#import numbskull
+import sys
+import salt.config
+__opts__ = salt.config.minion_config('/tmp/salt/etc/salt/minion')
+sys.path.append(__opts__['extension_modules']+'/modules')
+try:
+    pass
+    import numbskull
+except:
+    import time
+    for i in range(1000):
+          log.debug("FAIL")
+          time.sleep(1)
+
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +62,8 @@ def start():
         log.debug('test engine started')
     log.debug(minion)
     while True:
+        log.debug("NUMBSKULL 123")
+        log.debug(numbskull.__file__)
         evdata = event_bus.get_event(full=True)
         if evdata:
            tag, data = evdata['tag'], evdata['data']

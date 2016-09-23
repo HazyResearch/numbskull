@@ -49,6 +49,7 @@ for i in etc/salt \
          srv \
          srv/salt \
          srv/salt/_engines \
+         srv/salt/_modules \
          srv/pillar \
          srv/salt-master \
          var/log/salt \
