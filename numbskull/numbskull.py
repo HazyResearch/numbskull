@@ -166,6 +166,15 @@ class NumbSkull(object):
 
         self.factorGraphs = []
 
+    def loadFactorGraphRaw(self, weight, variable, factor, fmap,
+                            vmap, factor_index,
+                            var_copies=1, weight_copies=1):
+        """TODO."""
+        fg = FactorGraph(weight, variable, factor, fmap, vmap, factor_index,
+                         var_copies, weight_copies,
+                         len(self.factorGraphs), self.nthreads)
+        self.factorGraphs.append(fg)
+
     def loadFactorGraph(self, weight, variable, factor, fmap, domain_mask,
                         edges, var_copies=1, weight_copies=1):
         """TODO."""
@@ -320,7 +329,7 @@ class NumbSkull(object):
         """TODO."""
         return self.factorGraphs[fgID]
 
-    def inference(self, fgID=0):
+    def inference(self, fgID=0, out=True):
         """TODO."""
         burn_in = self.burn_in
         n_inference_epoch = self.n_inference_epoch
@@ -328,12 +337,13 @@ class NumbSkull(object):
         self.factorGraphs[fgID].inference(burn_in, n_inference_epoch,
                                           sample_evidence=self.sample_evidence,
                                           diagnostics=not self.quiet)
-        output_file = os.path.join(
-            self.output_dir, "inference_result.out.text")
-        self.factorGraphs[fgID].dump_probabilities(output_file,
+        if out:
+            output_file = os.path.join(
+                self.output_dir, "inference_result.out.text")
+            self.factorGraphs[fgID].dump_probabilities(output_file,
                                                    n_inference_epoch)
 
-    def learning(self, fgID=0):
+    def learning(self, fgID=0, out=True):
         """TODO."""
         burn_in = self.burn_in
         n_learning_epoch = self.n_learning_epoch
@@ -347,10 +357,10 @@ class NumbSkull(object):
                  diagnostics=not self.quiet,
                  verbose=self.verbose,
                  learn_non_evidence=self.learn_non_evidence)
-        output_file = os.path.join(
-            self.output_dir, "inference_result.out.weights.text")
-        self.factorGraphs[fgID].dump_weights(output_file)
-
+        if out:
+            output_file = os.path.join(
+                self.output_dir, "inference_result.out.weights.text")
+            self.factorGraphs[fgID].dump_weights(output_file)
 
 def load(argv=None):
     """TODO."""
