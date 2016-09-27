@@ -89,15 +89,18 @@ class NumbskullMaster:
                                          expr_form='list')
         # wait for ACK from minions
         SUCCESS = True
-        for i in range(len(self.minions['up'])):
-            evdata = self.event_bus.get_event(wait=10,
+        resp = []
+        while len(resp) < len(self.minions['up']):
+            evdata = self.event_bus.get_event(wait=5,
                                               tag='INIT_NS_RES',
                                               full=True)
-            tag, data = evdata['tag'], evdata['data']
-            jevent = json.dumps(data)
-            if data['data']['status'] == 'FAIL':
-                print 'ERROR: Minion %s failed to load numbskull.' % data['id']
-                SUCCESS = False
+            if evdata:
+                tag, data = evdata['tag'], evdata['data']
+                jevent = json.dumps(data)
+                if data['data']['status'] == 'FAIL':
+                    print 'ERROR: Minion %s failed to load numbskull.' % data['id']
+                    SUCCESS = False
+                resp.append((data['id'], SUCCESS))
         if SUCCESS:
             print 'SUCCESS: All minions loaded numbskull.'
         return SUCCESS
@@ -137,20 +140,23 @@ class NumbskullMaster:
                                          expr_form='list')
         # wait for ACK from minions
         SUCCESS = True
-        for i in range(len(self.minions['up'])):
-            evdata = self.event_bus.get_event(wait=10,
+        resp = []
+        while len(resp) < len(self.minions['up']):
+            evdata = self.event_bus.get_event(wait=5,
                                               tag='LOAD_FG_RES',
                                               full=True)
-            tag, data = evdata['tag'], evdata['data']
-            jevent = json.dumps(data)
-            if data['data']['status'] != 'SUCCESS':
-                print 'ERROR: Minion %s failed to load FG.' % data['id']
-                SUCCESS = False
-            else:
-                print 'SUCCESS: Minion %s factor graph stats:' % data['id']
-                print 'Variables: %d' % data['data']['meta']['variables']
-                print 'Weights: %d' % data['data']['meta']['weights']
-                print 'Factors: %d' % data['data']['meta']['factors']
+            if evdata:
+                tag, data = evdata['tag'], evdata['data']
+                jevent = json.dumps(data)
+                if data['data']['status'] != 'SUCCESS':
+                    print 'ERROR: Minion %s failed to load FG.' % data['id']
+                    SUCCESS = False
+                else:
+                    print 'SUCCESS: Minion %s factor graph stats:' % data['id']
+                    print 'Variables: %d' % data['data']['meta']['variables']
+                    print 'Weights: %d' % data['data']['meta']['weights']
+                    print 'Factors: %d' % data['data']['meta']['factors']
+                resp.append((data['id'], SUCCESS))
         if SUCCESS:
             print 'SUCCESS: All minions loaded FG.'
         return SUCCESS
@@ -173,19 +179,22 @@ class NumbskullMaster:
                                          expr_form='list')
         # weight for data from minions
         SUCCESS = True
+        resp = []
         weights = []
-        for i in range(len(self.minions['up'])):
-            evdata = self.event_bus.get_event(wait=1000,
+        while len(resp) < len(self.minions['up']):
+            evdata = self.event_bus.get_event(wait=5,
                                               tag='LEARN_RES',
                                               full=True)
-            tag, data = evdata['tag'], evdata['data']
-            jevent = json.dumps(data)
-            if data['data']['status'] != 'SUCCESS':
-                print 'ERROR: Minion %s failed to run learning.' % data['id']
-                SUCCESS = False
-            else:
-                w = self.deserialize(data['data']['weights'], np.float64)
-                weights.append(w)
+            if evdata:
+                tag, data = evdata['tag'], evdata['data']
+                jevent = json.dumps(data)
+                if data['data']['status'] != 'SUCCESS':
+                    print 'ERROR: Minion %s failed to run learning.' % data['id']
+                    SUCCESS = False
+                else:
+                    w = self.deserialize(data['data']['weights'], np.float64)
+                    weights.append(w)
+                resp.append((data['id'], SUCCESS))
         if SUCCESS:
             print 'SUCCESS: All minions ran learning.'
         return SUCCESS, weights
@@ -216,19 +225,22 @@ class NumbskullMaster:
                                          expr_form='list')
         # variable props for data from minions
         SUCCESS = True
+        resp = []
         marginals = []
-        for i in range(len(self.minions['up'])):
-            evdata = self.event_bus.get_event(wait=1000,
+        while len(resp) < len(self.minions['up']):
+            evdata = self.event_bus.get_event(wait=5,
                                               tag='INFER_RES',
                                               full=True)
-            tag, data = evdata['tag'], evdata['data']
-            jevent = json.dumps(data)
-            if data['data']['status'] != 'SUCCESS':
-                print 'ERROR: Minion %s failed to run inference.' % data['id']
-                SUCCESS = False
-            else:
-                m = self.deserialize(data['data']['marginals'], np.float64)
-                marginals.append(m)
+            if evdata:
+                tag, data = evdata['tag'], evdata['data']
+                jevent = json.dumps(data)
+                if data['data']['status'] != 'SUCCESS':
+                    print 'ERROR: Minion %s failed to run inference.' % data['id']
+                    SUCCESS = False
+                else:
+                    m = self.deserialize(data['data']['marginals'], np.float64)
+                    marginals.append(m)
+            resp.append((data['id'], SUCCESS))
         if SUCCESS:
             print 'SUCCESS: All minions ran inference.'
         return SUCCESS, marginals
@@ -249,27 +261,6 @@ class NumbskullMaster:
             marginals[fgID].append(self.ns.factorGraphs[fgID].marginals)
             # Combine results
         return marginals
-
-    def start(self):
-        for i in range(10):
-            # send message to minion TODO: Change client
-            data = {'incr': 10}
-            tag = 'incr'
-            newEvent = self.master.cmd('raiders2_thodrek',
-                                       'event.fire',
-                                       [data, tag])
-            # receive message from minion
-            evdata = self.event_bus.get_event(wait=10,
-                                              tag='minion_response',
-                                              full=True)
-            if not evdata:
-                print 'Nothing back'
-            # print message
-            if evdata:
-                tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
-                print 'Received new message:' + jevent
-                print
 
 
 def main(argv=None):

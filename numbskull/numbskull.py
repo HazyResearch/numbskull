@@ -106,7 +106,13 @@ arguments = [
          'dest': 'nthreads',
          'default': 1,
          'type': int,
-         'help': 'number of threads to be used'})
+         'help': 'number of threads to be used'}),
+    (('-u', '--dburl'),
+        {'metavar': 'DATABASE_URL',
+         'dest': 'dburl',
+         'default': '',
+         'type': str,
+         'help': 'url to database holding factor graph information'})
 ]
 
 flags = [
