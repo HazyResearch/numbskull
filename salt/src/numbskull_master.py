@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Import python libs
@@ -19,6 +20,9 @@ import salt.runner
 import salt.config
 import nb_syspaths as syspaths
 
+import messages
+import time
+
 
 class NumbskullMaster:
     def __init__(self, argv):
@@ -35,12 +39,133 @@ class NumbskullMaster:
                              transport=self.salt_opts['transport'],
                              opts=self.salt_opts)
         # Get active minions
-        self.minions = self.get_minions_status()
+        #self.minions = self.get_minions_status()
         # Numbskull-related variables
         self.argv = argv
         self.args = self.parse_args(argv)
         self.ns = None
+        self.num_minions = 2
 
+    def initialize(self):
+        self.assign_partition_id()
+        self.prepare_db()
+        self.prep_numbskull()
+        self.load_own_fg()
+        self.load_minions_fg()
+
+    def inference(self):
+        # TODO: switch to proper probs
+        marginals = {}
+        for fgID in range(len(self.ns.factorGraphs)):
+            marginals[fgID] = []
+            # Run learning on minions
+            SUCCESS, m_marginals = self.inference_minions(fgID)
+            if not SUCCESS:
+                print 'Minions-learning failed'
+                return
+            marginals[fgID].extend(m_marginals)
+            # Run learning locally
+            self.ns.inference(fgID, False)
+            marginals[fgID].append(self.ns.factorGraphs[fgID].marginals)
+            # Combine results
+        return marginals
+
+    def learning(self):
+        weights = {}
+        for fgID in range(len(self.ns.factorGraphs)):
+            weights[fgID] = []
+            # Run learning on minions
+            SUCCESS, m_weights = self.learning_minions(fgID)
+            if not SUCCESS:
+                print 'Minions-learning failed'
+                return
+            weights[fgID].extend(m_weights)
+            # Run learning locally
+            self.ns.learning(fgID, False)
+            weights[fgID].append(self.ns.factorGraphs[fgID].weight_value)
+            # Combine results
+        return weights
+
+    # Init Phase
+    def assign_partition_id(self):
+        while True:
+            self.minions = self.get_minions_status()['up']
+            if len(self.minions) >= self.num_minions:
+                break
+            print("Waiting for minions")
+            time.sleep(1)
+        print("Minions obtained")
+
+        self.minions = self.minions[:self.num_minions]
+        for (i, name) in enumerate(self.minions):
+            data = {'id': i}
+            newEvent = self.local_client.cmd([name],
+                                             'event.fire',
+                                             [data, messages.ASSIGN_ID],
+                                             expr_form='list')
+        # TODO: listen for responses
+
+    def prepare_db(self):
+        # TODO: implement
+        pass
+
+    def prep_numbskull(self):
+        # Setup local instance
+        self.prep_local_numbskull()
+        # Setup minion instnances
+        success = self.prep_minions_numbskull()
+        if not success:
+            print 'ERROR: Numbksull not loaded'
+
+    def load_own_fg(self):
+        # TODO: implement
+        # Needs to load the factor graph
+        # Track what to sample
+        # Track map for variables/factors from each minion
+        pass
+
+    def load_minions_fg(self):
+        for fg in self.ns.factorGraphs:
+            if not self.send_minions_fg_data(fg):
+                print 'ERROR: Could not send FG to minions'
+                return
+        print 'SUCCESS: FG loaded to all minions'
+        return
+
+    # Inference
+    def inference_minions(self, fgID):
+        # Prep event
+        tag = messages.INFER
+        data = {'fgID': fgID}
+        newEvent = self.local_client.cmd(self.minions,
+                                         'event.fire',
+                                         [data, tag],
+                                         expr_form='list')
+        # variable props for data from minions
+        SUCCESS = True
+        resp = []
+        marginals = []
+        while len(resp) < len(self.minions):
+            evdata = self.event_bus.get_event(wait=5,
+                                              tag=messages.INFER_RES,
+                                              full=True)
+            if evdata:
+                tag, data = evdata['tag'], evdata['data']
+                jevent = json.dumps(data)
+                if data['data']['status'] != 'SUCCESS':
+                    print 'ERROR: Minion %s failed to run inference.' % data['id']
+                    SUCCESS = False
+                else:
+                    m = self.deserialize(data['data']['marginals'], np.float64)
+                    marginals.append(m)
+            resp.append((data['id'], SUCCESS))
+        if SUCCESS:
+            print 'SUCCESS: All minions ran inference.'
+        return SUCCESS, marginals
+
+
+
+    # Helper
     def parse_args(self, argv):
         """TODO."""
         if argv is None:
@@ -66,6 +191,7 @@ class NumbskullMaster:
     def get_minions_status(self):
         minion_status = self.runner.cmd('manage.status')
         print "***** MINION STATUS REPORT *****"
+        print minion_status
         print "UP: ", len(minion_status['up'])
         print "DOWN: ", len(minion_status['down'])
         print
@@ -73,26 +199,25 @@ class NumbskullMaster:
 
     def prep_local_numbskull(self):
         self.ns = numbskull.NumbSkull(**vars(self.args))
-        self.ns.loadFGFromFile()
-        fg = self.ns.factorGraphs[-1]
-        print 'Weights: %d' % fg.weight.shape[0]
-        print 'Variables: %d' % fg.variable.shape[0]
-        print 'Factors:  %d' % fg.factor.shape[0]
+        #self.ns.loadFGFromFile()
+        #fg = self.ns.factorGraphs[-1]
+        #print 'Weights: %d' % fg.weight.shape[0]
+        #print 'Variables: %d' % fg.variable.shape[0]
+        #print 'Factors:  %d' % fg.factor.shape[0]
 
     def prep_minions_numbskull(self):
         # send args and initialize numbskull at minion
         data = {'argv': self.argv}
-        tag = 'INIT_NS'
-        newEvent = self.local_client.cmd(self.minions['up'],
+        newEvent = self.local_client.cmd(self.minions,
                                          'event.fire',
-                                         [data, tag],
+                                         [data, messages.INIT_NS],
                                          expr_form='list')
         # wait for ACK from minions
         SUCCESS = True
         resp = []
-        while len(resp) < len(self.minions['up']):
+        while len(resp) < len(self.minions):
             evdata = self.event_bus.get_event(wait=5,
-                                              tag='INIT_NS_RES',
+                                              tag=messages.INIT_NS_RES,
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']
@@ -104,14 +229,6 @@ class NumbskullMaster:
         if SUCCESS:
             print 'SUCCESS: All minions loaded numbskull.'
         return SUCCESS
-
-    def prep_numbskull(self):
-        # Setup local instance
-        self.prep_local_numbskull()
-        # Setup minion instnances
-        success = self.prep_minions_numbskull()
-        if not success:
-            print 'ERROR: Numbksull not loaded'
 
     def serialize(self, array):
         return array.tostring().decode('utf16').encode('utf8')
@@ -132,18 +249,18 @@ class NumbskullMaster:
 
     def send_minions_fg_data(self, fg):
         # Prep event
-        tag = 'LOAD_FG'
+        tag = messages.LOAD_FG
         data = self.minion_fg_data(fg)
-        newEvent = self.local_client.cmd(self.minions['up'],
+        newEvent = self.local_client.cmd(self.minions,
                                          'event.fire',
                                          [data, tag],
                                          expr_form='list')
         # wait for ACK from minions
         SUCCESS = True
         resp = []
-        while len(resp) < len(self.minions['up']):
+        while len(resp) < len(self.minions):
             evdata = self.event_bus.get_event(wait=5,
-                                              tag='LOAD_FG_RES',
+                                              tag=messages.LOAD_FG_RES,
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']
@@ -161,19 +278,11 @@ class NumbskullMaster:
             print 'SUCCESS: All minions loaded FG.'
         return SUCCESS
 
-    def load_minions_fg(self):
-        for fg in self.ns.factorGraphs:
-            if not self.send_minions_fg_data(fg):
-                print 'ERROR: Could not send FG to minions'
-                return
-        print 'SUCCESS: FG loaded to all minions'
-        return
-
     def learning_minions(self, fgID):
         # Prep event
-        tag = 'LEARN'
+        tag = messages.LEARN
         data = {'fgID': fgID}
-        newEvent = self.local_client.cmd(self.minions['up'],
+        newEvent = self.local_client.cmd(self.minions,
                                          'event.fire',
                                          [data, tag],
                                          expr_form='list')
@@ -181,9 +290,9 @@ class NumbskullMaster:
         SUCCESS = True
         resp = []
         weights = []
-        while len(resp) < len(self.minions['up']):
+        while len(resp) < len(self.minions):
             evdata = self.event_bus.get_event(wait=5,
-                                              tag='LEARN_RES',
+                                              tag=messages.LEARN_RES,
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']
@@ -199,69 +308,6 @@ class NumbskullMaster:
             print 'SUCCESS: All minions ran learning.'
         return SUCCESS, weights
 
-    def learning(self):
-        weights = {}
-        for fgID in range(len(self.ns.factorGraphs)):
-            weights[fgID] = []
-            # Run learning on minions
-            SUCCESS, m_weights = self.learning_minions(fgID)
-            if not SUCCESS:
-                print 'Minions-learning failed'
-                return
-            weights[fgID].extend(m_weights)
-            # Run learning locally
-            self.ns.learning(fgID, False)
-            weights[fgID].append(self.ns.factorGraphs[fgID].weight_value)
-            # Combine results
-        return weights
-
-    def inference_minions(self, fgID):
-        # Prep event
-        tag = 'INFER'
-        data = {'fgID': fgID}
-        newEvent = self.local_client.cmd(self.minions['up'],
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
-        # variable props for data from minions
-        SUCCESS = True
-        resp = []
-        marginals = []
-        while len(resp) < len(self.minions['up']):
-            evdata = self.event_bus.get_event(wait=5,
-                                              tag='INFER_RES',
-                                              full=True)
-            if evdata:
-                tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
-                if data['data']['status'] != 'SUCCESS':
-                    print 'ERROR: Minion %s failed to run inference.' % data['id']
-                    SUCCESS = False
-                else:
-                    m = self.deserialize(data['data']['marginals'], np.float64)
-                    marginals.append(m)
-            resp.append((data['id'], SUCCESS))
-        if SUCCESS:
-            print 'SUCCESS: All minions ran inference.'
-        return SUCCESS, marginals
-
-    def inference(self):
-        # TODO: switch to proper probs
-        marginals = {}
-        for fgID in range(len(self.ns.factorGraphs)):
-            marginals[fgID] = []
-            # Run learning on minions
-            SUCCESS, m_marginals = self.inference_minions(fgID)
-            if not SUCCESS:
-                print 'Minions-learning failed'
-                return
-            marginals[fgID].extend(m_marginals)
-            # Run learning locally
-            self.ns.inference(fgID, False)
-            marginals[fgID].append(self.ns.factorGraphs[fgID].marginals)
-            # Combine results
-        return marginals
-
 
 def main(argv=None):
     args = ['../../test',
@@ -274,8 +320,10 @@ def main(argv=None):
             '--quiet']
 
     ns_master = NumbskullMaster(args)
-    ns_master.prep_numbskull()
-    ns_master.load_minions_fg()
-    w = ns_master.learning()
+    ns_master.initialize()
+    #w = ns_master.learning()
     p = ns_master.inference()
     return ns_master, w, p
+
+if __name__ == "__main__":
+    main()

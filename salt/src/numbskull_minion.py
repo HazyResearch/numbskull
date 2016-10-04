@@ -15,14 +15,13 @@ import salt.utils.event
 # Import numbskull
 m_opts = salt.config.minion_config(os.environ['SALT_CONFIG_DIR']+'/minion')
 sys.path.append(m_opts['extension_modules']+'/modules')
-try:
-    pass
-    import numbskull
-    from numbskull import numbskull
-    from numbskull.numbskulltypes import *
-except:
-    print 'ERROR: Cannot load numbskull'
-    sys.exit(-1)
+import numbskull
+from numbskull import numbskull
+from numbskull.numbskulltypes import *
+
+import messages
+import pydoc
+
 
 log = logging.getLogger(__name__)
 
@@ -115,40 +114,52 @@ def start():
             sock_dir=__opts__['sock_dir'],
             listen=True)
     log.debug('Starting Numbskull Minion Engine')
+    partition_id = -1
     while True:
         evdata = event_bus.get_event(full=True)
+        log.debug('DEBUG 1')
         if evdata:
+            log.debug('DEBUG 2')
             tag, data = evdata['tag'], evdata['data']
             jevent = json.dumps(data)
             log.debug(jevent)
             if data:
-                if tag == 'INIT_NS':
+                log.debug("DEBUG 3")
+                strhelp = pydoc.render_doc(messages, "Help on %s")
+                log.debug(strhelp)
+                log.debug(tag)
+                log.debug(messages.INIT_NS)
+                log.debug("DEBUG 4")
+                if tag == messages.ASSIGN_ID:
+                    partition_id = data['id']
+                    print("Assigned partition id #", partition_id)
+                    # TODO: respond to master
+                elif tag == messages.INIT_NS:
                     try:
                         ns_minion.init_numbskull(data['argv'])
                         # Respond OK to master
-                        tag = 'INIT_NS_RES'
                         data = {'status': 'OK'}
-                        __salt__['event.send'](tag, data)
+                        __salt__['event.send'](messages.INIT_NS_RES, data)
                     except:
                         # Respond FAIL to master
-                        tag = 'INIT_NS_RES'
                         data = {'status': 'FAIL'}
-                        __salt__['event.send'](tag, data)
-                elif tag == 'LOAD_FG':
+                        __salt__['event.send'](messages.INIT_NS_RES, data)
+                elif tag == messages.LOAD_FG:
+                    # TODO: actually should be loading from database
+                    # Needs to compute 
+                    # Track what to sample
+                    # Track map for variables/factors from each minion
                     status, meta = ns_minion.loadFG(data)
                     # Respond to master
-                    tag = 'LOAD_FG_RES'
                     data = {'status': status, 'meta': meta}
-                    __salt__['event.send'](tag, data)
-                elif tag == 'LEARN':
+                    __salt__['event.send'](messages.LOAD_FG_RES, data)
+                elif tag == messages.LEARN:
                     status, weights = ns_minion.learning(data['fgID'])
                     # Respond to master
-                    tag = 'LEARN_RES'
                     data = {'status': status, 'weights': weights}
-                    __salt__['event.send'](tag, data)
-                elif tag == 'INFER':
+                    __salt__['event.send'](messages.LEARN_RES, data)
+                elif tag == messages.INFER:
                     status, marginals = ns_minion.inference(data['fgID'])
                     # Respond to master
-                    tag = 'INFER_RES'
                     data = {'status': status, 'marginals': marginals}
-                    __salt__['event.send'](tag, data)
+                    __salt__['event.send'](messages.INFER_RES, data)
