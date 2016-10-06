@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Import python libs
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 import json
 import logging
 import os.path
@@ -10,6 +10,7 @@ import numbskull
 from numbskull import numbskull
 import argparse
 import sys
+import subprocess
 import numpy as np
 import codecs
 
@@ -23,6 +24,7 @@ import nb_syspaths as syspaths
 import messages
 import time
 
+import psycopg2
 
 class NumbskullMaster:
     def __init__(self, argv):
@@ -61,7 +63,7 @@ class NumbskullMaster:
             # Run learning on minions
             SUCCESS, m_marginals = self.inference_minions(fgID)
             if not SUCCESS:
-                print 'Minions-learning failed'
+                print('Minions-learning failed')
                 return
             marginals[fgID].extend(m_marginals)
             # Run learning locally
@@ -77,7 +79,7 @@ class NumbskullMaster:
             # Run learning on minions
             SUCCESS, m_weights = self.learning_minions(fgID)
             if not SUCCESS:
-                print 'Minions-learning failed'
+                print('Minions-learning failed')
                 return
             weights[fgID].extend(m_weights)
             # Run learning locally
@@ -107,7 +109,102 @@ class NumbskullMaster:
 
     def prepare_db(self):
         # TODO: implement
-        pass
+
+        # hard-coded application directory
+        application_dir = "/dfs/scratch0/bryanhe/genomics/"
+
+        # obtain database url from file
+        with open(application_dir + "/db.url", "r") as f:
+            db_url = f.read().strip()
+
+        # Call deepdive to perform everything up to grounding
+        # TODO: is there a way to not "do all" (which even uses DW sampling)
+        #       and just ground?
+        # TODO: check that deepdive ran successfully
+        subprocess.call(["deepdive", "do", "all"], cwd=application_dir)
+
+        # Obtain partition information
+        # TODO: remove hard-coded 2("postgresql://thodrek@raiders6.stanford.edu:1432/genomics_bryan")
+        partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", "2"], cwd=application_dir)
+        partition = json.loads(partition_json)
+
+        # Select which partitioning
+        # TODO: actually check costs
+        print(len(partition))
+        #print(partition[0])
+        print(partition[0].keys())
+        for p in partition:
+            #for k in p.keys():
+            #    print(k)
+            #    print(p[k])
+            #    print()
+            #print(p["partition_types"])
+            if p["partition_types"] == "(0,1)":
+                p0 = p
+
+        # p0 is partition to use
+        for k in p0.keys():
+            print(k)
+            print(p0[k])
+            print()
+
+        # query for views
+        # Fits regex "*_sharding"
+
+
+        # Connect to an existing database
+        conn = psycopg2.connect(db_url)
+        # Open a cursor to perform database operations
+        cur = conn.cursor()
+
+        # This adds partition information to the database
+        for op in p0["sql_to_apply"]:
+            #print(op)
+            # Currently ignoring the column already exists from ALTER statements
+            # TODO: better fix?
+            try:
+                cur.execute(op)
+                # Make the changes to the database persistent
+                conn.commit()
+            except psycopg2.ProgrammingError:
+                print("Unexpected error:", sys.exc_info())
+                conn.rollback()
+
+        # This is essentially what load_own_fg should be doing
+        cur.execute("SELECT table_name FROM INFORMATION_SCHEMA.views WHERE table_name LIKE '%_sharding' AND table_schema = ANY (current_schemas(false))")
+        view = []
+        while True:
+            temp = cur.fetchmany()
+            if temp == []:
+                break
+            view += temp[0]
+
+        factor_view = []
+        variable_view = []
+        weight_view = []
+
+        print(view)
+        for v in view:
+            is_f = ("_factors_" in v)
+            is_v = ("_variables_" in v)
+            is_w = ("_weights_" in v)
+            assert((is_f + is_v + is_w) == 1)
+
+            if is_f:
+                factor_view.append(v)
+            if is_v:
+                variable_view.append(v)
+            if is_w:
+                weight_view.append(v)
+
+        print(factor_view)
+        print(variable_view)
+        print(weight_view)
+
+        # Close communication with the database
+        cur.close()
+        conn.close()
+
 
     def prep_numbskull(self):
         # Setup local instance
@@ -115,7 +212,7 @@ class NumbskullMaster:
         # Setup minion instnances
         success = self.prep_minions_numbskull()
         if not success:
-            print 'ERROR: Numbksull not loaded'
+            print('ERROR: Numbksull not loaded')
 
     def load_own_fg(self):
         # TODO: implement
@@ -127,9 +224,9 @@ class NumbskullMaster:
     def load_minions_fg(self):
         for fg in self.ns.factorGraphs:
             if not self.send_minions_fg_data(fg):
-                print 'ERROR: Could not send FG to minions'
+                print('ERROR: Could not send FG to minions')
                 return
-        print 'SUCCESS: FG loaded to all minions'
+        print('SUCCESS: FG loaded to all minions')
         return
 
     # Inference
@@ -153,14 +250,14 @@ class NumbskullMaster:
                 tag, data = evdata['tag'], evdata['data']
                 jevent = json.dumps(data)
                 if data['data']['status'] != 'SUCCESS':
-                    print 'ERROR: Minion %s failed to run inference.' % data['id']
+                    print('ERROR: Minion %s failed to run inference.' % data['id'])
                     SUCCESS = False
                 else:
                     m = self.deserialize(data['data']['marginals'], np.float64)
                     marginals.append(m)
             resp.append((data['id'], SUCCESS))
         if SUCCESS:
-            print 'SUCCESS: All minions ran inference.'
+            print('SUCCESS: All minions ran inference.')
         return SUCCESS, marginals
 
 
@@ -190,11 +287,11 @@ class NumbskullMaster:
 
     def get_minions_status(self):
         minion_status = self.runner.cmd('manage.status')
-        print "***** MINION STATUS REPORT *****"
-        print minion_status
-        print "UP: ", len(minion_status['up'])
-        print "DOWN: ", len(minion_status['down'])
-        print
+        print("***** MINION STATUS REPORT *****")
+        print(minion_status)
+        print("UP: ", len(minion_status['up']))
+        print("DOWN: ", len(minion_status['down']))
+        print()
         return minion_status
 
     def prep_local_numbskull(self):
@@ -223,11 +320,11 @@ class NumbskullMaster:
                 tag, data = evdata['tag'], evdata['data']
                 jevent = json.dumps(data)
                 if data['data']['status'] == 'FAIL':
-                    print 'ERROR: Minion %s failed to load numbskull.' % data['id']
+                    print('ERROR: Minion %s failed to load numbskull.' % data['id'])
                     SUCCESS = False
                 resp.append((data['id'], SUCCESS))
         if SUCCESS:
-            print 'SUCCESS: All minions loaded numbskull.'
+            print('SUCCESS: All minions loaded numbskull.')
         return SUCCESS
 
     def serialize(self, array):
@@ -266,16 +363,16 @@ class NumbskullMaster:
                 tag, data = evdata['tag'], evdata['data']
                 jevent = json.dumps(data)
                 if data['data']['status'] != 'SUCCESS':
-                    print 'ERROR: Minion %s failed to load FG.' % data['id']
+                    print('ERROR: Minion %s failed to load FG.' % data['id'])
                     SUCCESS = False
                 else:
-                    print 'SUCCESS: Minion %s factor graph stats:' % data['id']
-                    print 'Variables: %d' % data['data']['meta']['variables']
-                    print 'Weights: %d' % data['data']['meta']['weights']
-                    print 'Factors: %d' % data['data']['meta']['factors']
+                    print('SUCCESS: Minion %s factor graph stats:' % data['id'])
+                    print('Variables: %d' % data['data']['meta']['variables'])
+                    print('Weights: %d' % data['data']['meta']['weights'])
+                    print('Factors: %d' % data['data']['meta']['factors'])
                 resp.append((data['id'], SUCCESS))
         if SUCCESS:
-            print 'SUCCESS: All minions loaded FG.'
+            print('SUCCESS: All minions loaded FG.')
         return SUCCESS
 
     def learning_minions(self, fgID):
@@ -298,14 +395,14 @@ class NumbskullMaster:
                 tag, data = evdata['tag'], evdata['data']
                 jevent = json.dumps(data)
                 if data['data']['status'] != 'SUCCESS':
-                    print 'ERROR: Minion %s failed to run learning.' % data['id']
+                    print('ERROR: Minion %s failed to run learning.' % data['id'])
                     SUCCESS = False
                 else:
                     w = self.deserialize(data['data']['weights'], np.float64)
                     weights.append(w)
                 resp.append((data['id'], SUCCESS))
         if SUCCESS:
-            print 'SUCCESS: All minions ran learning.'
+            print('SUCCESS: All minions ran learning.')
         return SUCCESS, weights
 
 
