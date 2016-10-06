@@ -25,6 +25,7 @@ import messages
 import time
 
 import psycopg2
+import urlparse
 
 class NumbskullMaster:
     def __init__(self, argv):
@@ -50,10 +51,10 @@ class NumbskullMaster:
 
     def initialize(self):
         self.assign_partition_id()
-        self.prepare_db()
         self.prep_numbskull()
+        db_url = self.prepare_db()
         self.load_own_fg()
-        self.load_minions_fg()
+        self.load_minions_fg(db_url)
 
     def inference(self):
         # TODO: switch to proper probs
@@ -124,7 +125,7 @@ class NumbskullMaster:
         subprocess.call(["deepdive", "do", "all"], cwd=application_dir)
 
         # Obtain partition information
-        # TODO: remove hard-coded 2("postgresql://thodrek@raiders6.stanford.edu:1432/genomics_bryan")
+        # TODO: remove hard-coded 2
         partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", "2"], cwd=application_dir)
         partition = json.loads(partition_json)
 
@@ -153,7 +154,20 @@ class NumbskullMaster:
 
 
         # Connect to an existing database
-        conn = psycopg2.connect(db_url)
+        # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
+        url = urlparse.urlparse(db_url)
+        username = url.username
+        password = url.password
+        database = url.path[1:]
+        hostname = url.hostname
+        port = url.port
+        conn = psycopg2.connect(
+            database = database,
+            user = username,
+            password = password,
+            host = hostname,
+            port = port
+        )
         # Open a cursor to perform database operations
         cur = conn.cursor()
 
@@ -170,40 +184,26 @@ class NumbskullMaster:
                 print("Unexpected error:", sys.exc_info())
                 conn.rollback()
 
-        # This is essentially what load_own_fg should be doing
-        cur.execute("SELECT table_name FROM INFORMATION_SCHEMA.views WHERE table_name LIKE '%_sharding' AND table_schema = ANY (current_schemas(false))")
-        view = []
-        while True:
-            temp = cur.fetchmany()
-            if temp == []:
-                break
-            view += temp[0]
-
-        factor_view = []
-        variable_view = []
-        weight_view = []
-
-        print(view)
-        for v in view:
-            is_f = ("_factors_" in v)
-            is_v = ("_variables_" in v)
-            is_w = ("_weights_" in v)
-            assert((is_f + is_v + is_w) == 1)
-
-            if is_f:
-                factor_view.append(v)
-            if is_v:
-                variable_view.append(v)
-            if is_w:
-                weight_view.append(v)
-
+        (factor_view, variable_view, weight_view) = messages.get_views(cur)
         print(factor_view)
         print(variable_view)
         print(weight_view)
+        master_filter = "   partition_key = 'A' " \
+                        "or partition_key = 'B' " \
+                        "or partition_key like 'D%' " \
+                        "or partition_key like 'F%' " \
+                        "or partition_key like 'G%' " \
+                        "or partition_key like 'H%' "
+
+        # TODO: factors
+        # TODO: variables
+        messages.read_views(cur, variable_view, master_filter)
+        # TODO: weights
 
         # Close communication with the database
         cur.close()
         conn.close()
+        return db_url
 
 
     def prep_numbskull(self):
@@ -221,13 +221,19 @@ class NumbskullMaster:
         # Track map for variables/factors from each minion
         pass
 
-    def load_minions_fg(self):
-        for fg in self.ns.factorGraphs:
-            if not self.send_minions_fg_data(fg):
-                print('ERROR: Could not send FG to minions')
-                return
-        print('SUCCESS: FG loaded to all minions')
-        return
+    def load_minions_fg(self, db_url):
+        tag = messages.LOAD_FG
+        data = {"db_url": db_url}
+        newEvent = self.local_client.cmd(self.minions,
+                                         'event.fire',
+                                         [data, tag],
+                                         expr_form='list')
+        #for fg in self.ns.factorGraphs:
+        #    if not self.send_minions_fg_data(fg):
+        #        print('ERROR: Could not send FG to minions')
+        #        return
+        #print('SUCCESS: FG loaded to all minions')
+        #return
 
     # Inference
     def inference_minions(self, fgID):
@@ -419,8 +425,9 @@ def main(argv=None):
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
     #w = ns_master.learning()
-    p = ns_master.inference()
-    return ns_master, w, p
+    #p = ns_master.inference()
+    #return ns_master, w, p
+    return ns_master
 
 if __name__ == "__main__":
     main()

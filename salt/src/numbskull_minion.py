@@ -21,6 +21,9 @@ from numbskull.numbskulltypes import *
 
 import messages
 import pydoc
+import psycopg2
+import urlparse
+import numpy as np
 
 
 log = logging.getLogger(__name__)
@@ -125,11 +128,10 @@ def start():
             log.debug(jevent)
             if data:
                 log.debug("DEBUG 3")
-                strhelp = pydoc.render_doc(messages, "Help on %s")
-                log.debug(strhelp)
+                #strhelp = pydoc.render_doc(messages, "Help on %s")
+                #log.debug(strhelp)
                 log.debug(tag)
-                log.debug(messages.INIT_NS)
-                log.debug("DEBUG 4")
+                #log.debug(messages.INIT_NS)
                 if tag == messages.ASSIGN_ID:
                     partition_id = data['id']
                     print("Assigned partition id #", partition_id)
@@ -149,6 +151,67 @@ def start():
                     # Needs to compute 
                     # Track what to sample
                     # Track map for variables/factors from each minion
+
+                    # Connect to an existing database
+                    # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
+                    db_url = data["db_url"]
+                    url = urlparse.urlparse(db_url)
+                    username = url.username
+                    password = url.password
+                    database = url.path[1:]
+                    hostname = url.hostname
+                    port = url.port
+                    conn = psycopg2.connect(
+                        database = database,
+                        user = username,
+                        password = password,
+                        host = hostname,
+                        port = port
+                    )
+
+                    # Open a cursor to perform database operations
+                    cur = conn.cursor()
+                    (factor_view, variable_view, weight_view) = messages.get_views(cur)
+                    minion_filter = "   partition_key = 'B' " \
+                                    "or partition_key = 'C{partition_id}' " \
+                                    "or partition_key = 'D{partition_id}' " \
+                                    "or partition_key = 'E{partition_id}' " \
+                                    "or partition_key = 'F{partition_id}' " \
+                                    "or partition_key = 'G{partition_id}' " \
+                                    "or partition_key = 'H' "
+                    minion_filter = minion_filter.format(partition_id=partition_id)
+
+                    # TODO: factors
+                    var_data = messages.read_views(cur, variable_view, minion_filter)
+
+                    # Load variable info
+                    var_data = messages.read_views(cur, variable_view, minion_filter)
+                    vid = np.zeros(len(var_data), np.int64)
+                    variable = np.zeros(len(var_data), Variable)
+                    var_pt = np.zeros(len(var_data), np.str_) # partition type
+                    for (i, v) in enumerate(var_data):
+                        vid[i] = v[0]
+                        variable[i]["isEvidence"] = v[1]
+                        variable[i]["initialValue"] = v[2]
+                        variable[i]["dataType"] = v[3]
+                        variable[i]["cardinality"] = v[4]
+                        #variable[i]["vtf_offset"] = ???
+                        var_pt[i] = v[5][0] # only first char needed now
+                                            # (partition id will match)
+
+                    perm = vid.argsort()
+                    vid = vid[perm]
+                    variable = variable[perm]
+                    var_pt = var_pt[perm]
+                    # TODO: vtf_offset
+
+                    # TODO: weights
+
+                    # Close communication with the database
+                    cur.close()
+                    conn.close()
+
+                    log.debug("DONE LOAD_FG")
                     status, meta = ns_minion.loadFG(data)
                     # Respond to master
                     data = {'status': status, 'meta': meta}
