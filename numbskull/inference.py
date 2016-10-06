@@ -71,25 +71,25 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
 
 
 FACTORS = {  # Factor functions for boolean variables
-    "FUNC_IMPLY_NATURAL": 0,
-    "FUNC_OR": 1,
-    "FUNC_EQUAL": 3,
-    "FUNC_AND": 2,
-    "FUNC_ISTRUE": 4,
-    "FUNC_LINEAR": 7,
-    "FUNC_RATIO": 8,
-    "FUNC_LOGICAL": 9,
-    "FUNC_IMPLY_MLN": 13,
-             # Factor functions for categorical variables
-    "FUNC_AND_CAT": 12,
-    "FUNC_OR_CAT": 14,
-    "FUNC_EQUAL_CAT_CONST": 15,
-    "FUNC_IMPLY_NATURAL_CAT": 16,
-    "FUNC_IMPLY_MLN_CAT": 17
+    "IMPLY_NATURAL": 0,
+    "OR": 1,
+    "EQUAL": 3,
+    "AND": 2,
+    "ISTRUE": 4,
+    "LINEAR": 7,
+    "RATIO": 8,
+    "LOGICAL": 9,
+    "IMPLY_MLN": 13,
+        # Factor functions for categorical variables
+    "AND_CAT": 12,
+    "OR_CAT": 14,
+    "EQUAL_CAT_CONST": 15,
+    "IMPLY_NATURAL_CAT": 16,
+    "IMPLY_MLN_CAT": 17
 }
 
 for (key, value) in FACTORS.items():
-    exec(key + " = " + str(value))
+    exec("FUNC_" + key + " = " + str(value))
 
 
 @jit(nopython=True, cache=True, nogil=True)
