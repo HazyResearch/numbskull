@@ -195,10 +195,14 @@ class NumbskullMaster:
                         "or partition_key like 'G%' " \
                         "or partition_key like 'H%' "
 
-        # TODO: factors
-        # TODO: variables
-        messages.read_views(cur, variable_view, master_filter)
-        # TODO: weights
+
+        (weight, variable, factor, fmap, domain_mask, edges) = messages.get_fg_data(cur, master_filter)
+
+        # Close communication with the database
+        cur.close()
+        conn.close()
+
+        self.ns.loadFactorGraph(weight, variable, factor, fmap, domain_mask, edges)
 
         # Close communication with the database
         cur.close()

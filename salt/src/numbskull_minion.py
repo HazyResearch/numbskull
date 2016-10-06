@@ -24,6 +24,7 @@ import pydoc
 import psycopg2
 import urlparse
 import numpy as np
+import traceback
 
 
 log = logging.getLogger(__name__)
@@ -171,7 +172,6 @@ def start():
 
                     # Open a cursor to perform database operations
                     cur = conn.cursor()
-                    (factor_view, variable_view, weight_view) = messages.get_views(cur)
                     minion_filter = "   partition_key = 'B' " \
                                     "or partition_key = 'C{partition_id}' " \
                                     "or partition_key = 'D{partition_id}' " \
@@ -181,41 +181,17 @@ def start():
                                     "or partition_key = 'H' "
                     minion_filter = minion_filter.format(partition_id=partition_id)
 
-                    # TODO: factors
-                    var_data = messages.read_views(cur, variable_view, minion_filter)
-
-                    # Load variable info
-                    var_data = messages.read_views(cur, variable_view, minion_filter)
-                    vid = np.zeros(len(var_data), np.int64)
-                    variable = np.zeros(len(var_data), Variable)
-                    var_pt = np.zeros(len(var_data), np.str_) # partition type
-                    for (i, v) in enumerate(var_data):
-                        vid[i] = v[0]
-                        variable[i]["isEvidence"] = v[1]
-                        variable[i]["initialValue"] = v[2]
-                        variable[i]["dataType"] = v[3]
-                        variable[i]["cardinality"] = v[4]
-                        #variable[i]["vtf_offset"] = ???
-                        var_pt[i] = v[5][0] # only first char needed now
-                                            # (partition id will match)
-
-                    perm = vid.argsort()
-                    vid = vid[perm]
-                    variable = variable[perm]
-                    var_pt = var_pt[perm]
-                    # TODO: vtf_offset
-
-                    # TODO: weights
+                    (weight, variable, factor, fmap, domain_mask, edges) = messages.get_fg_data(cur, minion_filter)
 
                     # Close communication with the database
                     cur.close()
                     conn.close()
 
-                    log.debug("DONE LOAD_FG")
-                    status, meta = ns_minion.loadFG(data)
+                    ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap, domain_mask, edges)
                     # Respond to master
-                    data = {'status': status, 'meta': meta}
+                    data = {}
                     __salt__['event.send'](messages.LOAD_FG_RES, data)
+                    log.debug("DONE LOADFG")
                 elif tag == messages.LEARN:
                     status, weights = ns_minion.learning(data['fgID'])
                     # Respond to master
