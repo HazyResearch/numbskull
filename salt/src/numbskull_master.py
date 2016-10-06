@@ -58,6 +58,22 @@ class NumbskullMaster:
 
     def inference(self):
         # TODO: switch to proper probs
+
+        # sample own variables
+        self.ns.inference()
+
+        # TODO: ship values to minions
+
+        # Tell minions to sample
+        tag = messages.INFER
+        data = {}
+        newEvent = self.local_client.cmd(self.minions,
+                                         'event.fire',
+                                         [data, tag],
+                                         expr_form='list')
+        # TODO: receive values from minions
+
+        return
         marginals = {}
         for fgID in range(len(self.ns.factorGraphs)):
             marginals[fgID] = []
@@ -113,6 +129,7 @@ class NumbskullMaster:
 
         # hard-coded application directory
         application_dir = "/dfs/scratch0/bryanhe/genomics/"
+        application_dir = "/afs/cs.stanford.edu/u/bryanhe/deepdive/examples/census/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -140,7 +157,8 @@ class NumbskullMaster:
             #    print(p[k])
             #    print()
             #print(p["partition_types"])
-            if p["partition_types"] == "(0,1)":
+            #if p["partition_types"] == "(0,1)":
+            if p["partition_types"] == "":
                 p0 = p
 
         # p0 is partition to use
@@ -429,7 +447,7 @@ def main(argv=None):
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
     #w = ns_master.learning()
-    #p = ns_master.inference()
+    p = ns_master.inference()
     #return ns_master, w, p
     return ns_master
 

@@ -99,7 +99,7 @@ class NumbskullMinion:
         except:
             return 'FAILED', None
 
-    def inference(self, fgID):
+    def inference(self, fgID=0):
         try:
             self.ns.inference(fgID, False)
             marginals = self.ns.factorGraphs[fgID].marginals
@@ -198,7 +198,7 @@ def start():
                     data = {'status': status, 'weights': weights}
                     __salt__['event.send'](messages.LEARN_RES, data)
                 elif tag == messages.INFER:
-                    status, marginals = ns_minion.inference(data['fgID'])
+                    status, marginals = ns_minion.inference()
                     # Respond to master
                     data = {'status': status, 'marginals': marginals}
                     __salt__['event.send'](messages.INFER_RES, data)
