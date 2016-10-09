@@ -55,23 +55,65 @@ class NumbskullMaster:
         db_url = self.prepare_db()
         self.load_own_fg()
         self.load_minions_fg(db_url)
+        self.sync_mapping()
 
-    def inference(self):
+    def inference(self, epochs=1):
         # TODO: switch to proper probs
 
-        # sample own variables
-        self.ns.inference()
+        print("BEGINNING INFERENCE")
+        begin = time.time()
+        variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
+        for i in range(epochs):
+            print("Inference loop", i)
+            # sample own variables
+            self.ns.inference()
 
-        # TODO: ship values to minions
+            # gather values to ship to minions
+            # TODO: handle multiple copies
+            for i in range(self.map_to_minions.size):
+                variables_to_minions[i] = self.ns.factorGraphs[-1].var_value[0][self.map_to_minions[i]]
+            print(variables_to_minions)
+            print(self.ns.factorGraphs[-1].var_value)
 
-        # Tell minions to sample
-        tag = messages.INFER
-        data = {}
-        newEvent = self.local_client.cmd(self.minions,
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
-        # TODO: receive values from minions
+            # Tell minions to sample
+            tag = messages.INFER
+            data = {"values": messages.serialize(variables_to_minions)}
+            newEvent = self.local_client.cmd(self.minions,
+                                             'event.fire',
+                                             [data, tag],
+                                             expr_form='list')
+
+            # TODO: receive values from minions
+            resp = 0
+            while resp < len(self.minions):
+                evdata = self.event_bus.get_event(wait=5,
+                                                  tag=messages.INFER_RES,
+                                                  full=True)
+                if evdata:
+                    resp += 1
+                    data = evdata['data']['data']
+                    print(data)
+                    pid = data["pid"]
+                    variables_from_minion = messages.deserialize(data["values"], np.int64)
+                    for i in range(variables_from_minion.size):
+                        self.ns.factorGraphs[-1].var_value[0][self.map_from_minion[pid][i]] = variables_from_minion[i]
+
+                #if evdata:
+                #    tag, data = evdata['tag'], evdata['data']
+                #    jevent = json.dumps(data)
+                #    if data['data']['status'] != 'SUCCESS':
+                #        print('ERROR: Minion %s failed to run inference.' % data['id'])
+                #        SUCCESS = False
+                #    else:
+                #        #m = self.deserialize(data['data']['marginals'], np.float64)
+                #        #marginals.append(m)
+                #        pass
+                #resp.append((data['id'], SUCCESS))
+                #resp.append((data['id'], SUCCESS))
+
+            # TODO: get marginals
+        end = time.time()
+        print("INFERENCE TOOK", end - begin)
 
         return
         marginals = {}
@@ -128,8 +170,9 @@ class NumbskullMaster:
         # TODO: implement
 
         # hard-coded application directory
-        application_dir = "/dfs/scratch0/bryanhe/genomics/"
-        application_dir = "/afs/cs.stanford.edu/u/bryanhe/deepdive/examples/census/"
+        #application_dir = "/dfs/scratch0/bryanhe/genomics/"
+        #application_dir = "/dfs/scratch0/bryanhe/census/"
+        application_dir = "/dfs/scratch0/bryanhe/voting/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -151,15 +194,18 @@ class NumbskullMaster:
         print(len(partition))
         #print(partition[0])
         print(partition[0].keys())
+        print("********************************************************************************")
         for p in partition:
             #for k in p.keys():
             #    print(k)
             #    print(p[k])
             #    print()
-            #print(p["partition_types"])
+            print(p["partition_types"])
             #if p["partition_types"] == "(0,1)":
-            if p["partition_types"] == "":
+            #if p["partition_types"] == "":
+            if p["partition_types"] == "(0)":
                 p0 = p
+        print("********************************************************************************")
 
         # p0 is partition to use
         for k in p0.keys():
@@ -214,7 +260,12 @@ class NumbskullMaster:
                         "or partition_key like 'H%' "
 
 
-        (weight, variable, factor, fmap, domain_mask, edges) = messages.get_fg_data(cur, master_filter)
+        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt, self.var_pid, self.factor_pt, self.factor_pid, self.vid) = messages.get_fg_data(cur, master_filter)
+        print(self.vid)
+        print(self.var_pt)
+        print(self.var_pid)
+        print(self.factor_pt)
+        print(self.factor_pid)
 
         # Close communication with the database
         cur.close()
@@ -250,12 +301,68 @@ class NumbskullMaster:
                                          'event.fire',
                                          [data, tag],
                                          expr_form='list')
+
+        print("WAITING FOR MINION LOAD_FG_RES")
+        resp = 0
+        while resp < len(self.minions):
+            evdata = self.event_bus.get_event(wait=5,
+                                              tag=messages.LOAD_FG_RES,
+                                              full=True)
+            if evdata:
+                resp += 1
+        print("DONE WAITING FOR MINION LOAD_FG_RES")
         #for fg in self.ns.factorGraphs:
         #    if not self.send_minions_fg_data(fg):
         #        print('ERROR: Could not send FG to minions')
         #        return
         #print('SUCCESS: FG loaded to all minions')
         #return
+
+    def sync_mapping(self):
+        # compute map
+        l = 0
+        for i in range(len(self.var_pt)):
+            if self.var_pt[i] == "B":
+                l += 1
+
+        self.map_to_minions = np.zeros(l, np.int64)
+        l = 0
+        for i in range(len(self.var_pt)):
+            if self.var_pt[i] == "B":
+                self.map_to_minions[l] = self.vid[i]
+                l += 1
+        print(self.map_to_minions)
+
+        # send mapping to minions
+        tag = messages.SYNC_MAPPING
+        data = {"map": messages.serialize(self.map_to_minions)}
+        newEvent = self.local_client.cmd(self.minions,
+                                         'event.fire',
+                                         [data, tag],
+                                         expr_form='list')
+
+        self.map_from_minion = [None for i in range(len(self.minions))]
+        resp = 0
+        while resp < len(self.minions):
+            # TODO: receive map and save
+            evdata = self.event_bus.get_event(wait=5,
+                                              tag=messages.SYNC_MAPPING_RES,
+                                              full=True)
+            if evdata:
+                print(evdata)
+                tag, data = evdata['tag'], evdata['data']['data']
+                print(data)
+                self.map_from_minion[data["pid"]] = messages.deserialize(data["map"], np.int64)
+                resp += 1
+        print("DONE WITH SENDING MAPPING")
+
+        for i in range(len(self.map_to_minions)):
+            self.map_to_minions[i] = messages.inverse_map(self.vid, self.map_to_minions[i])
+
+        for i in range(len(self.map_from_minion)):
+            for j in range(len(self.map_from_minion[i])):
+                self.map_from_minion[i][j] = messages.inverse_map(self.vid, self.map_from_minion[i][j])
+
 
     # Inference
     def inference_minions(self, fgID):
@@ -281,7 +388,7 @@ class NumbskullMaster:
                     print('ERROR: Minion %s failed to run inference.' % data['id'])
                     SUCCESS = False
                 else:
-                    m = self.deserialize(data['data']['marginals'], np.float64)
+                    m = messages.deserialize(data['data']['marginals'], np.float64)
                     marginals.append(m)
             resp.append((data['id'], SUCCESS))
         if SUCCESS:
@@ -436,9 +543,9 @@ class NumbskullMaster:
 
 def main(argv=None):
     args = ['../../test',
-            '-l', '100',
-            '-i', '100',
-            '-t', '10',
+            '-l', '1',
+            '-i', '1',
+            '-t', '1',
             '-s', '0.01',
             '--regularization', '2',
             '-r', '0.1',
@@ -447,7 +554,8 @@ def main(argv=None):
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
     #w = ns_master.learning()
-    p = ns_master.inference()
+    p = ns_master.inference(1)
+    #p = ns_master.inference(100)
     #return ns_master, w, p
     return ns_master
 

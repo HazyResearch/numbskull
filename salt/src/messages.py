@@ -1,11 +1,14 @@
 import numbskull
 from numbskull.numbskulltypes import *
+import numbskull.inference
 import numpy as np
+import codecs
 
 # Commands from master to minions (Tags)
 ASSIGN_ID = 'ASSIGN_ID'
 INIT_NS = 'INIT_NS'
 LOAD_FG = 'LOAD_FG'
+SYNC_MAPPING = 'SYNC_MAPPING'
 LEARN = 'LEARN'
 INFER = 'INFER'
 
@@ -13,6 +16,7 @@ INFER = 'INFER'
 ASSIGN_ID_RES = 'ASSIGN_ID_RES'
 INIT_NS_RES = 'INIT_NS_RES'
 LOAD_FG_RES = 'LOAD_FG_RES'
+SYNC_MAPPING_RES = 'SYNC_MAPPING_RES'
 LEARN_RES = 'LEARN_RES'
 INFER_RES = 'INFER_RES'
 
@@ -59,7 +63,10 @@ def read_factor_views(cur, views, sql_filter="True"):
             if ("_" + key + "_").lower() in v:
                 assert(ff == -1)
                 ff = value
-        assert(ff != -1)
+        # TODO: assume istrue if not found?
+        #assert(ff != -1)
+        if ff == -1:
+            ff = numbskull.inference.FUNC_ISTRUE
 
         op = op_template.format(table_name=v, filter=sql_filter)
         cur.execute(op)
@@ -101,6 +108,7 @@ def get_fg_data(cur, filt):
     
     factor = np.zeros(len(factor_data), Factor)
     factor_pt = np.zeros(len(factor_data), np.str_) # partition type
+    factor_pid = np.zeros(len(factor_data), np.int64) # partition id
     
     for (i, f) in enumerate(factor_data):
         factor[i]["factorFunction"] = f[4]
@@ -109,6 +117,9 @@ def get_fg_data(cur, filt):
         factor[i]["arity"] = len(f[0])
         factor_pt[i] = f[3][0] # only first char needed now
                                # (partition id will match)
+        factor_pid[i] = -1
+        if f[3][1:] != "":
+            factor_pid[i] = int(f[3][1:])
     
     if len(factor) > 0:
         factor[0]["ftv_offset"] = 0
@@ -133,6 +144,7 @@ def get_fg_data(cur, filt):
     vid = np.zeros(len(var_data), np.int64)
     variable = np.zeros(len(var_data), Variable)
     var_pt = np.zeros(len(var_data), np.str_) # partition type
+    var_pid = np.zeros(len(var_data), np.int64) # partition id
     for (i, v) in enumerate(var_data):
         vid[i] = v[0]
         variable[i]["isEvidence"] = v[1]
@@ -142,11 +154,15 @@ def get_fg_data(cur, filt):
         #variable[i]["vtf_offset"] = ???
         var_pt[i] = v[5][0] # only first char needed now
                             # (partition id will match)
+        var_pid[i] = -1
+        if v[5][1:] != "":
+            var_pid[i] = int(v[5][1:])
     
     perm = vid.argsort()
     vid = vid[perm]
     variable = variable[perm]
     var_pt = var_pt[perm]
+    var_pid = var_pid[perm]
     
     # remap factor to variable
     for i in range(len(fmap)):
@@ -169,5 +185,12 @@ def get_fg_data(cur, filt):
     
     domain_mask = np.full(len(variable), True, np.bool)
 
-    return (weight, variable, factor, fmap, domain_mask, edges)
+    return (weight, variable, factor, fmap, domain_mask, edges, var_pt, var_pid, factor_pt, factor_pid, vid)
+
+def serialize(array):
+    return array.tobytes().decode('utf16').encode('utf8')
+
+def deserialize(array, dtype):
+    ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
+    return np.fromstring(ar, dtype=dtype)
 
