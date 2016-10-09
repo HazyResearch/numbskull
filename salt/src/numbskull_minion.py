@@ -226,7 +226,7 @@ def start():
                 elif tag == messages.INFER:
                     variables_from_master = messages.deserialize(data["values"], np.int64)
                     for i in range(map_from_master.size):
-                         ns_minion.ns.factorGraphs[-1].var_value[map_from_master[i]][0] = variables_from_master[i]
+                         ns_minion.ns.factorGraphs[-1].var_value[0][map_from_master[i]] = variables_from_master[i]
 
                     status, marginals = ns_minion.inference()
                     # Respond to master
