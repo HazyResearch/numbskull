@@ -66,14 +66,20 @@ class NumbskullMaster:
         for i in range(epochs):
             print("Inference loop", i)
             # sample own variables
-            self.ns.inference()
+            begin1 = time.time()
+            fgID = 0
+            # TODO: do not sample vars owned by minion
+            self.ns.inference(fgID, False)
+            end1 = time.time()
+            print("INFERENCE LOOP TOOK " + str(end1 - begin1))
+
 
             # gather values to ship to minions
             # TODO: handle multiple copies
             for i in range(self.map_to_minions.size):
                 variables_to_minions[i] = self.ns.factorGraphs[-1].var_value[0][self.map_to_minions[i]]
-            print(variables_to_minions)
-            print(self.ns.factorGraphs[-1].var_value)
+            #print(variables_to_minions)
+            #print(self.ns.factorGraphs[-1].var_value)
 
             # Tell minions to sample
             tag = messages.INFER
@@ -92,7 +98,7 @@ class NumbskullMaster:
                 if evdata:
                     resp += 1
                     data = evdata['data']['data']
-                    print(data)
+                    #print(data)
                     pid = data["pid"]
                     variables_from_minion = messages.deserialize(data["values"], np.int64)
                     for i in range(variables_from_minion.size):
@@ -172,7 +178,8 @@ class NumbskullMaster:
         # hard-coded application directory
         #application_dir = "/dfs/scratch0/bryanhe/genomics/"
         #application_dir = "/dfs/scratch0/bryanhe/census/"
-        application_dir = "/dfs/scratch0/bryanhe/voting/"
+        #application_dir = "/dfs/scratch0/bryanhe/voting/"
+        application_dir = "/dfs/scratch0/bryanhe/congress2/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -188,34 +195,6 @@ class NumbskullMaster:
         # TODO: remove hard-coded 2
         partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", "2"], cwd=application_dir)
         partition = json.loads(partition_json)
-
-        # Select which partitioning
-        # TODO: actually check costs
-        print(len(partition))
-        #print(partition[0])
-        print(partition[0].keys())
-        print("********************************************************************************")
-        for p in partition:
-            #for k in p.keys():
-            #    print(k)
-            #    print(p[k])
-            #    print()
-            print(p["partition_types"])
-            #if p["partition_types"] == "(0,1)":
-            #if p["partition_types"] == "":
-            if p["partition_types"] == "(0)":
-                p0 = p
-        print("********************************************************************************")
-
-        # p0 is partition to use
-        for k in p0.keys():
-            print(k)
-            print(p0[k])
-            print()
-
-        # query for views
-        # Fits regex "*_sharding"
-
 
         # Connect to an existing database
         # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
@@ -234,6 +213,30 @@ class NumbskullMaster:
         )
         # Open a cursor to perform database operations
         cur = conn.cursor()
+
+        # Select which partitioning
+        # TODO: actually check costs
+        print(len(partition))
+        print(partition[0].keys())
+        print("********************************************************************************")
+        for p in partition:
+
+            print(p["partition_types"])
+            cur.execute(p["sql_to_cost"])
+            cost = cur.fetchone()[0]
+            print(cost)
+            if p["partition_types"] == "(1)":
+            #if p["partition_types"] == "":
+            #if p["partition_types"] == "(0)":
+                p0 = p
+        print("********************************************************************************")
+
+        # p0 is partition to use
+        for k in p0.keys():
+            print(k)
+            print(p0[k])
+            print()
+
 
         # This adds partition information to the database
         for op in p0["sql_to_apply"]:
@@ -554,7 +557,7 @@ def main(argv=None):
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
     #w = ns_master.learning()
-    p = ns_master.inference(1)
+    p = ns_master.inference(100)
     #p = ns_master.inference(100)
     #return ns_master, w, p
     return ns_master

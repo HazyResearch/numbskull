@@ -228,12 +228,18 @@ def start():
                     for i in range(map_from_master.size):
                          ns_minion.ns.factorGraphs[-1].var_value[0][map_from_master[i]] = variables_from_master[i]
 
+                    begin = time.time()
+                    # TODO: do not sample variables owned by master
                     status, marginals = ns_minion.inference()
+                    end = time.time()
+                    log.debug("INFERENCE LOOP TOOK " + str(end - begin))
+
+
                     # Respond to master
                     #data = {'status': status, 'marginals': marginals}
-                    log.debug(map_to_master)
-                    log.debug(variables_to_master)
-                    log.debug(ns_minion.ns.factorGraphs[-1].var_value)
+                    #log.debug(map_to_master)
+                    #log.debug(variables_to_master)
+                    #log.debug(ns_minion.ns.factorGraphs[-1].var_value)
                     for i in range(map_to_master.size):
                         variables_to_master[i] = ns_minion.ns.factorGraphs[-1].var_value[0][map_to_master[i]]
 
