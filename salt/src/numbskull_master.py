@@ -189,7 +189,7 @@ class NumbskullMaster:
         # TODO: is there a way to not "do all" (which even uses DW sampling)
         #       and just ground?
         # TODO: check that deepdive ran successfully
-        subprocess.call(["deepdive", "do", "all"], cwd=application_dir)
+        subprocess.call(["deepdive", "do", "process/grounding/combine_factorgraph"], cwd=application_dir)
 
         # Obtain partition information
         # TODO: remove hard-coded 2
