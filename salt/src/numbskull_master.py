@@ -21,7 +21,6 @@ import salt.utils.event
 import salt.client
 import salt.runner
 import salt.config
-import nb_syspaths as syspaths
 
 import messages
 import time
@@ -36,7 +35,8 @@ class NumbskullMaster:
     def __init__(self, argv):
         """TODO."""
         # Salt conf init
-        self.master_conf_dir = os.path.join(syspaths.CONFIG_DIR, 'master')
+        self.master_conf_dir = \
+            os.path.join(os.environ['SALT_CONFIG_DIR'], 'master')
         self.salt_opts = salt.config.client_config(self.master_conf_dir)
 
         # Salt clients init
