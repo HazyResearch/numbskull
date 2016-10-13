@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""TODO."""
+
 # Import python libs
 from __future__ import print_function, absolute_import
 import json
@@ -27,8 +29,12 @@ import time
 import psycopg2
 import urlparse
 
+
 class NumbskullMaster:
+    """TODO."""
+
     def __init__(self, argv):
+        """TODO."""
         # Salt conf init
         self.master_conf_dir = os.path.join(syspaths.CONFIG_DIR, 'master')
         self.salt_opts = salt.config.client_config(self.master_conf_dir)
@@ -48,9 +54,10 @@ class NumbskullMaster:
         self.argv = argv
         self.args = self.parse_args(argv)
         self.ns = None
-        self.num_minions = 2 # TODO: allow as an argument
+        self.num_minions = 2  # TODO: allow as an argument
 
     def initialize(self):
+        """TODO."""
         self.assign_partition_id()
         self.prep_numbskull()
         db_url = self.prepare_db()
@@ -59,7 +66,7 @@ class NumbskullMaster:
         self.sync_mapping()
 
     def inference(self, epochs=1):
-
+        """TODO."""
         print("BEGINNING INFERENCE")
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
@@ -73,13 +80,11 @@ class NumbskullMaster:
             end1 = time.time()
             print("INFERENCE LOOP TOOK " + str(end1 - begin1))
 
-
             # gather values to ship to minions
             # TODO: handle multiple copies
-            for i in range(self.map_to_minions.size):
-                variables_to_minions[i] = self.ns.factorGraphs[-1].var_value[0][self.map_to_minions[i]]
-            #print(variables_to_minions)
-            #print(self.ns.factorGraphs[-1].var_value)
+            for (i, m) in enumerate(self.map_to_minions):
+                variables_to_minions[i] = \
+                        self.ns.factorGraphs[-1].var_value[0][m]
 
             # Tell minions to sample
             tag = messages.INFER
@@ -97,18 +102,20 @@ class NumbskullMaster:
                 if evdata:
                     resp += 1
                     data = evdata['data']['data']
-                    #print(data)
                     pid = data["pid"]
-                    variables_from_minion = messages.deserialize(data["values"], np.int64)
-                    for i in range(variables_from_minion.size):
-                        self.ns.factorGraphs[-1].var_value[0][self.map_from_minion[pid][i]] = variables_from_minion[i]
+                    # Process variables from minions
+                    vfmin = messages.deserialize(data["values"], np.int64)
+                    for (i, v) in enumerate(vfmin):
+                        m = self.map_from_minion[pid][i]
+                        self.ns.factorGraphs[-1].var_value[0][m] = v
 
-        # TODO: get and return marginals 
+        # TODO: get and return marginals
         # TODO: switch to proper probs
         end = time.time()
         print("INFERENCE TOOK", end - begin)
 
     def learning(self):
+        """TODO."""
         # TODO: implement
         weights = {}
         for fgID in range(len(self.ns.factorGraphs)):
@@ -125,8 +132,11 @@ class NumbskullMaster:
             # Combine results
         return weights
 
-    ### Init Phase ###
+    ##############
+    # Init Phase #
+    ##############
     def assign_partition_id(self):
+        """TODO."""
         while True:
             self.minions = self.get_minions_status()['up']
             if len(self.minions) >= self.num_minions:
@@ -145,6 +155,7 @@ class NumbskullMaster:
         # TODO: listen for responses
 
     def prep_numbskull(self):
+        """TODO."""
         # Setup local instance
         self.prep_local_numbskull()
         # Setup minion instnances
@@ -153,10 +164,11 @@ class NumbskullMaster:
             print('ERROR: Numbksull not loaded')
 
     def prepare_db(self):
+        """TODO."""
         # hard-coded application directory
-        #application_dir = "/dfs/scratch0/bryanhe/genomics/"
-        #application_dir = "/dfs/scratch0/bryanhe/census/"
-        #application_dir = "/dfs/scratch0/bryanhe/voting/"
+        # application_dir = "/dfs/scratch0/bryanhe/genomics/"
+        # application_dir = "/dfs/scratch0/bryanhe/census/"
+        # application_dir = "/dfs/scratch0/bryanhe/voting/"
         application_dir = "/dfs/scratch0/bryanhe/congress/"
 
         # obtain database url from file
@@ -165,10 +177,13 @@ class NumbskullMaster:
 
         # Call deepdive to perform everything up to grounding
         # TODO: check that deepdive ran successfully
-        subprocess.call(["deepdive", "do", "process/grounding/combine_factorgraph"], cwd=application_dir)
+        cmd = ["deepdive", "do", "process/grounding/combine_factorgraph"]
+        subprocess.call(cmd, cwd=application_dir)
 
         # Obtain partition information
-        partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", str(self.num_minions)], cwd=application_dir)
+        cmd = ["ddlog", "semantic-partition", "app.ddlog",
+               "--ppa", "-w", str(self.num_minions)]
+        partition_json = subprocess.check_output(cmd, cwd=application_dir)
         partition = json.loads(partition_json)
 
         # Connect to an existing database
@@ -180,11 +195,11 @@ class NumbskullMaster:
         hostname = url.hostname
         port = url.port
         conn = psycopg2.connect(
-            database = database,
-            user = username,
-            password = password,
-            host = hostname,
-            port = port
+            database=database,
+            user=username,
+            password=password,
+            host=hostname,
+            port=port
         )
         # Open a cursor to perform database operations
         cur = conn.cursor()
@@ -193,18 +208,18 @@ class NumbskullMaster:
         # TODO: actually check costs
         print(len(partition))
         print(partition[0].keys())
-        print("********************************************************************************")
+        print(80 * "*")
         for p in partition:
 
             print(p["partition_types"])
             cur.execute(p["sql_to_cost"])
             cost = cur.fetchone()[0]
             print(cost)
+            # if p["partition_types"] == "":
+            # if p["partition_types"] == "(0)":
             if p["partition_types"] == "(1)":
-            #if p["partition_types"] == "":
-            #if p["partition_types"] == "(0)":
                 p0 = p
-        print("********************************************************************************")
+        print(80 * "*")
 
         # p0 is partition to use
         for k in p0.keys():
@@ -212,10 +227,10 @@ class NumbskullMaster:
             print(p0[k])
             print()
 
-
         # This adds partition information to the database
         for op in p0["sql_to_apply"]:
-            # Currently ignoring the column already exists from ALTER statements
+            # Currently ignoring the column already exists error generated
+            # from ALTER statements
             # TODO: better fix?
             try:
                 cur.execute(op)
@@ -233,14 +248,16 @@ class NumbskullMaster:
                         "or partition_key like 'G%' " \
                         "or partition_key like 'H%' "
 
-
-        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt, self.var_pid, self.factor_pt, self.factor_pid, self.vid) = messages.get_fg_data(cur, master_filter)
+        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
+         self.var_pid, self.factor_pt, self.factor_pid, self.vid) = \
+            messages.get_fg_data(cur, master_filter)
 
         # Close communication with the database
         cur.close()
         conn.close()
 
-        self.ns.loadFactorGraph(weight, variable, factor, fmap, domain_mask, edges)
+        self.ns.loadFactorGraph(weight, variable, factor, fmap,
+                                domain_mask, edges)
 
         # Close communication with the database
         cur.close()
@@ -248,6 +265,7 @@ class NumbskullMaster:
         return db_url
 
     def load_own_fg(self):
+        """TODO."""
         # TODO: this is already in prepare_db
         # Need to refactor this
         # Needs to load the factor graph
@@ -256,6 +274,7 @@ class NumbskullMaster:
         pass
 
     def load_minions_fg(self, db_url):
+        """TODO."""
         tag = messages.LOAD_FG
         data = {"db_url": db_url}
         newEvent = self.local_client.cmd(self.minions,
@@ -274,6 +293,7 @@ class NumbskullMaster:
         print("DONE WAITING FOR MINION LOAD_FG_RES")
 
     def sync_mapping(self):
+        """TODO."""
         # compute map
         l = 0
         for i in range(len(self.var_pt)):
@@ -304,19 +324,21 @@ class NumbskullMaster:
                                               tag=messages.SYNC_MAPPING_RES,
                                               full=True)
             if evdata:
-                print(evdata)
                 tag, data = evdata['tag'], evdata['data']['data']
                 print(data)
-                self.map_from_minion[data["pid"]] = messages.deserialize(data["map"], np.int64)
+                self.map_from_minion[data["pid"]] = \
+                    messages.deserialize(data["map"], np.int64)
                 resp += 1
         print("DONE WITH SENDING MAPPING")
 
         for i in range(len(self.map_to_minions)):
-            self.map_to_minions[i] = messages.inverse_map(self.vid, self.map_to_minions[i])
+            self.map_to_minions[i] = \
+                messages.inverse_map(self.vid, self.map_to_minions[i])
 
         for i in range(len(self.map_from_minion)):
             for j in range(len(self.map_from_minion[i])):
-                self.map_from_minion[i][j] = messages.inverse_map(self.vid, self.map_from_minion[i][j])
+                self.map_from_minion[i][j] = \
+                    messages.inverse_map(self.vid, self.map_from_minion[i][j])
 
     # Helper
     def parse_args(self, argv):
@@ -342,6 +364,7 @@ class NumbskullMaster:
         return args
 
     def get_minions_status(self):
+        """TODO."""
         minion_status = self.runner.cmd('manage.status')
         print("***** MINION STATUS REPORT *****")
         print(minion_status)
@@ -351,14 +374,11 @@ class NumbskullMaster:
         return minion_status
 
     def prep_local_numbskull(self):
+        """TODO."""
         self.ns = numbskull.NumbSkull(**vars(self.args))
-        #self.ns.loadFGFromFile()
-        #fg = self.ns.factorGraphs[-1]
-        #print 'Weights: %d' % fg.weight.shape[0]
-        #print 'Variables: %d' % fg.variable.shape[0]
-        #print 'Factors:  %d' % fg.factor.shape[0]
 
     def prep_minions_numbskull(self):
+        """TODO."""
         # send args and initialize numbskull at minion
         data = {'argv': self.argv}
         newEvent = self.local_client.cmd(self.minions,
@@ -374,9 +394,9 @@ class NumbskullMaster:
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
                 if data['data']['status'] == 'FAIL':
-                    print('ERROR: Minion %s failed to load numbskull.' % data['id'])
+                    print('ERROR: Minion %s failed to load numbskull.'
+                          % data['id'])
                     SUCCESS = False
                 resp.append((data['id'], SUCCESS))
         if SUCCESS:
@@ -385,6 +405,7 @@ class NumbskullMaster:
 
 
 def main(argv=None):
+    """TODO."""
     args = ['../../test',
             '-l', '1',
             '-i', '1',
@@ -396,10 +417,9 @@ def main(argv=None):
 
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
-    #w = ns_master.learning()
+    # w = ns_master.learning()
     p = ns_master.inference(100)
-    #p = ns_master.inference(100)
-    #return ns_master, w, p
+    # return ns_master, w, p
     return ns_master
 
 if __name__ == "__main__":

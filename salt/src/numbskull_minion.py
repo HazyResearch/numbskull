@@ -1,3 +1,5 @@
+"""TODO."""
+
 # Import python libs
 from __future__ import absolute_import
 import json
@@ -9,29 +11,31 @@ import argparse
 import numpy as np
 import codecs
 
-# Import salt libs
-import salt.utils.event
-
-# Import numbskull
-m_opts = salt.config.minion_config(os.environ['SALT_CONFIG_DIR']+'/minion')
-sys.path.append(m_opts['extension_modules']+'/modules')
-import numbskull
-from numbskull import numbskull
-from numbskull.numbskulltypes import *
-
-import messages
 import pydoc
 import psycopg2
 import urlparse
 import numpy as np
 import traceback
 
+# Import salt libs
+import salt.utils.event
+
+# Import numbskull
+m_opts = salt.config.minion_config(os.environ['SALT_CONFIG_DIR'] + '/minion')
+sys.path.append(m_opts['extension_modules'] + '/modules')
+import numbskull
+from numbskull import numbskull
+from numbskull.numbskulltypes import *
+import messages
 
 log = logging.getLogger(__name__)
 
 
 class NumbskullMinion:
+    """TODO."""
+
     def __init__(self):
+        """TODO."""
         self.partitionId = None
         self.args = None
         self.ns = None
@@ -59,10 +63,12 @@ class NumbskullMinion:
         return args
 
     def init_numbskull(self, argv):
+        """TODO."""
         self.args = self.parse_args(argv)
         self.ns = numbskull.NumbSkull(**vars(self.args))
 
     def loadFG(self, data):
+        """TODO."""
         try:
             weight = np.fromstring(data['weight'], dtype=Weight)
             variable = np.fromstring(data['variable'], dtype=Variable)
@@ -85,6 +91,7 @@ class NumbskullMinion:
             return 'FAILED', None
 
     def learning(self, fgID):
+        """TODO."""
         try:
             self.ns.learning(fgID, False)
             weights = self.ns.factorGraphs[fgID].weight_value
@@ -93,6 +100,7 @@ class NumbskullMinion:
             return 'FAILED', None
 
     def inference(self, fgID=0):
+        """TODO."""
         try:
             self.ns.inference(fgID, False)
             marginals = self.ns.factorGraphs[fgID].marginals
@@ -102,6 +110,7 @@ class NumbskullMinion:
 
 
 def start():
+    """TODO."""
     log.debug('Initializing Numbskull Minion Engine')
     ns_minion = NumbskullMinion()
     event_bus = salt.utils.event.get_event(
@@ -142,11 +151,11 @@ def start():
                 hostname = url.hostname
                 port = url.port
                 conn = psycopg2.connect(
-                    database = database,
-                    user = username,
-                    password = password,
-                    host = hostname,
-                    port = port
+                    database=database,
+                    user=username,
+                    password=password,
+                    host=hostname,
+                    port=port
                 )
 
                 # Open a cursor to perform database operations
@@ -160,13 +169,16 @@ def start():
                                 "or partition_key = 'H' "
                 minion_filter = minion_filter.format(partition_id=partition_id)
 
-                (weight, variable, factor, fmap, domain_mask, edges, var_pt, var_pid, factor_pt, factor_pid, vid) = messages.get_fg_data(cur, minion_filter)
+                (weight, variable, factor, fmap, domain_mask, edges,
+                    var_pt, var_pid, factor_pt, factor_pid, vid) = \
+                    messages.get_fg_data(cur, minion_filter)
 
                 # Close communication with the database
                 cur.close()
                 conn.close()
 
-                ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap, domain_mask, edges)
+                ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
+                                             domain_mask, edges)
 
                 # Respond to master
                 data = {}
@@ -192,13 +204,16 @@ def start():
                 log.debug(map_to_master)
 
                 for i in range(len(map_from_master)):
-                    map_from_master[i] = messages.inverse_map(vid, map_from_master[i])
+                    map_from_master[i] = \
+                            messages.inverse_map(vid, map_from_master[i])
 
                 for i in range(len(map_to_master)):
-                    map_to_master[i] = messages.inverse_map(vid, map_to_master[i])
+                    map_to_master[i] = \
+                            messages.inverse_map(vid, map_to_master[i])
                 variables_to_master = np.zeros(map_to_master.size, np.int64)
 
-                data = {"pid": partition_id, "map": messages.serialize(map_to_master)}
+                data = {"pid": partition_id,
+                        "map": messages.serialize(map_to_master)}
                 __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
                 log.debug("DONE SYNC_MAPPING")
             elif tag == messages.LEARN:
@@ -207,9 +222,12 @@ def start():
                 data = {'status': status, 'weights': weights}
                 __salt__['event.send'](messages.LEARN_RES, data)
             elif tag == messages.INFER:
-                variables_from_master = messages.deserialize(data["values"], np.int64)
+                variables_from_master = \
+                    messages.deserialize(data["values"], np.int64)
                 for i in range(map_from_master.size):
-                     ns_minion.ns.factorGraphs[-1].var_value[0][map_from_master[i]] = variables_from_master[i]
+                    m = map_from_master[i]
+                    v = variables_from_master[i]
+                    ns_minion.ns.factorGraphs[-1].var_value[0][m] = v
 
                 begin = time.time()
                 # TODO: do not sample variables owned by master
@@ -217,14 +235,11 @@ def start():
                 end = time.time()
                 log.debug("INFERENCE LOOP TOOK " + str(end - begin))
 
-
                 # Respond to master
-                #data = {'status': status, 'marginals': marginals}
-                #log.debug(map_to_master)
-                #log.debug(variables_to_master)
-                #log.debug(ns_minion.ns.factorGraphs[-1].var_value)
-                for i in range(map_to_master.size):
-                    variables_to_master[i] = ns_minion.ns.factorGraphs[-1].var_value[0][map_to_master[i]]
+                for (i, m) in enumerate(map_to_master):
+                    variables_to_master[i] = \
+                        ns_minion.ns.factorGraphs[-1].var_value[0][m]
 
-                data = {"pid": partition_id, "values": messages.serialize(variables_to_master)}
+                data = {"pid": partition_id,
+                        "values": messages.serialize(variables_to_master)}
                 __salt__['event.send'](messages.INFER_RES, data)
