@@ -173,8 +173,8 @@ class NumbSkull(object):
         self.factorGraphs = []
 
     def loadFactorGraphRaw(self, weight, variable, factor, fmap,
-                            vmap, factor_index,
-                            var_copies=1, weight_copies=1):
+                           vmap, factor_index,
+                           var_copies=1, weight_copies=1):
         """TODO."""
         fg = FactorGraph(weight, variable, factor, fmap, vmap, factor_index,
                          var_copies, weight_copies,
@@ -347,7 +347,7 @@ class NumbSkull(object):
             output_file = os.path.join(
                 self.output_dir, "inference_result.out.text")
             self.factorGraphs[fgID].dump_probabilities(output_file,
-                                                   n_inference_epoch)
+                                                       n_inference_epoch)
 
     def learning(self, fgID=0, out=True):
         """TODO."""
@@ -367,6 +367,7 @@ class NumbSkull(object):
             output_file = os.path.join(
                 self.output_dir, "inference_result.out.weights.text")
             self.factorGraphs[fgID].dump_weights(output_file)
+
 
 def load(argv=None):
     """TODO."""

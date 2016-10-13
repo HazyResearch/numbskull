@@ -197,7 +197,7 @@ class FactorGraph(object):
             self.learning_total_time += timer.interval
             if diagnostics:
                 print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
-                print("Current stepsize = "+str(stepsize))
+                print("Current stepsize = " + str(stepsize))
                 if verbose:
                     self.diagnosticsLearning(weight_copy)
                 sys.stdout.flush()  # otherwise output refuses to show in DD
