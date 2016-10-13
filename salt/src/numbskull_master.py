@@ -32,22 +32,23 @@ class NumbskullMaster:
         # Salt conf init
         self.master_conf_dir = os.path.join(syspaths.CONFIG_DIR, 'master')
         self.salt_opts = salt.config.client_config(self.master_conf_dir)
-        # Salt cliens init
+
+        # Salt clients init
         self.local_client = salt.client.LocalClient(self.master_conf_dir)
         self.runner = salt.runner.RunnerClient(self.salt_opts)
+
         # Salt event bus - used to communicate with minions
         self.event_bus = salt.utils.event.get_event(
                              'master',
                              sock_dir=self.salt_opts['sock_dir'],
                              transport=self.salt_opts['transport'],
                              opts=self.salt_opts)
-        # Get active minions
-        #self.minions = self.get_minions_status()
+
         # Numbskull-related variables
         self.argv = argv
         self.args = self.parse_args(argv)
         self.ns = None
-        self.num_minions = 2
+        self.num_minions = 2 # TODO: allow as an argument
 
     def initialize(self):
         self.assign_partition_id()
@@ -58,7 +59,6 @@ class NumbskullMaster:
         self.sync_mapping()
 
     def inference(self, epochs=1):
-        # TODO: switch to proper probs
 
         print("BEGINNING INFERENCE")
         begin = time.time()
@@ -89,7 +89,6 @@ class NumbskullMaster:
                                              [data, tag],
                                              expr_form='list')
 
-            # TODO: receive values from minions
             resp = 0
             while resp < len(self.minions):
                 evdata = self.event_bus.get_event(wait=5,
@@ -104,40 +103,13 @@ class NumbskullMaster:
                     for i in range(variables_from_minion.size):
                         self.ns.factorGraphs[-1].var_value[0][self.map_from_minion[pid][i]] = variables_from_minion[i]
 
-                #if evdata:
-                #    tag, data = evdata['tag'], evdata['data']
-                #    jevent = json.dumps(data)
-                #    if data['data']['status'] != 'SUCCESS':
-                #        print('ERROR: Minion %s failed to run inference.' % data['id'])
-                #        SUCCESS = False
-                #    else:
-                #        #m = self.deserialize(data['data']['marginals'], np.float64)
-                #        #marginals.append(m)
-                #        pass
-                #resp.append((data['id'], SUCCESS))
-                #resp.append((data['id'], SUCCESS))
-
-            # TODO: get marginals
+        # TODO: get and return marginals 
+        # TODO: switch to proper probs
         end = time.time()
         print("INFERENCE TOOK", end - begin)
 
-        return
-        marginals = {}
-        for fgID in range(len(self.ns.factorGraphs)):
-            marginals[fgID] = []
-            # Run learning on minions
-            SUCCESS, m_marginals = self.inference_minions(fgID)
-            if not SUCCESS:
-                print('Minions-learning failed')
-                return
-            marginals[fgID].extend(m_marginals)
-            # Run learning locally
-            self.ns.inference(fgID, False)
-            marginals[fgID].append(self.ns.factorGraphs[fgID].marginals)
-            # Combine results
-        return marginals
-
     def learning(self):
+        # TODO: implement
         weights = {}
         for fgID in range(len(self.ns.factorGraphs)):
             weights[fgID] = []
@@ -153,7 +125,7 @@ class NumbskullMaster:
             # Combine results
         return weights
 
-    # Init Phase
+    ### Init Phase ###
     def assign_partition_id(self):
         while True:
             self.minions = self.get_minions_status()['up']
@@ -172,28 +144,31 @@ class NumbskullMaster:
                                              expr_form='list')
         # TODO: listen for responses
 
-    def prepare_db(self):
-        # TODO: implement
+    def prep_numbskull(self):
+        # Setup local instance
+        self.prep_local_numbskull()
+        # Setup minion instnances
+        success = self.prep_minions_numbskull()
+        if not success:
+            print('ERROR: Numbksull not loaded')
 
+    def prepare_db(self):
         # hard-coded application directory
         #application_dir = "/dfs/scratch0/bryanhe/genomics/"
         #application_dir = "/dfs/scratch0/bryanhe/census/"
         #application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/bryanhe/congress2/"
+        application_dir = "/dfs/scratch0/bryanhe/congress/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
             db_url = f.read().strip()
 
         # Call deepdive to perform everything up to grounding
-        # TODO: is there a way to not "do all" (which even uses DW sampling)
-        #       and just ground?
         # TODO: check that deepdive ran successfully
         subprocess.call(["deepdive", "do", "process/grounding/combine_factorgraph"], cwd=application_dir)
 
         # Obtain partition information
-        # TODO: remove hard-coded 2
-        partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", "2"], cwd=application_dir)
+        partition_json = subprocess.check_output(["ddlog", "semantic-partition", "app.ddlog", "--ppa", "-w", str(self.num_minions)], cwd=application_dir)
         partition = json.loads(partition_json)
 
         # Connect to an existing database
@@ -240,7 +215,6 @@ class NumbskullMaster:
 
         # This adds partition information to the database
         for op in p0["sql_to_apply"]:
-            #print(op)
             # Currently ignoring the column already exists from ALTER statements
             # TODO: better fix?
             try:
@@ -252,9 +226,6 @@ class NumbskullMaster:
                 conn.rollback()
 
         (factor_view, variable_view, weight_view) = messages.get_views(cur)
-        print(factor_view)
-        print(variable_view)
-        print(weight_view)
         master_filter = "   partition_key = 'A' " \
                         "or partition_key = 'B' " \
                         "or partition_key like 'D%' " \
@@ -264,11 +235,6 @@ class NumbskullMaster:
 
 
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt, self.var_pid, self.factor_pt, self.factor_pid, self.vid) = messages.get_fg_data(cur, master_filter)
-        print(self.vid)
-        print(self.var_pt)
-        print(self.var_pid)
-        print(self.factor_pt)
-        print(self.factor_pid)
 
         # Close communication with the database
         cur.close()
@@ -281,17 +247,9 @@ class NumbskullMaster:
         conn.close()
         return db_url
 
-
-    def prep_numbskull(self):
-        # Setup local instance
-        self.prep_local_numbskull()
-        # Setup minion instnances
-        success = self.prep_minions_numbskull()
-        if not success:
-            print('ERROR: Numbksull not loaded')
-
     def load_own_fg(self):
-        # TODO: implement
+        # TODO: this is already in prepare_db
+        # Need to refactor this
         # Needs to load the factor graph
         # Track what to sample
         # Track map for variables/factors from each minion
@@ -314,12 +272,6 @@ class NumbskullMaster:
             if evdata:
                 resp += 1
         print("DONE WAITING FOR MINION LOAD_FG_RES")
-        #for fg in self.ns.factorGraphs:
-        #    if not self.send_minions_fg_data(fg):
-        #        print('ERROR: Could not send FG to minions')
-        #        return
-        #print('SUCCESS: FG loaded to all minions')
-        #return
 
     def sync_mapping(self):
         # compute map
@@ -365,40 +317,6 @@ class NumbskullMaster:
         for i in range(len(self.map_from_minion)):
             for j in range(len(self.map_from_minion[i])):
                 self.map_from_minion[i][j] = messages.inverse_map(self.vid, self.map_from_minion[i][j])
-
-
-    # Inference
-    def inference_minions(self, fgID):
-        # Prep event
-        tag = messages.INFER
-        data = {'fgID': fgID}
-        newEvent = self.local_client.cmd(self.minions,
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
-        # variable props for data from minions
-        SUCCESS = True
-        resp = []
-        marginals = []
-        while len(resp) < len(self.minions):
-            evdata = self.event_bus.get_event(wait=5,
-                                              tag=messages.INFER_RES,
-                                              full=True)
-            if evdata:
-                tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
-                if data['data']['status'] != 'SUCCESS':
-                    print('ERROR: Minion %s failed to run inference.' % data['id'])
-                    SUCCESS = False
-                else:
-                    m = messages.deserialize(data['data']['marginals'], np.float64)
-                    marginals.append(m)
-            resp.append((data['id'], SUCCESS))
-        if SUCCESS:
-            print('SUCCESS: All minions ran inference.')
-        return SUCCESS, marginals
-
-
 
     # Helper
     def parse_args(self, argv):
@@ -464,84 +382,6 @@ class NumbskullMaster:
         if SUCCESS:
             print('SUCCESS: All minions loaded numbskull.')
         return SUCCESS
-
-    def serialize(self, array):
-        return array.tostring().decode('utf16').encode('utf8')
-
-    def deserialize(self, array, dtype):
-        ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
-        return np.fromstring(ar, dtype)
-
-    def minion_fg_data(self, fg):
-        data = {}
-        data['weight'] = fg.weight.tostring()
-        data['variable'] = fg.variable.tostring()
-        data['factor'] = self.serialize(fg.factor)
-        data['fmap'] = fg.fmap.tostring()
-        data['vmap'] = fg.vmap.tostring()
-        data['factor_index'] = fg.factor_index.tostring()
-        return data
-
-    def send_minions_fg_data(self, fg):
-        # Prep event
-        tag = messages.LOAD_FG
-        data = self.minion_fg_data(fg)
-        newEvent = self.local_client.cmd(self.minions,
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
-        # wait for ACK from minions
-        SUCCESS = True
-        resp = []
-        while len(resp) < len(self.minions):
-            evdata = self.event_bus.get_event(wait=5,
-                                              tag=messages.LOAD_FG_RES,
-                                              full=True)
-            if evdata:
-                tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
-                if data['data']['status'] != 'SUCCESS':
-                    print('ERROR: Minion %s failed to load FG.' % data['id'])
-                    SUCCESS = False
-                else:
-                    print('SUCCESS: Minion %s factor graph stats:' % data['id'])
-                    print('Variables: %d' % data['data']['meta']['variables'])
-                    print('Weights: %d' % data['data']['meta']['weights'])
-                    print('Factors: %d' % data['data']['meta']['factors'])
-                resp.append((data['id'], SUCCESS))
-        if SUCCESS:
-            print('SUCCESS: All minions loaded FG.')
-        return SUCCESS
-
-    def learning_minions(self, fgID):
-        # Prep event
-        tag = messages.LEARN
-        data = {'fgID': fgID}
-        newEvent = self.local_client.cmd(self.minions,
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
-        # weight for data from minions
-        SUCCESS = True
-        resp = []
-        weights = []
-        while len(resp) < len(self.minions):
-            evdata = self.event_bus.get_event(wait=5,
-                                              tag=messages.LEARN_RES,
-                                              full=True)
-            if evdata:
-                tag, data = evdata['tag'], evdata['data']
-                jevent = json.dumps(data)
-                if data['data']['status'] != 'SUCCESS':
-                    print('ERROR: Minion %s failed to run learning.' % data['id'])
-                    SUCCESS = False
-                else:
-                    w = self.deserialize(data['data']['weights'], np.float64)
-                    weights.append(w)
-                resp.append((data['id'], SUCCESS))
-        if SUCCESS:
-            print('SUCCESS: All minions ran learning.')
-        return SUCCESS, weights
 
 
 def main(argv=None):
