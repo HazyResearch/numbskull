@@ -46,8 +46,7 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
 
     z = np.random.rand() * Z[cardinality - 1]
 
-    # TODO: this looks at the full vector, slow if one var has high cardinality
-    return np.argmax(Z >= z)
+    return np.argmax(Z[0:cardinality] >= z)
 
 
 @jit(nopython=True, cache=True, nogil=True)
