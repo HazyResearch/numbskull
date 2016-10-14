@@ -127,16 +127,17 @@ class FactorGraph(object):
     #    INFERENCE AND LEARNING    #
     ################################
 
-    def burnIn(self, epochs, var_copy=0, weight_copy=0):
+    def burnIn(self, epochs, sample_evidence, var_copy=0, weight_copy=0):
         """TODO."""
         print("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
-        shardID, nshards = 0, 1
         # NUMBA-based method. Implemented in inference.py
-        gibbsthread(shardID, nshards, epochs, var_copy, weight_copy,
+        for ep in range(epochs):
+            args = (self.threads, var_copy, weight_copy,
                     self.weight, self.variable, self.factor,
                     self.fmap, self.vmap,
                     self.factor_index, self.Z, self.cstart, self.count,
                     self.var_value, self.weight_value, sample_evidence, True)
+            run_pool(self.threadpool, self.threads, gibbsthread, args)
         print("FACTOR " + str(self.fid) + ": DONE WITH BURN-IN")
 
     def inference(self, burnin_epochs, epochs, sample_evidence=False,
@@ -144,7 +145,7 @@ class FactorGraph(object):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
-            self.burnIn(burnin_epochs)
+            self.burnIn(burnin_epochs, sample_evidence)
 
         # Run inference
         print("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
@@ -174,7 +175,7 @@ class FactorGraph(object):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
-            self.burnIn(burnin_epochs)
+            self.burnIn(burnin_epochs, True)
 
         # Run learning
         print("FACTOR " + str(self.fid) + ": STARTED LEARNING")
