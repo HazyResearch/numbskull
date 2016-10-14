@@ -121,125 +121,123 @@ def start():
             listen=True)
     log.debug('Starting Numbskull Minion Engine')
     partition_id = -1
-    while True:
-        evdata = event_bus.get_event(full=True)
-        if evdata:
-            tag, data = evdata['tag'], evdata['data']
+    for evdata in event_bus.iter_events(full=True):
+        tag, data = evdata['tag'], evdata['data']
 
-            if tag == messages.ASSIGN_ID:
-                partition_id = data['id']
-                print("Assigned partition id #", partition_id)
-                # TODO: respond to master
-            elif tag == messages.INIT_NS:
-                try:
-                    ns_minion.init_numbskull(data['argv'])
-                    # Respond OK to master
-                    data = {'status': 'OK'}
-                    __salt__['event.send'](messages.INIT_NS_RES, data)
-                except:
-                    # Respond FAIL to master
-                    data = {'status': 'FAIL'}
-                    __salt__['event.send'](messages.INIT_NS_RES, data)
-            elif tag == messages.LOAD_FG:
-                # Connect to an existing database
-                # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
-                db_url = data["db_url"]
-                url = urlparse.urlparse(db_url)
-                username = url.username
-                password = url.password
-                database = url.path[1:]
-                hostname = url.hostname
-                port = url.port
-                conn = psycopg2.connect(
-                    database=database,
-                    user=username,
-                    password=password,
-                    host=hostname,
-                    port=port
-                )
+        if tag == messages.ASSIGN_ID:
+            partition_id = data['id']
+            print("Assigned partition id #", partition_id)
+            # TODO: respond to master
+        elif tag == messages.INIT_NS:
+            try:
+                ns_minion.init_numbskull(data['argv'])
+                # Respond OK to master
+                data = {'status': 'OK'}
+                __salt__['event.send'](messages.INIT_NS_RES, data)
+            except:
+                # Respond FAIL to master
+                data = {'status': 'FAIL'}
+                __salt__['event.send'](messages.INIT_NS_RES, data)
+        elif tag == messages.LOAD_FG:
+            # Connect to an existing database
+            # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
+            db_url = data["db_url"]
+            url = urlparse.urlparse(db_url)
+            username = url.username
+            password = url.password
+            database = url.path[1:]
+            hostname = url.hostname
+            port = url.port
+            conn = psycopg2.connect(
+                database=database,
+                user=username,
+                password=password,
+                host=hostname,
+                port=port
+            )
 
-                # Open a cursor to perform database operations
-                cur = conn.cursor()
-                minion_filter = "   partition_key = 'B' " \
-                                "or partition_key = 'C{partition_id}' " \
-                                "or partition_key = 'D{partition_id}' " \
-                                "or partition_key = 'E{partition_id}' " \
-                                "or partition_key = 'F{partition_id}' " \
-                                "or partition_key = 'G{partition_id}' " \
-                                "or partition_key = 'H' "
-                minion_filter = minion_filter.format(partition_id=partition_id)
+            # Open a cursor to perform database operations
+            cur = conn.cursor()
+            minion_filter = "   partition_key = 'B' " \
+                            "or partition_key = 'C{partition_id}' " \
+                            "or partition_key = 'D{partition_id}' " \
+                            "or partition_key = 'E{partition_id}' " \
+                            "or partition_key = 'F{partition_id}' " \
+                            "or partition_key = 'G{partition_id}' " \
+                            "or partition_key = 'H' "
+            minion_filter = minion_filter.format(partition_id=partition_id)
 
-                (weight, variable, factor, fmap, domain_mask, edges,
-                    var_pt, var_pid, factor_pt, factor_pid, vid) = \
-                    messages.get_fg_data(cur, minion_filter)
+            (weight, variable, factor, fmap, domain_mask, edges,
+                var_pt, var_pid, factor_pt, factor_pid, vid) = \
+                messages.get_fg_data(cur, minion_filter)
 
-                # Close communication with the database
-                cur.close()
-                conn.close()
+            # Close communication with the database
+            cur.close()
+            conn.close()
 
-                ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
-                                             domain_mask, edges)
+            ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
+                                         domain_mask, edges)
 
-                # Respond to master
-                data = {}
-                __salt__['event.send'](messages.LOAD_FG_RES, data)
-                log.debug("DONE LOADFG")
-            elif tag == messages.SYNC_MAPPING:
-                # receive map from master
-                map_from_master = messages.deserialize(data["map"], np.int64)
-                log.debug(map_from_master)
+            # Respond to master
+            data = {}
+            __salt__['event.send'](messages.LOAD_FG_RES, data)
+            log.debug("DONE LOADFG")
+        elif tag == messages.SYNC_MAPPING:
+            # receive map from master
+            map_from_master = messages.deserialize(data["map"], np.int64)
+            log.debug(map_from_master)
 
-                # compute map
-                l = 0
-                for i in range(len(var_pt)):
-                    if var_pt[i] == "D":
-                        l += 1
+            # compute map
+            l = 0
+            for i in range(len(var_pt)):
+                if var_pt[i] == "D":
+                    l += 1
 
-                map_to_master = np.zeros(l, np.int64)
-                l = 0
-                for i in range(len(var_pt)):
-                    if var_pt[i] == "D":
-                        map_to_master[l] = vid[i]
-                        l += 1
-                log.debug(map_to_master)
+            map_to_master = np.zeros(l, np.int64)
+            l = 0
+            for i in range(len(var_pt)):
+                if var_pt[i] == "D":
+                    map_to_master[l] = vid[i]
+                    l += 1
+            log.debug(map_to_master)
 
-                for i in range(len(map_from_master)):
-                    map_from_master[i] = \
-                            messages.inverse_map(vid, map_from_master[i])
+            for i in range(len(map_from_master)):
+                map_from_master[i] = \
+                        messages.inverse_map(vid, map_from_master[i])
 
-                for i in range(len(map_to_master)):
-                    map_to_master[i] = \
-                            messages.inverse_map(vid, map_to_master[i])
-                variables_to_master = np.zeros(map_to_master.size, np.int64)
+            for i in range(len(map_to_master)):
+                map_to_master[i] = \
+                        messages.inverse_map(vid, map_to_master[i])
+            variables_to_master = np.zeros(map_to_master.size, np.int64)
 
-                data = {"pid": partition_id,
-                        "map": messages.serialize(map_to_master)}
-                __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
-                log.debug("DONE SYNC_MAPPING")
-            elif tag == messages.LEARN:
-                status, weights = ns_minion.learning(data['fgID'])
-                # Respond to master
-                data = {'status': status, 'weights': weights}
-                __salt__['event.send'](messages.LEARN_RES, data)
-            elif tag == messages.INFER:
-                variables_from_master = \
-                    messages.deserialize(data["values"], np.int64)
-                for i in range(map_from_master.size):
-                    m = map_from_master[i]
-                    v = variables_from_master[i]
-                    ns_minion.ns.factorGraphs[-1].var_value[0][m] = v
+            data = {"pid": partition_id,
+                    "map": messages.serialize(map_to_master)}
+            __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
+            log.debug("DONE SYNC_MAPPING")
+        elif tag == messages.LEARN:
+            status, weights = ns_minion.learning(data['fgID'])
+            # Respond to master
+            data = {'status': status, 'weights': weights}
+            __salt__['event.send'](messages.LEARN_RES, data)
+        elif tag == messages.INFER:
+            variables_from_master = \
+                messages.deserialize(data["values"], np.int64)
+            for i in range(map_from_master.size):
+                m = map_from_master[i]
+                v = variables_from_master[i]
+                ns_minion.ns.factorGraphs[-1].var_value[0][m] = v
 
-                begin = time.time()
-                # TODO: do not sample variables owned by master
-                status, marginals = ns_minion.inference()
-                end = time.time()
-                log.debug("INFERENCE LOOP TOOK " + str(end - begin))
+            begin = time.time()
+            # TODO: do not sample variables owned by master
+            status, marginals = ns_minion.inference()
+            end = time.time()
+            log.debug("INFERENCE LOOP TOOK " + str(end - begin))
 
-                # Respond to master
-                for (i, m) in enumerate(map_to_master):
-                    variables_to_master[i] = \
-                        ns_minion.ns.factorGraphs[-1].var_value[0][m]
+            # Respond to master
+            for (i, m) in enumerate(map_to_master):
+                variables_to_master[i] = \
+                    ns_minion.ns.factorGraphs[-1].var_value[0][m]
 
-                data = {"pid": partition_id,
-                        "values": messages.serialize(variables_to_master)}
-                __salt__['event.send'](messages.INFER_RES, data)
+            data = {"pid": partition_id,
+                    "values": messages.serialize(variables_to_master)}
+            __salt__['event.send'](messages.INFER_RES, data)
