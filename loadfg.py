@@ -41,6 +41,9 @@ for (key, value) in numbskull.inference.FACTORS.items():
     print(key)
 
     variables = 2
+    if key == "DP_GEN_DEP_FIXING" or key == "DP_GEN_DEP_REINFORCING":
+        # These factor functions requires three vars to work
+        variables = 3
     edges = variables
 
     weight = np.zeros(1, Weight)
@@ -52,24 +55,20 @@ for (key, value) in numbskull.inference.FACTORS.items():
     weight[0]["isFixed"] = True
     weight[0]["initialValue"] = 1
 
-    variable[0]["isEvidence"] = 0
-    variable[0]["initialValue"] = 0
-    variable[0]["dataType"] = 0
-    variable[0]["cardinality"] = 2
-
-    variable[1]["isEvidence"] = 0
-    variable[1]["initialValue"] = 0
-    variable[1]["dataType"] = 0
-    variable[1]["cardinality"] = 2
+    for i in range(variables):
+        variable[i]["isEvidence"] = 0
+        variable[i]["initialValue"] = 0
+        variable[i]["dataType"] = 0
+        variable[i]["cardinality"] = 2
 
     factor[0]["factorFunction"] = value
     factor[0]["weightId"] = 0
     factor[0]["featureValue"] = 1
-    factor[0]["arity"] = 2
+    factor[0]["arity"] = variables
     factor[0]["ftv_offset"] = 0
 
-    fmap[0]["vid"] = 0
-    fmap[1]["vid"] = 1
+    for i in range(variables):
+        fmap[i]["vid"] = i
 
     ns = numbskull.NumbSkull(n_inference_epoch=100,
                              n_learning_epoch=100,
