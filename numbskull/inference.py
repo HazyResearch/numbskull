@@ -46,8 +46,7 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
 
     z = np.random.rand() * Z[cardinality - 1]
 
-    # TODO: this looks at the full vector, slow if one var has high cardinality
-    return np.argmax(Z >= z)
+    return np.argmax(Z[0:cardinality] >= z)
 
 
 @jit(nopython=True, cache=True, nogil=True)
@@ -72,22 +71,22 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
 
 FACTORS = {
     # Factor functions for boolean variables
-    "FUNC_IMPLY_NATURAL": 0,
-    "FUNC_OR": 1,
-    "FUNC_EQUAL": 3,
-    "FUNC_AND": 2,
-    "FUNC_ISTRUE": 4,
-    "FUNC_LINEAR": 7,
-    "FUNC_RATIO": 8,
-    "FUNC_LOGICAL": 9,
-    "FUNC_IMPLY_MLN": 13,
+    "IMPLY_NATURAL": 0,
+    "OR": 1,
+    "EQUAL": 3,
+    "AND": 2,
+    "ISTRUE": 4,
+    "LINEAR": 7,
+    "RATIO": 8,
+    "LOGICAL": 9,
+    "IMPLY_MLN": 13,
 
     # Factor functions for categorical variables
-    "FUNC_AND_CAT": 12,
-    "FUNC_OR_CAT": 14,
-    "FUNC_EQUAL_CAT_CONST": 15,
-    "FUNC_IMPLY_NATURAL_CAT": 16,
-    "FUNC_IMPLY_MLN_CAT": 17,
+    "AND_CAT": 12,
+    "OR_CAT": 14,
+    "EQUAL_CAT_CONST": 15,
+    "IMPLY_NATURAL_CAT": 16,
+    "IMPLY_MLN_CAT": 17,
 
     # Factor functions for generative models for data programming.
     #
@@ -100,36 +99,36 @@ FACTORS = {
     # the values of l are mapped to Numbskull variables l_index via {-1: 0, 0:1, 1:2}.
 
     # h(y) := y
-    "FUNC_DP_GEN_CLASS_PRIOR": 18,
+    "DP_GEN_CLASS_PRIOR": 18,
 
     # h(l) := l
-    "FUNC_DP_GEN_LF_PRIOR": 19,
+    "DP_GEN_LF_PRIOR": 19,
 
     # h(l) := l * l
-    "FUNC_DP_GEN_LF_PROPENSITY": 20,
+    "DP_GEN_LF_PROPENSITY": 20,
 
     # h(y, l) := y * l
-    "FUNC_DP_GEN_LF_ACCURACY": 21,
+    "DP_GEN_LF_ACCURACY": 21,
 
     # h(l) := y * l * l
-    "FUNC_DP_GEN_LF_CLASS_PROPENSITY": 22,
+    "DP_GEN_LF_CLASS_PROPENSITY": 22,
 
     # l_2 fixes errors made by l_1
     #
     # h(y, l_1, l_2) := if l_1 == 0 and l_2 != 0: -1, elif l_1 == -1 * y and l_2 == y: 1, else: 0
-    "FUNC_DP_GEN_DEP_FIXING": 23,
+    "DP_GEN_DEP_FIXING": 23,
 
     # l_2 reinforces the output of l_1
     #
     # h(y, l_1, l_2) := if l_1 == 0 and l_2 != 0: -1, elif l_1 == y and l_2 == y: 1, else: 0
-    "FUNC_DP_GEN_DEP_REINFORCING": 24,
+    "DP_GEN_DEP_REINFORCING": 24,
 
     # h(l_1, l_2) := if l_1 != 0 and l_2 != 0: -1, else: 0
-    "FUNC_DP_GEN_DEP_EXCLUSIVE": 25,
+    "DP_GEN_DEP_EXCLUSIVE": 25,
 }
 
 for (key, value) in FACTORS.items():
-    exec(key + " = " + str(value))
+    exec("FUNC_" + key + " = " + str(value))
 
 
 @jit(nopython=True, cache=True, nogil=True)

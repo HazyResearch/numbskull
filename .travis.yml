@@ -5,7 +5,7 @@ python:
 
 install:
   - pip install --upgrade pip
-  - pip install pep8
+  - pip install pycodestyle
   - pip install pep257
 
   # Must be installed before conda
@@ -30,7 +30,7 @@ install:
 
 
 script:
-  - pep8 .
+  - pycodestyle --ignore=E402,E126 .
   - pep257
   - ./test.py
   - ./loadfg.py

@@ -53,8 +53,14 @@ class FactorGraph(object):
         self.weight_value = \
             np.tile(self.weight[:]['initialValue'], (weight_copies, 1))
 
-        self.Z = np.zeros((workers, max(self.variable[:]['cardinality'])))
-        size = (workers, 2 * max(self.vmap['factor_index_length']))
+        if self.variable.size == 0:
+            self.Z = np.zeros((workers, 0))
+        else:
+            self.Z = np.zeros((workers, max(self.variable[:]['cardinality'])))
+        if self.vmap.size == 0:
+            size = (workers, 0)
+        else:
+            size = (workers, 2 * max(self.vmap['factor_index_length']))
         self.fids = np.zeros(size, factor_index.dtype)
 
         self.fid = fid
@@ -192,7 +198,7 @@ class FactorGraph(object):
             self.learning_total_time += timer.interval
             if diagnostics:
                 print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
-                print("Current stepsize = "+str(stepsize))
+                print("Current stepsize = " + str(stepsize))
                 if verbose:
                     self.diagnosticsLearning(weight_copy)
                 sys.stdout.flush()  # otherwise output refuses to show in DD
