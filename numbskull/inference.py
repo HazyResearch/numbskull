@@ -63,7 +63,6 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
     for k in range(start, end):
         factor_id = factor_index[k]
         p += weight_value[weight_copy][factor[factor_id]["weightId"]] * \
-            factor[factor_id]["featureValue"] * \
             eval_factor(factor_id, var_samp, value, var_copy, variable,
                         factor, fmap, var_value)
     return p
@@ -289,11 +288,11 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
     #####################
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_CLASS_PRIOR:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         return 1 if y_index == 1 else -1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_PRIOR:
         l_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         if l_index == 0:
             return -1
         elif l_index == 1:
@@ -302,13 +301,13 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             return 1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_PROPENSITY:
         l_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         return 0 if l_index == 1 else 1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_ACCURACY:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         l_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 1]
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         if l_index == 1:
             return 0
         # First part of below condition is simpler because
@@ -320,9 +319,9 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
     elif factor[factor_id]["factorFunction"] == \
             FUNC_DP_GEN_LF_CLASS_PROPENSITY:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         l_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 1]
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         if l_index == 1:
             return 0
         elif y_index == 1:
@@ -331,11 +330,11 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             return -1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_FIXING:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         l1_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 1]
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         l2_index = value if fmap[ftv_start + 2]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 2]
+            var_value[var_copy][fmap[ftv_start + 2]["vid"]]
         if l1_index == 1:
             return -1 if l2_index != 1 else 0
         elif l1_index == 0 and l2_index == 2 and y_index == 1:
@@ -346,11 +345,11 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             return 0
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_REINFORCING:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         l1_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 1]
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         l2_index = value if fmap[ftv_start + 2]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 2]
+            var_value[var_copy][fmap[ftv_start + 2]["vid"]]
         if l1_index == 1:
             return -1 if l2_index != 1 else 0
         elif l1_index == 0 and l2_index == 0 and y_index == 0:
@@ -361,9 +360,9 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             return 0
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_EXCLUSIVE:
         l1_index = value if fmap[ftv_start]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start]
+            var_value[var_copy][fmap[ftv_start]["vid"]]
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
-            var_value[var_copy][ftv_start + 1]
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         return 0 if l1_index == 1 or l2_index == 1 else -1
     else:  # FUNC_UNDEFINED
         print("Error: Factor Function", factor[factor_id]["factorFunction"],
