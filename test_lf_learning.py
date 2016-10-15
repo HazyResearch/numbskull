@@ -65,9 +65,11 @@ def create_fg(prior, accuracy, abstain, copies):
         for (j, lf) in enumerate(lfs):
             lf = lf - 1 # remap to standard -1, 0, 1
             if lf != 0:
-                Z[i] += accuracy[j] * lf * y
+                Z[i] += accuracy[j] * lf * (2 * y - 1)
+        # TODO: abstain not handled yet
 
         Z[i] = math.exp(Z[i])
+
     Z = np.cumsum(Z)
     Z = Z / Z[-1]
 
@@ -101,7 +103,7 @@ def create_fg(prior, accuracy, abstain, copies):
         factor[copy * (1 + len(accuracy))]["weightId"] = 0
         factor[copy * (1 + len(accuracy))]["featureValue"] = 1
         factor[copy * (1 + len(accuracy))]["arity"] = 1
-        factor[copy * (1 + len(accuracy))]["ftv_offset"] = copy * (1 + len(accuracy))
+        factor[copy * (1 + len(accuracy))]["ftv_offset"] = copy * (1 + 2 * len(accuracy))
         fmap  [copy * (1 + 2 * len(accuracy))]["vid"] = copy * (1 + len(accuracy))
 
         # Labelling function accuracy
@@ -110,25 +112,27 @@ def create_fg(prior, accuracy, abstain, copies):
             factor[copy * (1 + len(accuracy)) + 1 + i]["weightId"] = i + 1
             factor[copy * (1 + len(accuracy)) + 1 + i]["featureValue"] = 1
             factor[copy * (1 + len(accuracy)) + 1 + i]["arity"] = 2
-            factor[copy * (1 + len(accuracy)) + 1 + i]["ftv_offset"] = copy * (1 + len(accuracy)) + 1 + 2 * i
+            factor[copy * (1 + len(accuracy)) + 1 + i]["ftv_offset"] = copy * (1 + 2 * len(accuracy)) + 1 + 2 * i
             fmap  [copy * (1 + 2 * len(accuracy)) + 1 + 2 * i]["vid"] = copy * (1 + len(accuracy))      # y
             fmap  [copy * (1 + 2 * len(accuracy)) + 2 + 2 * i]["vid"] = copy * (1 + len(accuracy)) + 1  # labeling func i
 
     return weight, variable, factor, fmap, domain_mask, edges
 
+learn = 500
 ns = numbskull.NumbSkull(n_inference_epoch=100,
-                         n_learning_epoch=500,
+                         n_learning_epoch=learn,
                          quiet=True,
-                         learn_non_evidence=True,
+                         #learn_non_evidence=True,
+                         learn_non_evidence=False,
                          stepsize=0.1,
                          burn_in=100,
-                         decay=0.95,
+                         decay=0.001 ** (1.0 / learn),
                          reg_param=0.1)
 
 prior = 0
-accuracy = [1, 0, 0]
+accuracy = [0, 0, 0]
 abstain = [0, 0, 0]
-copies = 100000
+copies = 1000
 fg = create_fg(prior, accuracy, abstain, copies)
 ns.loadFactorGraph(*fg)
 ns.learning()
