@@ -72,10 +72,12 @@ def create_fg(prior, accuracy, abstain, copies):
 
     Z = np.cumsum(Z)
     Z = Z / Z[-1]
+    print(Z)
 
     for w in weight:
         w["isFixed"] = False
-        w["initialValue"] = 0
+        w["initialValue"] = 1.0
+    weight[0]["initialValue"] = 0
 
 
     for copy in range(copies):
@@ -87,7 +89,7 @@ def create_fg(prior, accuracy, abstain, copies):
 
         # y variable
         variable[copy * (1 + len(accuracy))]["isEvidence"] = 0  # query
-        variable[copy * (1 + len(accuracy))]["initialValue"] = y
+        variable[copy * (1 + len(accuracy))]["initialValue"] = 0 # Do not actually show y
         variable[copy * (1 + len(accuracy))]["dataType"] = 0  # binary
         variable[copy * (1 + len(accuracy))]["cardinality"] = 2
 
@@ -114,26 +116,51 @@ def create_fg(prior, accuracy, abstain, copies):
             factor[copy * (1 + len(accuracy)) + 1 + i]["arity"] = 2
             factor[copy * (1 + len(accuracy)) + 1 + i]["ftv_offset"] = copy * (1 + 2 * len(accuracy)) + 1 + 2 * i
             fmap  [copy * (1 + 2 * len(accuracy)) + 1 + 2 * i]["vid"] = copy * (1 + len(accuracy))      # y
-            fmap  [copy * (1 + 2 * len(accuracy)) + 2 + 2 * i]["vid"] = copy * (1 + len(accuracy)) + 1  # labeling func i
+            fmap  [copy * (1 + 2 * len(accuracy)) + 2 + 2 * i]["vid"] = copy * (1 + len(accuracy)) + i + 1  # labeling func i
 
     return weight, variable, factor, fmap, domain_mask, edges
 
-learn = 500
+learn = 100
 ns = numbskull.NumbSkull(n_inference_epoch=100,
                          n_learning_epoch=learn,
                          quiet=True,
                          #learn_non_evidence=True,
-                         learn_non_evidence=False,
-                         stepsize=0.1,
+                         learn_non_evidence=True,
+                         stepsize=0.01,
                          burn_in=100,
                          decay=0.001 ** (1.0 / learn),
-                         reg_param=0.1)
+                         reg_param=0.15)
 
 prior = 0
-accuracy = [0, 0, 0]
+accuracy = [1, 0.5]
 abstain = [0, 0, 0]
 copies = 1000
 fg = create_fg(prior, accuracy, abstain, copies)
+print("weight")
+print(fg[0])
+print()
+
+print("variable")
+print(fg[1])
+print()
+
+print("factor")
+print(fg[2])
+print()
+
+print("fmap")
+print(fg[3])
+print()
+
+print("domain_mask")
+print(fg[4])
+print()
+
+print("edges")
+print(fg[5])
+print()
+
 ns.loadFactorGraph(*fg)
+print(ns.factorGraphs[0].weight_value)
 ns.learning()
 print(ns.factorGraphs[0].weight_value)
