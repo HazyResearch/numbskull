@@ -17,8 +17,10 @@ import urlparse
 import numpy as np
 import traceback
 
+
 # Import salt libs
 import salt.utils.event
+import salt.utils
 
 # Import numbskull
 m_opts = salt.config.minion_config(os.environ['SALT_CONFIG_DIR'] + '/minion')
@@ -30,6 +32,9 @@ import messages
 
 log = logging.getLogger(__name__)
 
+##################################
+##### NUMBSKULL MINION CLASS #####
+##################################
 
 class NumbskullMinion:
     """TODO."""
@@ -108,6 +113,9 @@ class NumbskullMinion:
         except:
             return 'FAILED', None
 
+############################
+##### ENGINE MAIN LOOP #####
+############################
 
 def start():
     """TODO."""
@@ -222,6 +230,7 @@ def start():
         elif tag == messages.INFER:
             variables_from_master = \
                 messages.deserialize(data["values"], np.int64)
+            log.debug("Length of variables_from_master = "+str(len(variables_from_master)))
             for i in range(map_from_master.size):
                 m = map_from_master[i]
                 v = variables_from_master[i]
