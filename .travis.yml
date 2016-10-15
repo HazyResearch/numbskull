@@ -34,8 +34,10 @@ script:
   - pep257
   - ./test.py
   - ./loadfg.py
+  - ./test_lf_learning.py
   - NUMBA_DISABLE_JIT=1 coverage run -p test.py
   - NUMBA_DISABLE_JIT=1 coverage run -p loadfg.py
+  - NUMBA_DISABLE_JIT=1 coverage run -p test_lf_learning.py
   - coverage combine
 
 after_success:
