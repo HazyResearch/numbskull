@@ -107,7 +107,7 @@ def create_fg(prior, accuracy, abstain, copies):
         # Labelling function accuracy
         for i in range(len(accuracy)):
             factor[copy * (1 + len(accuracy)) + 1 + i]["factorFunction"] = 21  # FUNC_DP_GEN_LF_ACCURACY
-            factor[copy * (1 + len(accuracy)) + 1 + i]["weightId"] = i
+            factor[copy * (1 + len(accuracy)) + 1 + i]["weightId"] = i + 1
             factor[copy * (1 + len(accuracy)) + 1 + i]["featureValue"] = 1
             factor[copy * (1 + len(accuracy)) + 1 + i]["arity"] = 2
             factor[copy * (1 + len(accuracy)) + 1 + i]["ftv_offset"] = copy * (1 + len(accuracy)) + 1 + 2 * i
@@ -126,9 +126,9 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
                          reg_param=0.1)
 
 prior = 0
-accuracy = [0, 0, 0]
+accuracy = [1, 0, 0]
 abstain = [0, 0, 0]
-copies = 3
+copies = 100000
 fg = create_fg(prior, accuracy, abstain, copies)
 ns.loadFactorGraph(*fg)
 ns.learning()
