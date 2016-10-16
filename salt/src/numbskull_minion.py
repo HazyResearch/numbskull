@@ -122,6 +122,7 @@ def start():
     log.debug('Starting Numbskull Minion Engine')
     partition_id = -1
     for evdata in event_bus.iter_events(full=True):
+        loop_begin = time.time()
         tag, data = evdata['tag'], evdata['data']
 
         if tag == messages.ASSIGN_ID:
@@ -240,3 +241,5 @@ def start():
             data = {"pid": partition_id,
                     "values": messages.serialize(variables_to_master)}
             __salt__['event.send'](messages.INFER_RES, data)
+        loop_end = time.time()
+        print("**********" + tag + " took " + str(loop_end - loop_begin) + "**********")

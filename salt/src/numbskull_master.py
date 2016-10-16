@@ -77,12 +77,31 @@ class NumbskullMaster:
 
     def initialize(self):
         """TODO."""
+        time1 = time.time()
         self.assign_partition_id()
+        time2 = time.time()
+        print("assign_partition_id took " + str(time2 - time1))
+
         self.prep_numbskull()
+        time3 = time.time()
+        print("prep_numbskull took " + str(time3 - time2))
+
         db_url = self.prepare_db()
+        time4 = time.time()
+        print("prepare_db took " + str(time4 - time3))
+
         self.load_own_fg()
+        time5 = time.time()
+        print("load_own_fg took " + str(time5 - time4))
+
         self.load_minions_fg(db_url)
+        time6 = time.time()
+        print("load_minions_fg took " + str(time6 - time5))
+
         self.sync_mapping()
+        time7 = time.time()
+        print("sync_mapping took " + str(time7 - time6))
+
 
     def inference(self, epochs=1):
         """TODO."""
@@ -166,7 +185,7 @@ class NumbskullMaster:
             self.minions = self.get_minions_status()['up']
             if len(self.minions) >= self.num_minions:
                 break
-            print("Waiting for minions")
+            print("Waiting for minions (" + str(len(self.minions)) + " / " + str(self.num_minions) + ")")
             time.sleep(1)
         print("Minions obtained")
 
@@ -198,7 +217,7 @@ class NumbskullMaster:
         # application_dir = "/dfs/scratch0/bryanhe/genomics/"
         # application_dir = "/dfs/scratch0/bryanhe/census/"
         # application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/thodrek/congress/"
+        application_dir = "/dfs/scratch0/bryanhe/congress/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -206,7 +225,7 @@ class NumbskullMaster:
 
         # Call deepdive to perform everything up to grounding
         # TODO: check that deepdive ran successfully
-        cmd = ["deepdive", "do", "process/grounding/combine_factorgraph"]
+        cmd = ["deepdive", "do", "all"]
         subprocess.call(cmd, cwd=application_dir)
 
         # Obtain partition information
@@ -215,6 +234,7 @@ class NumbskullMaster:
         partition_json = subprocess.check_output(cmd, cwd=application_dir)
         partition = json.loads(partition_json)
 
+        begin = time.time()
         # Connect to an existing database
         # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
         url = urlparse.urlparse(db_url)
@@ -239,7 +259,6 @@ class NumbskullMaster:
         print(partition[0].keys())
         print(80 * "*")
         for p in partition:
-
             print(p["partition_types"])
             cur.execute(p["sql_to_cost"])
             cost = cur.fetchone()[0]
@@ -270,13 +289,13 @@ class NumbskullMaster:
                 conn.rollback()
 
         (factor_view, variable_view, weight_view) = messages.get_views(cur)
+
         master_filter = "   partition_key = 'A' " \
                         "or partition_key = 'B' " \
                         "or partition_key like 'D%' " \
                         "or partition_key like 'F%' " \
                         "or partition_key like 'G%' " \
                         "or partition_key like 'H%' "
-
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
          self.var_pid, self.factor_pt, self.factor_pid, self.vid) = \
             messages.get_fg_data(cur, master_filter)
@@ -291,6 +310,8 @@ class NumbskullMaster:
         # Close communication with the database
         cur.close()
         conn.close()
+        end = time.time()
+        print("inner prepare_db took " + str(end - begin))
         return db_url
 
     def load_own_fg(self):
@@ -446,7 +467,7 @@ def main(argv=None):
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
     # w = ns_master.learning()
-    p = ns_master.inference(100)
+    p = ns_master.inference(1)
     # return ns_master, w, p
     return ns_master
 

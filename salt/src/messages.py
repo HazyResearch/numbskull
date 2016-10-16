@@ -1,10 +1,13 @@
 """TODO."""
 
+from __future__ import print_function
 import numbskull
 from numbskull.numbskulltypes import *
 import numbskull.inference
 import numpy as np
 import codecs
+import numba
+import time
 
 # Commands from master to minions (Tags)
 ASSIGN_ID = 'ASSIGN_ID'
@@ -58,6 +61,82 @@ def get_views(cur):
 
     return (factor_view, variable_view, weight_view)
 
+@numba.jit(cache=True)
+def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_index):
+    for i in row:
+        factor[factor_index]["factorFunction"] = ff
+        factor[factor_index]["weightId"] = i[-3]
+        factor[factor_index]["featureValue"] = i[-2]
+        factor[factor_index]["arity"] = len(i) - 3
+        if factor_index == 0:
+            factor[factor_index]["ftv_offset"] = 0
+        else:
+            factor[factor_index]["ftv_offset"] = factor[factor_index - 1]["ftv_offset"] \
+                                               + factor[factor_index - 1]["arity"]
+        #factor_pt[factor_index] = i[-1][0]
+        factor_index += 1
+
+        for j in i[:-3]:
+            fmap[fmap_index]["vid"] = j
+            # TODO: how to actually get categorical info?
+            fmap[fmap_index]["dense_equal_to"] = 0
+            fmap_index += 1
+
+    return factor_index, fmap_index
+
+def get_factors(cur, views, sql_filter="True", default_ff=numbskull.inference.FUNC_ISTRUE):
+    factors = 0
+    edges = 0
+
+    # This operation is for counting rows, and getting rows
+    op_template = "SELECT {cmd} FROM {table_name} WHERE {filter}"
+
+    # This operation is for counting columns in a table
+    count_template = "SELECT COUNT(*) " \
+                     "FROM INFORMATION_SCHEMA.COLUMNS " \
+                     "WHERE table_schema = 'public' " \
+                     "AND table_name = '{table_name}'"
+
+    # Pre-count number of factors and edges
+    # TODO: can this step be avoided?
+    for table in views:
+        op = op_template.format(cmd="COUNT(*)", table_name=table, filter=sql_filter)
+        cur.execute(op)
+        f = cur.fetchone()[0] # number of factors in this table
+
+        count = count_template.format(table_name=table)
+        cur.execute(count)
+        v = cur.fetchone()[0] - 3 # number of vars used by these factors
+
+        factors += f
+        edges += f * v
+
+    factor = np.zeros(factors, Factor)
+    factor_pt = np.zeros(factors, np.str_)  # partition type
+    fmap = np.zeros(edges, FactorToVar)
+
+    factor_index = 0
+    fmap_index = 0
+    for v in views:
+        # Find factor function
+        ff = -1
+        for (key, value) in numbskull.inference.FACTORS.items():
+            if ("_" + key + "_").lower() in v:
+                assert(ff == -1)
+                ff = value
+        # TODO: assume istrue if not found?
+        if ff == -1:
+           ff = default_ff
+
+        op = op_template.format(cmd="*", table_name=v, filter=sql_filter)
+        cur.execute(op)
+        while True:
+            row = cur.fetchmany(10000)
+            if row == []:
+                break
+            (factor_index, fmap_index) = get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_index)
+
+    return factor, factor_pt, fmap
 
 def read_factor_views(cur, views, sql_filter="True"):
     """TODO."""
@@ -116,14 +195,29 @@ def inverse_map(forward, index):
 
 def get_fg_data(cur, filt):
     """TODO."""
+    print("***GET_FG_DATA***")
+    time1 = time.time()
     (factor_view, variable_view, weight_view) = get_views(cur)
+    time2 = time.time()
+    print("get_views: " + str(time2 - time1))
+
+    # (factor2, factor_pt2, fmap2) = get_factors(cur, factor_view, filt)
+    # time1 = time2
+    # time2 = time.time()
+    # print("get_factors: " + str(time2 - time1))
 
     # Load factors
     factor_data = read_factor_views(cur, factor_view, filt)
+    time1 = time2
+    time2 = time.time()
+    print("read_factor_vews: " + str(time2 - time1))
 
     factor = np.zeros(len(factor_data), Factor)
     factor_pt = np.zeros(len(factor_data), np.str_)  # partition type
     factor_pid = np.zeros(len(factor_data), np.int64)  # partition id
+    time1 = time2
+    time2 = time.time()
+    print("allocate: " + str(time2 - time1))
 
     for (i, f) in enumerate(factor_data):
         factor[i]["factorFunction"] = f[4]
@@ -135,17 +229,26 @@ def get_fg_data(cur, filt):
         factor_pid[i] = -1
         if f[3][1:] != "":
             factor_pid[i] = int(f[3][1:])
+    time1 = time2
+    time2 = time.time()
+    print("for loop: " + str(time2 - time1))
 
     if len(factor) > 0:
         factor[0]["ftv_offset"] = 0
     for i in range(1, len(factor)):
         factor[i]["ftv_offset"] = factor[i - 1]["ftv_offset"] \
                                 + factor[i - 1]["arity"]
+    time1 = time2
+    time2 = time.time()
+    print("ftv_offset for loop: " + str(time2 - time1))
 
     edges = 0
     if len(factor) > 0:
         edges = factor[-1]["ftv_offset"] + factor[-1]["arity"]
     fmap = np.zeros(edges, FactorToVar)
+    time1 = time2
+    time2 = time.time()
+    print("fmap allocate: " + str(time2 - time1))
 
     index = 0
     for i in factor_data:
@@ -154,9 +257,22 @@ def get_fg_data(cur, filt):
             # TODO: how to actually get categorical info?
             fmap[index]["dense_equal_to"] = 0
             index += 1
+    time1 = time2
+    time2 = time.time()
+    print("fmap setting: " + str(time2 - time1))
+    print()
+    # print(all(factor == factor2))
+    # print(all(factor_pt == factor_pt2))
+    # print(all(fmap == fmap2))
+    # print(fmap.size)
+    # print(fmap2.size)
+    # print()
 
     # Load variable info
     var_data = read_views(cur, variable_view, filt)
+    time1 = time2
+    time2 = time.time()
+    print("read_views var: " + str(time2 - time1))
 
     vid = np.zeros(len(var_data), np.int64)
     variable = np.zeros(len(var_data), Variable)
@@ -173,20 +289,34 @@ def get_fg_data(cur, filt):
         var_pid[i] = -1
         if v[5][1:] != "":
             var_pid[i] = int(v[5][1:])
+    time1 = time2
+    time2 = time.time()
+    print("vars for loop: " + str(time2 - time1))
 
     perm = vid.argsort()
     vid = vid[perm]
     variable = variable[perm]
     var_pt = var_pt[perm]
     var_pid = var_pid[perm]
+    time1 = time2
+    time2 = time.time()
+    print("sorting vars: " + str(time2 - time1))
 
     # remap factor to variable
     for i in range(len(fmap)):
         fmap[i]["vid"] = inverse_map(vid, fmap[i]["vid"])
 
+    time1 = time2
+    time2 = time.time()
+    print("remap fmap: " + str(time2 - time1))
+
     # Load weight info
     # No filter since weights do not have a partition id
     weight_data = read_views(cur, weight_view, True)
+
+    time1 = time2
+    time2 = time.time()
+    print("read weight: " + str(time2 - time1))
 
     # TODO: if we start partitioning weights, these few lines
     # will have to be modified to be more like variables
@@ -199,7 +329,15 @@ def get_fg_data(cur, filt):
         weight[wid]["isFixed"] = w[1]
         weight[wid]["initialValue"] = w[2]
 
+    time1 = time2
+    time2 = time.time()
+    print("weight for loop: " + str(time2 - time1))
+
     domain_mask = np.full(len(variable), True, np.bool)
+
+    time1 = time2
+    time2 = time.time()
+    print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
             var_pid, factor_pt, factor_pid, vid)
