@@ -18,6 +18,7 @@ def index_to_values(index, num_lf):
         index = index // 3
     return value
 
+
 def create_fg(prior, accuracy, abstain, copies):
     """
     This creates copies of the following factor graph.
@@ -42,10 +43,12 @@ def create_fg(prior, accuracy, abstain, copies):
         list of arguments that can be passed to numbskull.loadFactorGraph
     """
 
-    weights = 1 + len(accuracy)
-    variables = copies * (1 + len(accuracy))
-    factors = copies * (1 + len(accuracy))
-    edges = copies * (1 + 2 * len(accuracy))
+    n = len(accuracy)  # number of labelling functions
+
+    weights = 1 + n
+    variables = copies * (1 + n)
+    factors = copies * (1 + n)
+    edges = copies * (1 + 2 * n)
 
     weight = np.zeros(weights, Weight)
     variable = np.zeros(variables, Variable)
@@ -53,17 +56,17 @@ def create_fg(prior, accuracy, abstain, copies):
     fmap = np.zeros(edges, FactorToVar)
     domain_mask = np.zeros(variables, np.bool)
 
-    states = 2 * 3 ** len(accuracy)
+    states = 2 * 3 ** n
     Z = np.zeros(states, np.float64)
     for i in range(states):
-        value = index_to_values(i, len(accuracy))
+        value = index_to_values(i, n)
 
         y = value[0]
         lfs = value[1:]
 
         Z[i] = prior * (2 * y - 1)
         for (j, lf) in enumerate(lfs):
-            lf = lf - 1 # remap to standard -1, 0, 1
+            lf = lf - 1  # remap to standard -1, 0, 1
             if lf != 0:
                 Z[i] += accuracy[j] * lf * (2 * y - 1)
         # TODO: abstain not handled yet
@@ -79,44 +82,46 @@ def create_fg(prior, accuracy, abstain, copies):
         w["initialValue"] = 1.0
     weight[0]["initialValue"] = 0
 
-
     for copy in range(copies):
         r = np.random.rand()
         index = np.argmax(Z >= r)
-        value = index_to_values(index, len(accuracy))
+        value = index_to_values(index, n)
         y = value[0]
         lf = value[1:]
 
         # y variable
-        variable[copy * (1 + len(accuracy))]["isEvidence"] = 0  # query
-        variable[copy * (1 + len(accuracy))]["initialValue"] = 0 # Do not actually show y
-        variable[copy * (1 + len(accuracy))]["dataType"] = 0  # binary
-        variable[copy * (1 + len(accuracy))]["cardinality"] = 2
+        variable[copy * (1 + n)]["isEvidence"] = 0  # query
+        variable[copy * (1 + n)]["initialValue"] = 0  # Do not actually show y
+        variable[copy * (1 + n)]["dataType"] = 0  # binary
+        variable[copy * (1 + n)]["cardinality"] = 2
 
         # labelling function variable
-        for i in range(len(accuracy)):
-            variable[copy * (1 + len(accuracy)) + 1 + i]["isEvidence"] = 1  # evidence
-            variable[copy * (1 + len(accuracy)) + 1 + i]["initialValue"] = lf[i]
-            variable[copy * (1 + len(accuracy)) + 1 + i]["dataType"] = 1  # categorical
-            variable[copy * (1 + len(accuracy)) + 1 + i]["cardinality"] = 3
+        for i in range(n):
+            variable[copy * (1 + n) + 1 + i]["isEvidence"] = 1  # evidence
+            variable[copy * (1 + n) + 1 + i]["initialValue"] = lf[i]
+            variable[copy * (1 + n) + 1 + i]["dataType"] = 1  # categorical
+            variable[copy * (1 + n) + 1 + i]["cardinality"] = 3
 
         # Class prior
-        factor[copy * (1 + len(accuracy))]["factorFunction"] = 18  # FUNC_DP_GEN_CLASS_PRIOR
-        factor[copy * (1 + len(accuracy))]["weightId"] = 0
-        factor[copy * (1 + len(accuracy))]["featureValue"] = 1
-        factor[copy * (1 + len(accuracy))]["arity"] = 1
-        factor[copy * (1 + len(accuracy))]["ftv_offset"] = copy * (1 + 2 * len(accuracy))
-        fmap  [copy * (1 + 2 * len(accuracy))]["vid"] = copy * (1 + len(accuracy))
+        factor[copy * (1 + n)]["factorFunction"] = 18  # DP_GEN_CLASS_PRIOR
+        factor[copy * (1 + n)]["weightId"] = 0
+        factor[copy * (1 + n)]["featureValue"] = 1
+        factor[copy * (1 + n)]["arity"] = 1
+        factor[copy * (1 + n)]["ftv_offset"] = copy * (1 + 2 * n)
+        fmap[copy * (1 + 2 * n)]["vid"] = copy * (1 + n)
 
         # Labelling function accuracy
-        for i in range(len(accuracy)):
-            factor[copy * (1 + len(accuracy)) + 1 + i]["factorFunction"] = 21  # FUNC_DP_GEN_LF_ACCURACY
-            factor[copy * (1 + len(accuracy)) + 1 + i]["weightId"] = i + 1
-            factor[copy * (1 + len(accuracy)) + 1 + i]["featureValue"] = 1
-            factor[copy * (1 + len(accuracy)) + 1 + i]["arity"] = 2
-            factor[copy * (1 + len(accuracy)) + 1 + i]["ftv_offset"] = copy * (1 + 2 * len(accuracy)) + 1 + 2 * i
-            fmap  [copy * (1 + 2 * len(accuracy)) + 1 + 2 * i]["vid"] = copy * (1 + len(accuracy))      # y
-            fmap  [copy * (1 + 2 * len(accuracy)) + 2 + 2 * i]["vid"] = copy * (1 + len(accuracy)) + i + 1  # labeling func i
+        for i in range(n):
+            factor_index = copy * (1 + n) + 1 + i
+            factor[factor_index]["factorFunction"] = 21  # DP_GEN_LF_ACCURACY
+            factor[factor_index]["weightId"] = i + 1
+            factor[factor_index]["featureValue"] = 1
+            factor[factor_index]["arity"] = 2
+            factor[factor_index]["ftv_offset"] = copy * (1 + 2 * n) + 1 + 2 * i
+
+            fmap_index = copy * (1 + 2 * n) + 1 + 2 * i
+            fmap[fmap_index]["vid"] = copy * (1 + n)  # y
+            fmap[fmap_index]["vid"] = copy * (1 + n) + i + 1  # labeling func i
 
     return weight, variable, factor, fmap, domain_mask, edges
 
@@ -124,7 +129,6 @@ learn = 100
 ns = numbskull.NumbSkull(n_inference_epoch=100,
                          n_learning_epoch=learn,
                          quiet=True,
-                         #learn_non_evidence=True,
                          learn_non_evidence=True,
                          stepsize=0.01,
                          burn_in=100,
