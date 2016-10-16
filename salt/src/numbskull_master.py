@@ -15,6 +15,8 @@ import sys
 import subprocess
 import numpy as np
 import codecs
+from multiprocessing import Pool
+from functools import partial
 
 # Import salt libs
 import salt.utils.event
@@ -27,6 +29,24 @@ import time
 
 import psycopg2
 import urlparse
+import numbskull_master_client
+from numbskull_master_client import InfLearn_Channel
+
+master_conf_dir = \
+            os.path.join(os.environ['SALT_CONFIG_DIR'], 'master')
+salt_opts = salt.config.client_config(master_conf_dir)
+
+def send_to_minion(data, tag, tgt):
+    salt_opts['minion_uri'] = 'tcp://{ip}:{port}'.format(
+            ip=salt.utils.ip_bracket(tgt),
+            port= 7341  # TODO, no fallback
+            )
+    load = {'id': 'master_inflearn',
+        'tag': tag,
+        'data': data}
+    channel = InfLearn_Channel.factory(salt_opts)
+    channel.send(load)
+    return True
 
 
 class NumbskullMaster:
@@ -35,9 +55,8 @@ class NumbskullMaster:
     def __init__(self, argv):
         """TODO."""
         # Salt conf init
-        self.master_conf_dir = \
-            os.path.join(os.environ['SALT_CONFIG_DIR'], 'master')
-        self.salt_opts = salt.config.client_config(self.master_conf_dir)
+        self.master_conf_dir = master_conf_dir
+        self.salt_opts = salt_opts
 
         # Salt clients init
         self.local_client = salt.client.LocalClient(self.master_conf_dir)
@@ -88,11 +107,17 @@ class NumbskullMaster:
 
             # Tell minions to sample
             tag = messages.INFER
+            beginTest = time.time()
             data = {"values": messages.serialize(variables_to_minions)}
-            newEvent = self.local_client.cmd(self.minions,
-                                             'event.fire',
-                                             [data, tag],
-                                             expr_form='list')
+            #newEvent = self.local_client.run_job(self.minions,
+            #                                 'event.fire',
+            #                                 [data, tag],
+            #                                 expr_form='list', timeout=None)
+            pub_func = partial(send_to_minion, data, tag)
+            self.clientPool.imap(pub_func, self.minion2host.values())
+
+            endTest = time.time()
+            print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
             resp = 0
             while resp < len(self.minions):
@@ -153,6 +178,10 @@ class NumbskullMaster:
                                              [data, messages.ASSIGN_ID],
                                              expr_form='list')
         # TODO: listen for responses
+        # Obtain minions ip addresses
+        self.minion2host = self.local_client.cmd(self.minions, 'grains.get', ['localhost'], expr_form='list', timeout=None)
+        # Initialize multiprocessing pool for publishing
+        self.clientPool = Pool(len(self.minions))
 
     def prep_numbskull(self):
         """TODO."""
@@ -169,7 +198,7 @@ class NumbskullMaster:
         # application_dir = "/dfs/scratch0/bryanhe/genomics/"
         # application_dir = "/dfs/scratch0/bryanhe/census/"
         # application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/bryanhe/congress/"
+        application_dir = "/dfs/scratch0/thodrek/congress/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -216,7 +245,7 @@ class NumbskullMaster:
             cost = cur.fetchone()[0]
             print(cost)
             # if p["partition_types"] == "":
-            # if p["partition_types"] == "(0)":
+            #if p["partition_types"] == "(0)":
             if p["partition_types"] == "(1)":
                 p0 = p
         print(80 * "*")
@@ -306,7 +335,7 @@ class NumbskullMaster:
             if self.var_pt[i] == "B":
                 self.map_to_minions[l] = self.vid[i]
                 l += 1
-        print(self.map_to_minions)
+        #print(self.map_to_minions)
 
         # send mapping to minions
         tag = messages.SYNC_MAPPING
@@ -325,7 +354,6 @@ class NumbskullMaster:
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']['data']
-                print(data)
                 self.map_from_minion[data["pid"]] = \
                     messages.deserialize(data["map"], np.int64)
                 resp += 1

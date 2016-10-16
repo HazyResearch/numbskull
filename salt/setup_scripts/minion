@@ -22,9 +22,14 @@ master: ${master}
 #proxy_username:
 #proxy_password:
 
+# Local Server Opts
+inf_learn_interface: 0.0.0.0
+inf_learn_port: 7341
+inf_learn_threads: 1
 # Engines
 engines:
     - numbskull_minion
+    - numbskull_minion_server
 
 
 # If multiple masters are specified in the 'master' setting, the default behavior
