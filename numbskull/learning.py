@@ -57,6 +57,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
     # then sample and compute the gradient.
     else:
         evidence = variable[var_samp]["initialValue"]
+
     var_value_evid[var_copy][var_samp] = evidence
     # Sample the variable
     proposal = draw_sample(var_samp, var_copy, weight_copy, weight,
@@ -96,12 +97,12 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
         p0 = eval_factor(factor_id, var_samp,
                          evidence, var_copy,
                          variable, factor, fmap,
-                         var_value_evid) * factor[factor_id]["featureValue"]
+                         var_value_evid)
         p1 = eval_factor(factor_id, var_samp,
                          proposal, var_copy,
                          variable, factor, fmap,
-                         var_value) * factor[factor_id]["featureValue"]
-        gradient = p1 - p0
+                         var_value)
+        gradient = (p1 - p0) * factor[factor_id]["featureValue"]
         # Update weight
         w = weight_value[weight_copy][weight_id]
         if regularization == 2:

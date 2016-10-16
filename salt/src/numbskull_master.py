@@ -38,15 +38,16 @@ salt_opts = salt.config.client_config(master_conf_dir)
 
 def send_to_minion(data, tag, tgt):
     salt_opts['minion_uri'] = 'tcp://{ip}:{port}'.format(
-    	    ip=salt.utils.ip_bracket(tgt),
-    	    port= 7341  # TODO, no fallback
-    	    )
+            ip=salt.utils.ip_bracket(tgt),
+            port= 7341  # TODO, no fallback
+            )
     load = {'id': 'master_inflearn',
-    	'tag': tag,
-    	'data': data}
+        'tag': tag,
+        'data': data}
     channel = InfLearn_Channel.factory(salt_opts)
     channel.send(load)
     return True
+
 
 class NumbskullMaster:
     """TODO."""
@@ -82,7 +83,7 @@ class NumbskullMaster:
         self.load_own_fg()
         self.load_minions_fg(db_url)
         self.sync_mapping()
- 
+
     def inference(self, epochs=1):
         """TODO."""
         print("BEGINNING INFERENCE")
@@ -100,8 +101,8 @@ class NumbskullMaster:
 
             # gather values to ship to minions
             # TODO: handle multiple copies
-            for (j, m) in enumerate(self.map_to_minions):
-                variables_to_minions[j] = \
+            for (i, m) in enumerate(self.map_to_minions):
+                variables_to_minions[i] = \
                         self.ns.factorGraphs[-1].var_value[0][m]
 
             # Tell minions to sample
@@ -114,7 +115,7 @@ class NumbskullMaster:
             #                                 expr_form='list', timeout=None)
             pub_func = partial(send_to_minion, data, tag)
             self.clientPool.imap(pub_func, self.minion2host.values())
-            
+
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
@@ -244,7 +245,7 @@ class NumbskullMaster:
             cost = cur.fetchone()[0]
             print(cost)
             # if p["partition_types"] == "":
-            # if p["partition_types"] == "(0)":
+            #if p["partition_types"] == "(0)":
             if p["partition_types"] == "(1)":
                 p0 = p
         print(80 * "*")
@@ -334,7 +335,7 @@ class NumbskullMaster:
             if self.var_pt[i] == "B":
                 self.map_to_minions[l] = self.vid[i]
                 l += 1
-        print(self.map_to_minions)
+        #print(self.map_to_minions)
 
         # send mapping to minions
         tag = messages.SYNC_MAPPING
@@ -353,7 +354,6 @@ class NumbskullMaster:
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']['data']
-                print(data)
                 self.map_from_minion[data["pid"]] = \
                     messages.deserialize(data["map"], np.int64)
                 resp += 1
