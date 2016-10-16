@@ -18,6 +18,9 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
     end = ((shardID + 1) * nvar) // nshards
     # TODO: give option do not store result, or just store tally
     for var_samp in range(start, end):
+        if variable[var_samp]["isEvidence"] == 4:
+            # This variable is not owned by this machine
+            continue
         if variable[var_samp]["isEvidence"] == 0 or sample_evidence:
             v = draw_sample(var_samp, var_copy, weight_copy, weight, variable,
                             factor, fmap, vmap, factor_index, Z[shardID],

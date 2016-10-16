@@ -175,6 +175,12 @@ def start():
             # Close communication with the database
             cur.close()
             conn.close()
+
+            for (i, v) in enumerate(variable):
+                # B is only variable partition type on minions but not owned
+                if var_pt[i] == "B":
+                    v["isEvidence"] = 4 # not owned var type
+
             ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
                                          domain_mask, edges)
 

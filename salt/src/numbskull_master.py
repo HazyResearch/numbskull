@@ -304,6 +304,11 @@ class NumbskullMaster:
         cur.close()
         conn.close()
 
+        for (i, v) in enumerate(variable):
+            # D is only variable partition type on master but not owned
+            if self.var_pt[i] == "D":
+                v["isEvidence"] = 4 # not owned var type
+
         self.ns.loadFactorGraph(weight, variable, factor, fmap,
                                 domain_mask, edges)
 

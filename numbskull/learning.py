@@ -21,6 +21,9 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
     start = (shardID * nvar) // nshards
     end = ((shardID + 1) * nvar) // nshards
     for var_samp in range(start, end):
+        if variable[var_samp]["isEvidence"] == 4:
+            # This variable is not owned by this machine
+            continue
         sample_and_sgd(var_samp, step, regularization, reg_param,
                        var_copy, weight_copy, weight, variable,
                        factor, fmap, vmap,
