@@ -103,20 +103,33 @@ class NumbskullMaster:
         print("sync_mapping took " + str(time7 - time6))
 
 
-    def inference(self, epochs=1):
+    # The code for learning and inference share a lot of code (computing
+    # variable map, handling partial factors) so they are in one func).
+    # This is just a trivial wrapper function.
+    def learning(self, epochs=1):
         """TODO."""
-        print("BEGINNING INFERENCE")
+        self.inference(epochs, True)
+
+    def inference(self, epochs=1, learn=False):
+        """TODO."""
+        mode = "LEARNING" if learn else "INFERENCE"
+        print("BEGINNING " + mode)
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
+
         for i in range(epochs):
             print("Inference loop", i)
             # sample own variables
             begin1 = time.time()
             fgID = 0
-            # TODO: do not sample vars owned by minion
-            self.ns.inference(fgID, False)
+
+            if learn:
+                self.ns.learning(fgID, False)
+            else:
+                self.ns.inference(fgID, False)
+
             end1 = time.time()
-            print("INFERENCE LOOP TOOK " + str(end1 - begin1))
+            print(mode + " LOOP TOOK " + str(end1 - begin1))
 
             # gather values to ship to minions
             # TODO: handle multiple copies
@@ -125,23 +138,34 @@ class NumbskullMaster:
                         self.ns.factorGraphs[-1].var_value[0][m]
 
             # Tell minions to sample
-            tag = messages.INFER
-            beginTest = time.time()
-            data = {"values": messages.serialize(variables_to_minions)}
-            #newEvent = self.local_client.run_job(self.minions,
-            #                                 'event.fire',
-            #                                 [data, tag],
-            #                                 expr_form='list', timeout=None)
-            pub_func = partial(send_to_minion, data, tag)
-            self.clientPool.imap(pub_func, self.minion2host.values())
+            if learn:
+                tag = messages.LEARN
+                beginTest = time.time()
+                # TODO: which copy of weight to use when multiple
+                data = {"values": messages.serialize(variables_to_minions),
+                        "weight": messages.serialize(self.ns.factorGraphs[-1].weight_value[0])}
+
+                pub_func = partial(send_to_minion, data, tag)
+                self.clientPool.imap(pub_func, self.minion2host.values())
+            else:
+                tag = messages.INFER
+                beginTest = time.time()
+                data = {"values": messages.serialize(variables_to_minions)}
+                #newEvent = self.local_client.run_job(self.minions,
+                #                                 'event.fire',
+                #                                 [data, tag],
+                #                                 expr_form='list', timeout=None)
+                pub_func = partial(send_to_minion, data, tag)
+                self.clientPool.imap(pub_func, self.minion2host.values())
 
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
             resp = 0
             while resp < len(self.minions):
+                tag = messages.LEARN_RES if learn else messages.INFER_RES
                 evdata = self.event_bus.get_event(wait=5,
-                                                  tag=messages.INFER_RES,
+                                                  tag=tag,
                                                   full=True)
                 if evdata:
                     resp += 1
@@ -153,28 +177,14 @@ class NumbskullMaster:
                         m = self.map_from_minion[pid][i]
                         self.ns.factorGraphs[-1].var_value[0][m] = v
 
+                    if learn:
+                        self.ns.factorGraphs[-1].weight_value[0] += messages.deserialize(data["dw"], np.float64)
+
         # TODO: get and return marginals
         # TODO: switch to proper probs
         end = time.time()
-        print("INFERENCE TOOK", end - begin)
+        print(mode + " TOOK", end - begin)
 
-    def learning(self):
-        """TODO."""
-        # TODO: implement
-        weights = {}
-        for fgID in range(len(self.ns.factorGraphs)):
-            weights[fgID] = []
-            # Run learning on minions
-            SUCCESS, m_weights = self.learning_minions(fgID)
-            if not SUCCESS:
-                print('Minions-learning failed')
-                return
-            weights[fgID].extend(m_weights)
-            # Run learning locally
-            self.ns.learning(fgID, False)
-            weights[fgID].append(self.ns.factorGraphs[fgID].weight_value)
-            # Combine results
-        return weights
 
     ##############
     # Init Phase #
@@ -471,7 +481,7 @@ def main(argv=None):
 
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
-    # w = ns_master.learning()
+    w = ns_master.learning(10)
     p = ns_master.inference(1)
     # return ns_master, w, p
     return ns_master

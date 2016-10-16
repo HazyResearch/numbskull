@@ -220,12 +220,7 @@ def start():
                     "map": messages.serialize(map_to_master)}
             __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
             log.debug("DONE SYNC_MAPPING")
-        elif tag == messages.LEARN:
-            status, weights = ns_minion.learning(data['fgID'])
-            # Respond to master
-            data = {'status': status, 'weights': weights}
-            __salt__['event.send'](messages.LEARN_RES, data)
-        elif tag == messages.INFER:
+        elif tag == messages.INFER or tag == messages.LEARN:
             variables_from_master = \
                 messages.deserialize(data["values"], np.int64)
             for i in range(map_from_master.size):
@@ -233,9 +228,19 @@ def start():
                 v = variables_from_master[i]
                 ns_minion.ns.factorGraphs[-1].var_value[0][m] = v
 
+            if tag == messages.LEARN:
+                ns_minion.ns.factorGraphs[-1].weight_value[0] = \
+                        messages.deserialize(data["weight"], np.float64)
+                w0 = ns_minion.ns.factorGraphs[-1].weight_value[0]
+
             begin = time.time()
-            # TODO: do not sample variables owned by master
-            status, marginals = ns_minion.inference()
+
+            fgID = 0
+            if tag == messages.LEARN:
+                ns_minion.ns.learning(fgID, False)
+            else:
+                ns_minion.ns.inference(fgID, False)
+
             end = time.time()
             log.debug("INFERENCE LOOP TOOK " + str(end - begin))
 
@@ -244,8 +249,15 @@ def start():
                 variables_to_master[i] = \
                     ns_minion.ns.factorGraphs[-1].var_value[0][m]
 
-            data = {"pid": partition_id,
-                    "values": messages.serialize(variables_to_master)}
-            __salt__['event.send'](messages.INFER_RES, data)
+            if tag == messages.INFER:
+                data = {"pid": partition_id,
+                        "values": messages.serialize(variables_to_master)}
+                __salt__['event.send'](messages.INFER_RES, data)
+            else:
+                # TODO: also send dweights
+                data = {"pid": partition_id,
+                        "values": messages.serialize(variables_to_master),
+                        "dw": messages.serialize(ns_minion.ns.factorGraphs[-1].weight_value[0] - w0)}
+                __salt__['event.send'](messages.LEARN_RES, data)
         loop_end = time.time()
         print("**********" + tag + " took " + str(loop_end - loop_begin) + "**********")
