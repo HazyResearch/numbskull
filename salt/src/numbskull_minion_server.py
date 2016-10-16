@@ -24,7 +24,8 @@ import salt.exceptions
 import salt.transport.frame
 import salt.ext.six as six
 from salt.exceptions import SaltReqTimeoutError, SaltClientError
-from salt.utils.process import default_signals, SignalHandlingMultiprocessingProcess
+from salt.utils.process import default_signals, \
+                               SignalHandlingMultiprocessingProcess
 
 # Import Tornado Libs
 import tornado
@@ -53,6 +54,7 @@ else:
 # pylint: enable=import-error,no-name-in-module
 
 log = logging.getLogger(__name__)
+
 
 def _set_tcp_keepalive(sock, opts):
     '''
@@ -161,7 +163,8 @@ if USE_LOAD_BALANCER:
             self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             _set_tcp_keepalive(self._socket, self.opts)
             self._socket.setblocking(1)
-            self._socket.bind((self.opts['inf_learn_interface'], int(self.opts['inf_learn_port'])))
+            self._socket.bind((self.opts['inf_learn_interface'],
+                               int(self.opts['inf_learn_port'])))
             self._socket.listen(self.backlog)
 
             while True:
@@ -177,9 +180,11 @@ if USE_LOAD_BALANCER:
                     # ECONNABORTED indicates that there was a connection
                     # but it was closed while still in the accept queue.
                     # (observed on FreeBSD).
-                    if tornado.util.errno_from_exception(e) == errno.ECONNABORTED:
+                    if tornado.util.errno_from_exception(e) == \
+                       errno.ECONNABORTED:
                         continue
                     raise
+
 
 class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
     '''
@@ -212,13 +217,15 @@ class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
                             framed_msg
                         )
                     header = framed_msg['head']
-                    self.io_loop.spawn_callback(self.message_handler, stream, header, framed_msg['body'])
+                    self.io_loop.spawn_callback(self.message_handler, stream,
+                                                header, framed_msg['body'])
 
         except tornado.iostream.StreamClosedError:
             self.log.debug('InfLearn client disconnected {0}'.format(address))
             self.clients.remove((stream, address))
         except Exception as e:
-            self.log.debug('Other minion-side InfLearn exception: {0}'.format(e))
+            self.log.debug('Other minion-side InfLearn '
+                           'exception: {0}'.format(e))
             self.clients.remove((stream, address))
             stream.close()
 
@@ -239,7 +246,8 @@ if USE_LOAD_BALANCER:
         Since the queue is shared amongst workers, only one worker will handle
         a given connection.
         '''
-        def __init__(self, socket_queue, message_handler, logger, *args, **kwargs):
+        def __init__(self, socket_queue, message_handler, logger, *args,
+                     **kwargs):
             super(LoadBalancerWorker, self).__init__(
                 message_handler, logger, *args, **kwargs)
             self.socket_queue = socket_queue
@@ -260,6 +268,7 @@ if USE_LOAD_BALANCER:
             except (KeyboardInterrupt, SystemExit):
                 pass
 
+
 class TCPReqServerMinionChannel(object):
     backlog = 5
 
@@ -279,7 +288,8 @@ class TCPReqServerMinionChannel(object):
                 self._socket.shutdown(socket.SHUT_RDWR)
             except socket.error as exc:
                 if exc.errno == errno.ENOTCONN:
-                    # We may try to shutdown a socket which is already disconnected.
+                    # We may try to shutdown a socket which is already
+                    # disconnected.
                     # Ignore this condition and continue.
                     pass
                 else:
@@ -304,12 +314,13 @@ class TCPReqServerMinionChannel(object):
             self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             _set_tcp_keepalive(self._socket, self._opts)
             self._socket.setblocking(0)
-            self._socket.bind((self._opts['inf_learn_interface'], int(self._opts['inf_learn_port'])))
+            self._socket.bind((self._opts['inf_learn_interface'],
+                               int(self._opts['inf_learn_port'])))
 
     def post_fork(self, payload_handler, io_loop):
         '''
-        After forking we need to create all of the local sockets to listen to the
-        router
+        After forking we need to create all of the local sockets to listen to
+        the router
         payload_handler: function to call with your payloads
         '''
         self.payload_handler = payload_handler
@@ -317,10 +328,13 @@ class TCPReqServerMinionChannel(object):
         self.serial = salt.payload.Serial(self._opts)
         if USE_LOAD_BALANCER:
             self.req_server = LoadBalancerWorker(
-                self.socket_queue, self.handle_message, self.log, io_loop=self.io_loop
+                (self.socket_queue, self.handle_message,
+                 self.log, io_loop)=self.io_loop
             )
         else:
-            self.req_server = InfLearnMessageServer(self.handle_message, self.log, io_loop=self.io_loop)
+            self.req_server = InfLearnMessageServer(self.handle_message,
+                                                    self.log,
+                                                    io_loop=self.io_loop)
             self.req_server.add_socket(self._socket)
             self._socket.listen(self.backlog)
 
@@ -328,7 +342,7 @@ class TCPReqServerMinionChannel(object):
         try:
             tag = payload['load']['tag']
             data = payload['load']['data']
-            self._salt['event.fire'](data,tag)
+            self._salt['event.fire'](data, tag)
             return True
         except:
             return False
@@ -339,14 +353,17 @@ class TCPReqServerMinionChannel(object):
         '''
         if self.fire_local_event(payload):
             try:
-                stream.write(salt.transport.frame.frame_msg('OK', header=header))
+                stream.write(salt.transport.frame.frame_msg('OK',
+                                                            header=header))
             except:
                 raise tornado.gen.Return()
         else:
             try:
-                stream.write(salt.transport.frame.frame_msg('ERROR', header=header))
+                stream.write(salt.transport.frame.frame_msg('ERROR',
+                                                            header=header))
             except:
                 raise tornado.gen.Return()
+
 
 class InfLearnMinionServer(object):
     def __init__(self, opts, logger, salt, log_queue=None):
@@ -356,42 +373,44 @@ class InfLearnMinionServer(object):
         self.salt = salt
 
     def __bind(self):
-       if self.log_queue is not None:
-           salt.log.setup.set_multiprocessing_logging_queue(self.log_queue)
-       salt.log.setup.setup_multiprocessing_logging(self.log_queue)
+        if self.log_queue is not None:
+            salt.log.setup.set_multiprocessing_logging_queue(self.log_queue)
+        salt.log.setup.setup_multiprocessing_logging(self.log_queue)
 
-       dfn = os.path.join(self.opts['cachedir'], '.dfn')
-       if os.path.isfile(dfn):
-           try:
-               if salt.utils.is_windows() and not os.access(dfn, os.W_OK):
-                   # Cannot delete read-only files on Windows.
-                   os.chmod(dfn, stat.S_IRUSR | stat.S_IWUSR)
-               os.remove(dfn)
-           except os.error:
-               pass
+        dfn = os.path.join(self.opts['cachedir'], '.dfn')
+        if os.path.isfile(dfn):
+            try:
+                if salt.utils.is_windows() and not os.access(dfn, os.W_OK):
+                    # Cannot delete read-only files on Windows.
+                    os.chmod(dfn, stat.S_IRUSR | stat.S_IWUSR)
+                os.remove(dfn)
+            except os.error:
+                pass
 
-       self.process_manager = salt.utils.process.ProcessManager(name='ReqMinionInfLearnServer_PM')
+        self.process_manager = salt.utils.process.ProcessManager(
+                                   name='ReqMinionInfLearnServer_PM'
+                               )
 
-       req_channels = []
-       tcp_only = True
-       chan = TCPReqServerMinionChannel(self.log, self.opts, self.salt)
-       chan.pre_fork(self.process_manager)
-       req_channels.append(chan)
-       # Reset signals to default ones before adding processes to the process
-       # manager. We don't want the processes being started to inherit those
-       # signal handlers
-       kwargs = {}
-       with default_signals(signal.SIGINT, signal.SIGTERM):
-           for ind in range(int(self.opts['inf_learn_threads'])):
-               name = 'InfLearnWorker-{0}'.format(ind)
-               self.process_manager.add_process(InfLearnWorker,
-                                                args=(self.opts,
-                                                      req_channels,
-                                                      name,
-                                                      self.log),
-                                                kwargs=kwargs,
-                                                name=name)
-       self.process_manager.run()
+        req_channels = []
+        tcp_only = True
+        chan = TCPReqServerMinionChannel(self.log, self.opts, self.salt)
+        chan.pre_fork(self.process_manager)
+        req_channels.append(chan)
+        # Reset signals to default ones before adding processes to the process
+        # manager. We don't want the processes being started to inherit those
+        # signal handlers
+        kwargs = {}
+        with default_signals(signal.SIGINT, signal.SIGTERM):
+            for ind in range(int(self.opts['inf_learn_threads'])):
+                name = 'InfLearnWorker-{0}'.format(ind)
+                self.process_manager.add_process(InfLearnWorker,
+                                                 args=(self.opts,
+                                                       req_channels,
+                                                       name,
+                                                       self.log),
+                                                 kwargs=kwargs,
+                                                 name=name)
+        self.process_manager.run()
 
     def run(self):
         '''
@@ -407,6 +426,7 @@ class InfLearnMinionServer(object):
 
     def __del__(self):
         self.destroy()
+
 
 class InfLearnWorker(SignalHandlingMultiprocessingProcess):
     '''
@@ -442,7 +462,10 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
     # non-Windows platforms.
     def __setstate__(self, state):
         self._is_child = True
-        SignalHandlingMultiprocessingProcess.__init__(self, log_queue=state['log_queue'])
+        SignalHandlingMultiprocessingProcess.__init__(
+                                                 self,
+                                                 log_queue=state['log_queue']
+                                             )
         self.opts = state['opts']
         self.req_channels = state['req_channels']
         self.k_mtime = state['k_mtime']
@@ -466,7 +489,7 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
         self.io_loop.make_current()
         for req_channel in self.req_channels:
             req_channel.post_fork(self._handle_payload, io_loop=self.io_loop)
-        self.log.debug('Inside worker '+self.name)
+        self.log.debug('Inside worker ' + self.name)
         try:
             self.io_loop.start()
         except (KeyboardInterrupt, SystemExit):
@@ -488,9 +511,10 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
         salt.utils.appendproctitle(self.name)
         self.__bind()
 
-############################
-##### ENGINE MAIN LOOP #####
-############################
+
+####################
+# ENGINE MAIN LOOP #
+####################
 
 def start():
     """TODO."""

@@ -179,7 +179,7 @@ def start():
             for (i, v) in enumerate(variable):
                 # B is only variable partition type on minions but not owned
                 if var_pt[i] == "B":
-                    v["isEvidence"] = 4 # not owned var type
+                    v["isEvidence"] = 4  # not owned var type
 
             ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
                                          domain_mask, edges)
@@ -191,7 +191,6 @@ def start():
         elif tag == messages.SYNC_MAPPING:
             # receive map from master
             map_from_master = messages.deserialize(data["map"], np.int64)
-            #log.debug(map_from_master)
 
             # compute map
             l = 0
@@ -205,7 +204,6 @@ def start():
                 if var_pt[i] == "D":
                     map_to_master[l] = vid[i]
                     l += 1
-            #log.debug(map_to_master)
 
             for i in range(len(map_from_master)):
                 map_from_master[i] = \
@@ -215,7 +213,7 @@ def start():
                 map_to_master[i] = \
                         messages.inverse_map(vid, map_to_master[i])
             variables_to_master = np.zeros(map_to_master.size, np.int64)
-            
+
             data = {"pid": partition_id,
                     "map": messages.serialize(map_to_master)}
             __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
@@ -254,10 +252,10 @@ def start():
                         "values": messages.serialize(variables_to_master)}
                 __salt__['event.send'](messages.INFER_RES, data)
             else:
-                # TODO: also send dweights
+                dweight = ns_minion.ns.factorGraphs[-1].weight_value[0] - w0
                 data = {"pid": partition_id,
                         "values": messages.serialize(variables_to_master),
-                        "dw": messages.serialize(ns_minion.ns.factorGraphs[-1].weight_value[0] - w0)}
+                        "dw": messages.serialize(dweight)}
                 __salt__['event.send'](messages.LEARN_RES, data)
         loop_end = time.time()
-        print("**********" + tag + " took " + str(loop_end - loop_begin) + "**********")
+        print("*****" + tag + " took " + str(loop_end - loop_begin) + "*****")

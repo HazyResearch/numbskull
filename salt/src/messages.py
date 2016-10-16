@@ -61,8 +61,10 @@ def get_views(cur):
 
     return (factor_view, variable_view, weight_view)
 
+
 @numba.jit(cache=True)
-def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_index):
+def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
+                       fmap_index):
     for i in row:
         factor[factor_index]["factorFunction"] = ff
         factor[factor_index]["weightId"] = i[-3]
@@ -71,9 +73,9 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_inde
         if factor_index == 0:
             factor[factor_index]["ftv_offset"] = 0
         else:
-            factor[factor_index]["ftv_offset"] = factor[factor_index - 1]["ftv_offset"] \
-                                               + factor[factor_index - 1]["arity"]
-        #factor_pt[factor_index] = i[-1][0]
+            factor[factor_index]["ftv_offset"] = \
+                factor[factor_index - 1]["ftv_offset"] + \
+                factor[factor_index - 1]["arity"]
         factor_index += 1
 
         for j in i[:-3]:
@@ -84,7 +86,9 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_inde
 
     return factor_index, fmap_index
 
-def get_factors(cur, views, sql_filter="True", default_ff=numbskull.inference.FUNC_ISTRUE):
+
+def get_factors(cur, views, sql_filter="True",
+                default_ff=numbskull.inference.FUNC_ISTRUE):
     factors = 0
     edges = 0
 
@@ -100,13 +104,14 @@ def get_factors(cur, views, sql_filter="True", default_ff=numbskull.inference.FU
     # Pre-count number of factors and edges
     # TODO: can this step be avoided?
     for table in views:
-        op = op_template.format(cmd="COUNT(*)", table_name=table, filter=sql_filter)
+        op = op_template.format(cmd="COUNT(*)", table_name=table,
+                                filter=sql_filter)
         cur.execute(op)
-        f = cur.fetchone()[0] # number of factors in this table
+        f = cur.fetchone()[0]  # number of factors in this table
 
         count = count_template.format(table_name=table)
         cur.execute(count)
-        v = cur.fetchone()[0] - 3 # number of vars used by these factors
+        v = cur.fetchone()[0] - 3  # number of vars used by these factors
 
         factors += f
         edges += f * v
@@ -126,7 +131,7 @@ def get_factors(cur, views, sql_filter="True", default_ff=numbskull.inference.FU
                 ff = value
         # TODO: assume istrue if not found?
         if ff == -1:
-           ff = default_ff
+            ff = default_ff
 
         op = op_template.format(cmd="*", table_name=v, filter=sql_filter)
         cur.execute(op)
@@ -134,9 +139,12 @@ def get_factors(cur, views, sql_filter="True", default_ff=numbskull.inference.FU
             row = cur.fetchmany(10000)
             if row == []:
                 break
-            (factor_index, fmap_index) = get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index, fmap_index)
+            (factor_index, fmap_index) = \
+                get_factors_helper(row, ff, factor, factor_pt, fmap,
+                                   factor_index, fmap_index)
 
     return factor, factor_pt, fmap
+
 
 def read_factor_views(cur, views, sql_filter="True"):
     """TODO."""

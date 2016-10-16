@@ -36,14 +36,15 @@ master_conf_dir = \
             os.path.join(os.environ['SALT_CONFIG_DIR'], 'master')
 salt_opts = salt.config.client_config(master_conf_dir)
 
+
 def send_to_minion(data, tag, tgt):
     salt_opts['minion_uri'] = 'tcp://{ip}:{port}'.format(
-            ip=salt.utils.ip_bracket(tgt),
-            port= 7341  # TODO, no fallback
-            )
+        ip=salt.utils.ip_bracket(tgt),
+        port=7341  # TODO, no fallback
+    )
     load = {'id': 'master_inflearn',
-        'tag': tag,
-        'data': data}
+            'tag': tag,
+            'data': data}
     channel = InfLearn_Channel.factory(salt_opts)
     channel.send(load)
     return True
@@ -102,7 +103,6 @@ class NumbskullMaster:
         time7 = time.time()
         print("sync_mapping took " + str(time7 - time6))
 
-
     # The code for learning and inference share a lot of code (computing
     # variable map, handling partial factors) so they are in one func).
     # This is just a trivial wrapper function.
@@ -142,8 +142,9 @@ class NumbskullMaster:
                 tag = messages.LEARN
                 beginTest = time.time()
                 # TODO: which copy of weight to use when multiple
+                weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
-                        "weight": messages.serialize(self.ns.factorGraphs[-1].weight_value[0])}
+                        "weight": messages.serialize(weight_value)}
 
                 pub_func = partial(send_to_minion, data, tag)
                 self.clientPool.imap(pub_func, self.minion2host.values())
@@ -151,10 +152,7 @@ class NumbskullMaster:
                 tag = messages.INFER
                 beginTest = time.time()
                 data = {"values": messages.serialize(variables_to_minions)}
-                #newEvent = self.local_client.run_job(self.minions,
-                #                                 'event.fire',
-                #                                 [data, tag],
-                #                                 expr_form='list', timeout=None)
+
                 pub_func = partial(send_to_minion, data, tag)
                 self.clientPool.imap(pub_func, self.minion2host.values())
 
@@ -178,13 +176,13 @@ class NumbskullMaster:
                         self.ns.factorGraphs[-1].var_value[0][m] = v
 
                     if learn:
-                        self.ns.factorGraphs[-1].weight_value[0] += messages.deserialize(data["dw"], np.float64)
+                        self.ns.factorGraphs[-1].weight_value[0] += \
+                            messages.deserialize(data["dw"], np.float64)
 
         # TODO: get and return marginals
         # TODO: switch to proper probs
         end = time.time()
         print(mode + " TOOK", end - begin)
-
 
     ##############
     # Init Phase #
@@ -195,7 +193,8 @@ class NumbskullMaster:
             self.minions = self.get_minions_status()['up']
             if len(self.minions) >= self.num_minions:
                 break
-            print("Waiting for minions (" + str(len(self.minions)) + " / " + str(self.num_minions) + ")")
+            print("Waiting for minions (" + str(len(self.minions)) +
+                  " / " + str(self.num_minions) + ")")
             time.sleep(1)
         print("Minions obtained")
 
@@ -208,7 +207,9 @@ class NumbskullMaster:
                                              expr_form='list')
         # TODO: listen for responses
         # Obtain minions ip addresses
-        self.minion2host = self.local_client.cmd(self.minions, 'grains.get', ['localhost'], expr_form='list', timeout=None)
+        self.minion2host = \
+            self.local_client.cmd(self.minions, 'grains.get', ['localhost'],
+                                  expr_form='list', timeout=None)
         # Initialize multiprocessing pool for publishing
         self.clientPool = Pool(len(self.minions))
 
@@ -274,7 +275,7 @@ class NumbskullMaster:
             cost = cur.fetchone()[0]
             print(cost)
             # if p["partition_types"] == "":
-            #if p["partition_types"] == "(0)":
+            # if p["partition_types"] == "(0)":
             if p["partition_types"] == "(1)":
                 p0 = p
         print(80 * "*")
@@ -317,7 +318,7 @@ class NumbskullMaster:
         for (i, v) in enumerate(variable):
             # D is only variable partition type on master but not owned
             if self.var_pt[i] == "D":
-                v["isEvidence"] = 4 # not owned var type
+                v["isEvidence"] = 4  # not owned var type
 
         self.ns.loadFactorGraph(weight, variable, factor, fmap,
                                 domain_mask, edges)
@@ -371,7 +372,6 @@ class NumbskullMaster:
             if self.var_pt[i] == "B":
                 self.map_to_minions[l] = self.vid[i]
                 l += 1
-        #print(self.map_to_minions)
 
         # send mapping to minions
         tag = messages.SYNC_MAPPING

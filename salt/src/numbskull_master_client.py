@@ -28,10 +28,12 @@ else:
 
 log = logging.getLogger(__name__)
 
+
 class InfLearn_Channel(object):
     @staticmethod
     def factory(opts, **kwargs):
         return InfLearn_ReqChannel.factory(opts, **kwargs)
+
 
 class InfLearn_ReqChannel(object):
     '''
@@ -49,6 +51,7 @@ class InfLearn_ReqChannel(object):
         '''
         raise NotImplementedError()
 
+
 class InfLearn_AsyncChannel(AsyncChannel):
     '''
     Factory class to create a Async communication channels to the ReqServer
@@ -64,6 +67,7 @@ class InfLearn_AsyncChannel(AsyncChannel):
         Send "load" to the minion.
         '''
         raise NotImplementedError()
+
 
 class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
     '''
@@ -86,10 +90,12 @@ class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
 
         key = cls.__key(opts, **kwargs)
         if key not in loop_instance_map:
-            log.debug('Initializing new InfLearn_AsyncTCPChannel for {0}'.format(key))
-            # we need to make a local variable for this, as we are going to store
-            # it in a WeakValueDictionary-- which will remove the item if no one
-            # references it-- this forces a reference while we return to the caller
+            log.debug('Initializing new InfLearn_AsyncTCPChannel '
+                      'for {0}'.format(key))
+            # we need to make a local variable for this, as we are going to
+            # store it in a WeakValueDictionary-- which will remove the item
+            # if no one references it-- this forces a reference while we
+            # return to the caller
             new_obj = object.__new__(cls)
             new_obj.__singleton_init__(opts, **kwargs)
             loop_instance_map[key] = new_obj
@@ -103,7 +109,7 @@ class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
             opts['minion_uri'] = kwargs['minion_uri']
         return (opts['master_uri'])
 
-    # has to remain empty for singletons, since __init__ will *always* be called
+    # must be empty for singletons, since __init__ will *always* be called
     def __init__(self, opts, **kwargs):
         pass
 
@@ -137,13 +143,15 @@ class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
 
     @tornado.gen.coroutine
     def _transfer(self, load, tries=3, timeout=60):
-        ret = yield self.message_client.send(self._package_load(load), timeout=timeout)
+        ret = yield self.message_client.send(self._package_load(load),
+                                             timeout=timeout)
         raise tornado.gen.Return(ret)
 
     @tornado.gen.coroutine
     def send(self, load, tries=3, timeout=60, raw=False):
         '''
-        Send a request, return a future which will complete when we send the message
+        Send a request
+        Returns a future which will complete when we send the message
         '''
         try:
             ret = yield self._transfer(load, tries=tries, timeout=timeout)
