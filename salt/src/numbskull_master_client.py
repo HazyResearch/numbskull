@@ -1,3 +1,5 @@
+"""TODO."""
+
 from __future__ import absolute_import
 from salt.utils.async import SyncWrapper
 from salt.transport.client import AsyncChannel
@@ -30,58 +32,57 @@ log = logging.getLogger(__name__)
 
 
 class InfLearn_Channel(object):
+    """TODO."""
+
     @staticmethod
     def factory(opts, **kwargs):
+        """TODO."""
         return InfLearn_ReqChannel.factory(opts, **kwargs)
 
 
 class InfLearn_ReqChannel(object):
-    '''
-    Factory class to create a Sync communication channels to the ReqServer
-    '''
+    """Factory to create Sync communication channels to the ReqServer."""
+
     @staticmethod
     def factory(opts, **kwargs):
+        """TODO."""
         # All Sync interfaces are just wrappers around the Async ones
         sync = SyncWrapper(InfLearn_AsyncChannel.factory, (opts,), kwargs)
         return sync
 
     def send(self, load, tries=3, timeout=60, raw=False):
-        '''
-        Send "load" to the master.
-        '''
+        """Send "load" to the master."""
         raise NotImplementedError()
 
 
 class InfLearn_AsyncChannel(AsyncChannel):
-    '''
-    Factory class to create a Async communication channels to the ReqServer
-    '''
+    """Factory to create Async comm. channels to the ReqServer."""
+
     @classmethod
     def factory(cls, opts, **kwargs):
+        """TODO."""
         if not cls._resolver_configured:
             AsyncChannel._config_resolver()
         return InfLearn_AsyncTCPChannel(opts, **kwargs)
 
     def send(self, load, tries=3, timeout=60, raw=False):
-        '''
-        Send "load" to the minion.
-        '''
+        """Send 'load' to the minion."""
         raise NotImplementedError()
 
 
 class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
-    '''
+    """
     Encapsulate sending routines to tcp.
+
     Note: this class returns a singleton
-    '''
+    """
+
     # This class is only a singleton per minion/master pair
     # mapping of io_loop -> {key -> channel}
     instance_map = weakref.WeakKeyDictionary()
 
     def __new__(cls, opts, **kwargs):
-        '''
-        Only create one instance of channel per __key()
-        '''
+        """Only create one instance of channel per __key()."""
         # do we have any mapping for this io_loop
         io_loop = kwargs.get('io_loop') or tornado.ioloop.IOLoop.current()
         if io_loop not in cls.instance_map:
@@ -111,10 +112,12 @@ class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
 
     # must be empty for singletons, since __init__ will *always* be called
     def __init__(self, opts, **kwargs):
+        """TODO."""
         pass
 
     # an init for the singleton instance to call
     def __singleton_init__(self, opts, **kwargs):
+        """TODO."""
         self.opts = dict(opts)
 
         self.serial = salt.payload.Serial(self.opts)
@@ -130,29 +133,34 @@ class InfLearn_AsyncTCPChannel(InfLearn_ReqChannel):
             resolver=resolver)
 
     def close(self):
+        """TODO."""
         if self._closing:
             return
         self._closing = True
         self.message_client.close()
 
     def __del__(self):
+        """TODO."""
         self.close()
 
     def _package_load(self, load):
+        """TODO."""
         return {'load': load}
 
     @tornado.gen.coroutine
     def _transfer(self, load, tries=3, timeout=60):
+        """TODO."""
         ret = yield self.message_client.send(self._package_load(load),
                                              timeout=timeout)
         raise tornado.gen.Return(ret)
 
     @tornado.gen.coroutine
     def send(self, load, tries=3, timeout=60, raw=False):
-        '''
-        Send a request
+        """
+        Send a request.
+
         Returns a future which will complete when we send the message
-        '''
+        """
         try:
             ret = yield self._transfer(load, tries=tries, timeout=timeout)
         except tornado.iostream.StreamClosedError:

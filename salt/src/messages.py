@@ -65,6 +65,7 @@ def get_views(cur):
 @numba.jit(cache=True)
 def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
                        fmap_index):
+    """TODO."""
     for i in row:
         factor[factor_index]["factorFunction"] = ff
         factor[factor_index]["weightId"] = i[-3]
@@ -89,6 +90,7 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
 
 def get_factors(cur, views, sql_filter="True",
                 default_ff=numbskull.inference.FUNC_ISTRUE):
+    """TODO."""
     factors = 0
     edges = 0
 

@@ -57,9 +57,7 @@ log = logging.getLogger(__name__)
 
 
 def _set_tcp_keepalive(sock, opts):
-    '''
-    Ensure that TCP keepalives are set for the socket.
-    '''
+    """Ensure that TCP keepalives are set for the socket."""
     if hasattr(socket, 'SO_KEEPALIVE'):
         if opts.get('tcp_keepalive', False):
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -112,18 +110,22 @@ def _set_tcp_keepalive(sock, opts):
 
 if USE_LOAD_BALANCER:
     class LoadBalancerServer(SignalHandlingMultiprocessingProcess):
-        '''
+        """
+        This is a TCP server.
+
         Raw TCP server which runs in its own process and will listen
         for incoming connections. Each incoming connection will be
         sent via multiprocessing queue to the workers.
         Since the queue is shared amongst workers, only one worker will
         handle a given connection.
-        '''
+        """
+
         # TODO: opts!
         # Based on default used in tornado.netutil.bind_sockets()
         backlog = 128
 
         def __init__(self, opts, socket_queue, log_queue=None):
+            """TODO."""
             super(LoadBalancerServer, self).__init__(log_queue=log_queue)
             self.opts = opts
             self.socket_queue = socket_queue
@@ -134,6 +136,7 @@ if USE_LOAD_BALANCER:
         # process so that a register_after_fork() equivalent will work on
         # Windows.
         def __setstate__(self, state):
+            """TODO."""
             self._is_child = True
             self.__init__(
                 state['opts'],
@@ -142,23 +145,24 @@ if USE_LOAD_BALANCER:
             )
 
         def __getstate__(self):
+            """TODO."""
             return {'opts': self.opts,
                     'socket_queue': self.socket_queue,
                     'log_queue': self.log_queue}
 
         def close(self):
+            """TODO."""
             if self._socket is not None:
                 self._socket.shutdown(socket.SHUT_RDWR)
                 self._socket.close()
                 self._socket = None
 
         def __del__(self):
+            """TODO."""
             self.close()
 
         def run(self):
-            '''
-            Start the load balancer
-            '''
+            """Start the load balancer."""
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             _set_tcp_keepalive(self._socket, self.opts)
@@ -187,11 +191,15 @@ if USE_LOAD_BALANCER:
 
 
 class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
-    '''
+    """
+    This is a raw TCP server.
+
     Raw TCP server which will receive all of the TCP streams and re-assemble
     messages that are sent through to us
-    '''
+    """
+
     def __init__(self, message_handler, logger, *args, **kwargs):
+        """TODO."""
         super(InfLearnMessageServer, self).__init__(*args, **kwargs)
 
         self.clients = []
@@ -201,9 +209,7 @@ class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
 
     @tornado.gen.coroutine
     def handle_stream(self, stream, address):
-        '''
-        Handle incoming streams and add messages to the incoming queue
-        '''
+        """Handle incoming streams and add messages to the incoming queue."""
         self.log.debug('InfLearn client {0} connected'.format(address))
         self.clients.append((stream, address))
         unpacker = msgpack.Unpacker()
@@ -230,9 +236,7 @@ class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
             stream.close()
 
     def shutdown(self):
-        '''
-        Shutdown the whole server
-        '''
+        """Shutdown the whole server."""
         for item in self.clients:
             client, address = item
             client.close()
@@ -240,14 +244,18 @@ class InfLearnMessageServer(tornado.tcpserver.TCPServer, object):
 
 if USE_LOAD_BALANCER:
     class LoadBalancerWorker(InfLearnMessageServer):
-        '''
+        """
+        This receives TCP connections.
+
         This will receive TCP connections from 'LoadBalancerServer' via
         a multiprocessing queue.
         Since the queue is shared amongst workers, only one worker will handle
         a given connection.
-        '''
+        """
+
         def __init__(self, socket_queue, message_handler, logger, *args,
                      **kwargs):
+            """TODO."""
             super(LoadBalancerWorker, self).__init__(
                 message_handler, logger, *args, **kwargs)
             self.socket_queue = socket_queue
@@ -256,6 +264,7 @@ if USE_LOAD_BALANCER:
             t.start()
 
         def socket_queue_thread(self):
+            """TODO."""
             try:
                 while True:
                     client_socket, address = self.socket_queue.get(True, None)
@@ -270,9 +279,12 @@ if USE_LOAD_BALANCER:
 
 
 class TCPReqServerMinionChannel(object):
+    """TODO."""
+
     backlog = 5
 
     def __init__(self, logger, opts, salt):
+        """TODO."""
         self.log = logger
         self._opts = opts
         self._socket = None
@@ -280,9 +292,11 @@ class TCPReqServerMinionChannel(object):
 
     @property
     def socket(self):
+        """TODO."""
         return self._socket
 
     def close(self):
+        """TODO."""
         if self._socket is not None:
             try:
                 self._socket.shutdown(socket.SHUT_RDWR)
@@ -298,12 +312,11 @@ class TCPReqServerMinionChannel(object):
             self._socket = None
 
     def __del__(self):
+        """TODO."""
         self.close()
 
     def pre_fork(self, process_manager):
-        '''
-        Pre-fork we need to initialize socket
-        '''
+        """Pre-fork we need to initialize socket."""
         if USE_LOAD_BALANCER:
             self.socket_queue = multiprocessing.Queue()
             process_manager.add_process(
@@ -318,11 +331,13 @@ class TCPReqServerMinionChannel(object):
                                int(self._opts['inf_learn_port'])))
 
     def post_fork(self, payload_handler, io_loop):
-        '''
+        """
+        TODO.
+
         After forking we need to create all of the local sockets to listen to
         the router
         payload_handler: function to call with your payloads
-        '''
+        """
         self.payload_handler = payload_handler
         self.io_loop = io_loop
         self.serial = salt.payload.Serial(self._opts)
@@ -339,6 +354,7 @@ class TCPReqServerMinionChannel(object):
             self._socket.listen(self.backlog)
 
     def fire_local_event(self, payload):
+        """TODO."""
         try:
             tag = payload['load']['tag']
             data = payload['load']['data']
@@ -348,9 +364,7 @@ class TCPReqServerMinionChannel(object):
             return False
 
     def handle_message(self, stream, header, payload):
-        '''
-        Handle incoming messages from underylying tcp streams
-        '''
+        """Handle incoming messages from underylying tcp streams."""
         if self.fire_local_event(payload):
             try:
                 stream.write(salt.transport.frame.frame_msg('OK',
@@ -366,13 +380,17 @@ class TCPReqServerMinionChannel(object):
 
 
 class InfLearnMinionServer(object):
+    """TODO."""
+
     def __init__(self, opts, logger, salt, log_queue=None):
+        """TODO."""
         self.opts = opts
         self.log_queue = log_queue
         self.log = logger
         self.salt = salt
 
     def __bind(self):
+        """TODO."""
         if self.log_queue is not None:
             salt.log.setup.set_multiprocessing_logging_queue(self.log_queue)
         salt.log.setup.setup_multiprocessing_logging(self.log_queue)
@@ -413,40 +431,43 @@ class InfLearnMinionServer(object):
         self.process_manager.run()
 
     def run(self):
-        '''
-        Start up the InfLearnServer
-        '''
+        """Start up the InfLearnServer."""
         self.__bind()
 
     def destroy(self, signum=signal.SIGTERM):
+        """TODO."""
         if hasattr(self, 'process_manager'):
             self.process_manager.stop_restarting()
             self.process_manager.send_signal_to_processes(signum)
             self.process_manager.kill_children()
 
     def __del__(self):
+        """TODO."""
         self.destroy()
 
 
 class InfLearnWorker(SignalHandlingMultiprocessingProcess):
-    '''
+    """
+    Manages backend operations.
+
     The worker multiprocess instance to manage the backend operations for the
     minion during inference and learning.
-    '''
+    """
+
     def __init__(self,
                  opts,
                  req_channels,
                  name,
                  logger,
                  **kwargs):
-        '''
-        Create a salt minion inference learning worker process
+        """
+        Create a salt minion inference learning worker process.
 
         :param dict opts: The salt options
 
         :rtype: InfLearngWorker
         :return: Inference Learning worker
-        '''
+        """
         kwargs['name'] = name
         SignalHandlingMultiprocessingProcess.__init__(self, **kwargs)
         self.opts = opts
@@ -461,6 +482,7 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
     # These methods are only used when pickling so will not be used on
     # non-Windows platforms.
     def __setstate__(self, state):
+        """TODO."""
         self._is_child = True
         SignalHandlingMultiprocessingProcess.__init__(
                                                  self,
@@ -471,20 +493,20 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
         self.k_mtime = state['k_mtime']
 
     def __getstate__(self):
+        """TODO."""
         return {'opts': self.opts,
                 'req_channels': self.req_channels,
                 'k_mtime': self.k_mtime,
                 'log_queue': self.log_queue}
 
     def _handle_signals(self, signum, sigframe):
+        """TODO."""
         for channel in getattr(self, 'req_channels', ()):
             channel.close()
         super(InfLearnWorker, self)._handle_signals(signum, sigframe)
 
     def __bind(self):
-        '''
-        Bind to the local port
-        '''
+        """Bind to the local port."""
         self.io_loop = LOOP_CLASS()
         self.io_loop.make_current()
         for req_channel in self.req_channels:
@@ -498,16 +520,16 @@ class InfLearnWorker(SignalHandlingMultiprocessingProcess):
 
     @tornado.gen.coroutine
     def _handle_payload(self, payload):
-        '''
+        """
+        TODO.
+
         The _handle_payload method is the key method used to figure out what
         needs to be done with communication to the server
-        '''
+        """
         raise tornado.gen.Return(payload)
 
     def run(self):
-        '''
-        Start a Minion Inference Learning Worker
-        '''
+        """Start a Minion Inference Learning Worker."""
         salt.utils.appendproctitle(self.name)
         self.__bind()
 

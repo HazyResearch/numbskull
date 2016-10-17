@@ -38,6 +38,7 @@ salt_opts = salt.config.client_config(master_conf_dir)
 
 
 def send_to_minion(data, tag, tgt):
+    """TODO."""
     salt_opts['minion_uri'] = 'tcp://{ip}:{port}'.format(
         ip=salt.utils.ip_bracket(tgt),
         port=7341  # TODO, no fallback
