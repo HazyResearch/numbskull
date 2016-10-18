@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""Script to run distributed experiments."""
+
 import numbskull_master
 
 if __name__ == "__main__":
@@ -13,13 +15,11 @@ if __name__ == "__main__":
     for machines in range(0, 4 + 1):
         partition_type = "" if machines == 0 else "(1)"
         (ns, res) = numbskull_master.main(application_dir, machines,
-                                           threads_per_machine,
-                                           learning_epochs, inference_epochs,
-                                           partition_type)
+                                          threads_per_machine,
+                                          learning_epochs, inference_epochs,
+                                          partition_type)
 
         f.write(str(machines) + "\t" +
                 str(res["learning_time"]) + "\t" +
                 str(res["inference_time"]) + "\n")
         f.flush()
-
-
