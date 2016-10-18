@@ -229,7 +229,7 @@ class NumbskullMaster:
         # application_dir = "/dfs/scratch0/bryanhe/genomics/"
         # application_dir = "/dfs/scratch0/bryanhe/census/"
         # application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/bryanhe/congress/"
+        application_dir = "/dfs/scratch0/bryanhe/congress5/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -275,9 +275,9 @@ class NumbskullMaster:
             cur.execute(p["sql_to_cost"])
             cost = cur.fetchone()[0]
             print(cost)
-            # if p["partition_types"] == "":
+            if p["partition_types"] == "":
             # if p["partition_types"] == "(0)":
-            if p["partition_types"] == "(1)":
+            # if p["partition_types"] == "(1)":
                 p0 = p
         print(80 * "*")
 
@@ -288,6 +288,8 @@ class NumbskullMaster:
             print()
 
         # This adds partition information to the database
+        print("Running sql_to_apply")
+        sql_to_apply_begin = time.time()
         for op in p0["sql_to_apply"]:
             # Currently ignoring the column already exists error generated
             # from ALTER statements
@@ -299,6 +301,8 @@ class NumbskullMaster:
             except psycopg2.ProgrammingError:
                 print("Unexpected error:", sys.exc_info())
                 conn.rollback()
+        sql_to_apply_end = time.time()
+        print("Done running sql_to_apply: " + str(sql_to_apply_end - sql_to_apply_begin))
 
         (factor_view, variable_view, weight_view) = messages.get_views(cur)
 
@@ -308,9 +312,11 @@ class NumbskullMaster:
                         "or partition_key like 'F%' " \
                         "or partition_key like 'G%' " \
                         "or partition_key like 'H%' "
+        get_fg_data_begin = time.time()
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
-         self.var_pid, self.factor_pt, self.factor_pid, self.vid) = \
-            messages.get_fg_data(cur, master_filter)
+         self.factor_pt, self.vid) = messages.get_fg_data(cur, master_filter)
+        get_fg_data_end = time.time()
+        print("Done running get_fg_data: " + str(get_fg_data_end - get_fg_data_begin))
 
         # Close communication with the database
         cur.close()
@@ -482,8 +488,8 @@ def main(argv=None):
 
     ns_master = NumbskullMaster(args)
     ns_master.initialize()
-    w = ns_master.learning(10)
-    p = ns_master.inference(1)
+    w = ns_master.learning(0)
+    p = ns_master.inference(0)
     # return ns_master, w, p
     return ns_master
 

@@ -163,7 +163,7 @@ def get_factors(cur, views, sql_filter="True"):
                 get_factors_helper(row, ff, factor, factor_pt, fmap,
                                    factor_index, fmap_index)
 
-    return factor, factor_pt.view('c'), fmap
+    return factor, factor_pt.view('c'), fmap, edges
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -329,7 +329,7 @@ def get_fg_data(cur, filt):
     print("get_views: " + str(time2 - time1))
 
     # Load factors
-    (factor, factor_pt, fmap) = get_factors(cur, factor_view, filt)
+    (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_factors: " + str(time2 - time1))
@@ -359,7 +359,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            var_pid, factor_pt, factor_pid, vid)
+            factor_pt, vid)
 
 
 def serialize(array):
