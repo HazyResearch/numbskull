@@ -480,7 +480,8 @@ class NumbskullMaster:
         return SUCCESS
 
 
-def main(application_dir, machines, threads_per_machine, learning_epochs, inference_epochs):
+def main(application_dir, machines, threads_per_machine,
+         learning_epochs, inference_epochs):
     """TODO."""
     # Inputs for experiments:
     #   - dataset
