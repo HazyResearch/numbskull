@@ -62,7 +62,7 @@ def get_views(cur):
     return (factor_view, variable_view, weight_view)
 
 
-@numba.jit(cache=True)
+@numba.jit(nopython=True, cache=True, nogil=True)
 def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
                        fmap_index):
     """TODO."""
@@ -70,6 +70,7 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
         factor[factor_index]["factorFunction"] = ff
         factor[factor_index]["weightId"] = i[-3]
         factor[factor_index]["featureValue"] = i[-2]
+        factor_pt[factor_index] = i[-1]
         factor[factor_index]["arity"] = len(i) - 3
         if factor_index == 0:
             factor[factor_index]["ftv_offset"] = 0
@@ -88,8 +89,7 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
     return factor_index, fmap_index
 
 
-def get_factors(cur, views, sql_filter="True",
-                default_ff=numbskull.inference.FUNC_ISTRUE):
+def get_factors(cur, views, sql_filter="True"):
     """TODO."""
     factors = 0
     edges = 0
@@ -102,6 +102,13 @@ def get_factors(cur, views, sql_filter="True",
                      "FROM INFORMATION_SCHEMA.COLUMNS " \
                      "WHERE table_schema = 'public' " \
                      "AND table_name = '{table_name}'"
+
+    # This operation is for getting columns in a table
+    names_template = "SELECT column_name " \
+                     "FROM INFORMATION_SCHEMA.COLUMNS " \
+                     "WHERE table_schema = 'public' " \
+                     "AND table_name = '{table_name}' " \
+                     "ORDER BY ordinal_position"
 
     # Pre-count number of factors and edges
     # TODO: can this step be avoided?
@@ -119,7 +126,7 @@ def get_factors(cur, views, sql_filter="True",
         edges += f * v
 
     factor = np.zeros(factors, Factor)
-    factor_pt = np.zeros(factors, np.str_)  # partition type
+    factor_pt = np.zeros(factors, np.int8)  # partition type
     fmap = np.zeros(edges, FactorToVar)
 
     factor_index = 0
@@ -133,9 +140,20 @@ def get_factors(cur, views, sql_filter="True",
                 ff = value
         # TODO: assume istrue if not found?
         if ff == -1:
-            ff = default_ff
+            ff = numbskull.inference.FUNC_ISTRUE
 
-        op = op_template.format(cmd="*", table_name=v, filter=sql_filter)
+        names_op = names_template.format(table_name=v)
+        cur.execute(names_op)
+        name = cur.fetchall()
+        for i in range(len(name)):
+            assert(len(name[i]) == 1)
+            name[i] = name[i][0]
+        assert(name[-3] == "weight_id")
+        assert(name[-2] == "feature_value")
+        assert(name[-1] == "partition_key")
+        cmd = ", ".join(['"' + i + '"' for i in name[:-1]]) + ", ASCII(LEFT(partition_key, 1))"
+
+        op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
         cur.execute(op)
         while True:
             row = cur.fetchmany(10000)
@@ -145,7 +163,61 @@ def get_factors(cur, views, sql_filter="True",
                 get_factors_helper(row, ff, factor, factor_pt, fmap,
                                    factor_index, fmap_index)
 
-    return factor, factor_pt, fmap
+    return factor, factor_pt.view('c'), fmap
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def get_variables_helper(row, vid, variable, var_pt, var_pid, index):
+    for v in row:
+        vid[index] = v[0]
+        variable[index]["isEvidence"] = v[1]
+        variable[index]["initialValue"] = v[2]
+        variable[index]["dataType"] = v[3]
+        variable[index]["cardinality"] = v[4]
+        var_pt[index] = v[5]
+        index += 1
+    return index
+
+
+def get_variables(cur, views, sql_filter="True"):
+    """TODO."""
+    op_template = "SELECT {cmd} FROM {table_name} " \
+                  "WHERE {filter}"
+
+    # Obtain count of variables
+    # TODO: is there a way to do this together with next part?
+    #       (one query per table)
+    n = 0
+    for v in views:
+        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
+        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
+        cur.execute(op)
+        n += cur.fetchone()[0]  # number of factors in this table
+
+    vid = np.zeros(n, np.int64)
+    variable = np.zeros(n, Variable)
+    var_pt = np.zeros(n, np.int8)  # partition type
+    var_pid = np.zeros(n, np.int64)  # partition id
+
+    index = 0
+    for v in views:
+        cmd = "vid, variable_role, init_value, variable_type, cardinality, " \
+              "ASCII(LEFT(partition_key, 1))"
+        op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
+        cur.execute(op)
+        while True:
+            row = cur.fetchmany(10000)
+            if row == []:
+                break
+            index = get_variables_helper(row, vid, variable, var_pt, var_pid, index)
+
+    perm = vid.argsort()
+    vid = vid[perm]
+    variable = variable[perm]
+    var_pt = var_pt[perm]
+    var_pid = var_pid[perm]
+
+    return vid, variable, var_pt.view('c'), var_pid
 
 
 def read_factor_views(cur, views, sql_filter="True"):
@@ -195,12 +267,19 @@ def read_views(cur, views, sql_filter="True"):
     return data
 
 
+@numba.jit(nopython=True, cache=True, nogil=True)
 def inverse_map(forward, index):
     """TODO."""
     # TODO: should probably also check that nothing is duplicated?
     ans = np.searchsorted(forward, index)
     assert(forward[ans] == index)
     return ans
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def remap_fmap(fmap, vid):
+    for i in range(len(fmap)):
+        fmap[i]["vid"] = inverse_map(vid, fmap[i]["vid"])
 
 
 def get_fg_data(cur, filt):
@@ -211,10 +290,10 @@ def get_fg_data(cur, filt):
     time2 = time.time()
     print("get_views: " + str(time2 - time1))
 
-    # (factor2, factor_pt2, fmap2) = get_factors(cur, factor_view, filt)
-    # time1 = time2
-    # time2 = time.time()
-    # print("get_factors: " + str(time2 - time1))
+    (factor2, factor_pt2, fmap2) = get_factors(cur, factor_view, filt)
+    time1 = time2
+    time2 = time.time()
+    print("get_factors: " + str(time2 - time1))
 
     # Load factors
     factor_data = read_factor_views(cur, factor_view, filt)
@@ -271,12 +350,12 @@ def get_fg_data(cur, filt):
     time2 = time.time()
     print("fmap setting: " + str(time2 - time1))
     print()
-    # print(all(factor == factor2))
-    # print(all(factor_pt == factor_pt2))
-    # print(all(fmap == fmap2))
-    # print(fmap.size)
-    # print(fmap2.size)
-    # print()
+    print(all(factor == factor2))
+    print(all(factor_pt == factor_pt2))
+    print(all(fmap == fmap2))
+    print(fmap.size)
+    print(fmap2.size)
+    print()
 
     # Load variable info
     var_data = read_views(cur, variable_view, filt)
@@ -303,6 +382,7 @@ def get_fg_data(cur, filt):
     time2 = time.time()
     print("vars for loop: " + str(time2 - time1))
 
+    print(str(len(vid)) + " variables")
     perm = vid.argsort()
     vid = vid[perm]
     variable = variable[perm]
@@ -311,10 +391,13 @@ def get_fg_data(cur, filt):
     time1 = time2
     time2 = time.time()
     print("sorting vars: " + str(time2 - time1))
+    (vid_, variable_, var_pt_, var_pid_) = get_variables(cur, variable_view, filt)
+    time1 = time2
+    time2 = time.time()
+    print("get_variables: " + str(time2 - time1))
 
     # remap factor to variable
-    for i in range(len(fmap)):
-        fmap[i]["vid"] = inverse_map(vid, fmap[i]["vid"])
+    remap_fmap(fmap, vid)
 
     time1 = time2
     time2 = time.time()
