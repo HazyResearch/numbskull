@@ -321,155 +321,39 @@ def remap_fmap(fmap, vid):
 def get_fg_data(cur, filt):
     """TODO."""
     print("***GET_FG_DATA***")
+
+    # Get names of views
     time1 = time.time()
     (factor_view, variable_view, weight_view) = get_views(cur)
     time2 = time.time()
     print("get_views: " + str(time2 - time1))
 
-    (factor2, factor_pt2, fmap2) = get_factors(cur, factor_view, filt)
+    # Load factors
+    (factor, factor_pt, fmap) = get_factors(cur, factor_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_factors: " + str(time2 - time1))
 
-    # Load factors
-    factor_data = read_factor_views(cur, factor_view, filt)
-    time1 = time2
-    time2 = time.time()
-    print("read_factor_vews: " + str(time2 - time1))
-
-    factor = np.zeros(len(factor_data), Factor)
-    factor_pt = np.zeros(len(factor_data), np.str_)  # partition type
-    factor_pid = np.zeros(len(factor_data), np.int64)  # partition id
-    time1 = time2
-    time2 = time.time()
-    print("allocate: " + str(time2 - time1))
-
-    for (i, f) in enumerate(factor_data):
-        factor[i]["factorFunction"] = f[4]
-        factor[i]["weightId"] = f[1]
-        factor[i]["featureValue"] = f[2]
-        factor[i]["arity"] = len(f[0])
-        factor_pt[i] = f[3][0]
-        # TODO: is factor_pid actually used anywhere?
-        factor_pid[i] = -1
-        if f[3][1:] != "":
-            factor_pid[i] = int(f[3][1:])
-    time1 = time2
-    time2 = time.time()
-    print("for loop: " + str(time2 - time1))
-
-    if len(factor) > 0:
-        factor[0]["ftv_offset"] = 0
-    for i in range(1, len(factor)):
-        factor[i]["ftv_offset"] = factor[i - 1]["ftv_offset"] \
-                                + factor[i - 1]["arity"]
-    time1 = time2
-    time2 = time.time()
-    print("ftv_offset for loop: " + str(time2 - time1))
-
-    edges = 0
-    if len(factor) > 0:
-        edges = factor[-1]["ftv_offset"] + factor[-1]["arity"]
-    fmap = np.zeros(edges, FactorToVar)
-    time1 = time2
-    time2 = time.time()
-    print("fmap allocate: " + str(time2 - time1))
-
-    index = 0
-    for i in factor_data:
-        for j in i[0]:
-            fmap[index]["vid"] = j
-            # TODO: how to actually get categorical info?
-            fmap[index]["dense_equal_to"] = 0
-            index += 1
-    time1 = time2
-    time2 = time.time()
-    print("fmap setting: " + str(time2 - time1))
-    print()
-    print(all(factor == factor2))
-    print(all(factor_pt == factor_pt2))
-    print(all(fmap == fmap2))
-    print(fmap.size)
-    print(fmap2.size)
-    print()
-
-    # Load variable info
-    var_data = read_views(cur, variable_view, filt)
-    time1 = time2
-    time2 = time.time()
-    print("read_views var: " + str(time2 - time1))
-
-    vid = np.zeros(len(var_data), np.int64)
-    variable = np.zeros(len(var_data), Variable)
-    var_pt = np.zeros(len(var_data), np.str_)  # partition type
-    var_pid = np.zeros(len(var_data), np.int64)  # partition id
-    for (i, v) in enumerate(var_data):
-        vid[i] = v[0]
-        variable[i]["isEvidence"] = v[1]
-        variable[i]["initialValue"] = v[2]
-        variable[i]["dataType"] = v[3]
-        variable[i]["cardinality"] = v[4]
-        # variable[i]["vtf_offset"] = ???
-        var_pt[i] = v[5][0]
-        var_pid[i] = -1
-        if v[5][1:] != "":
-            var_pid[i] = int(v[5][1:])
-    time1 = time2
-    time2 = time.time()
-    print("vars for loop: " + str(time2 - time1))
-
-    print(str(len(vid)) + " variables")
-    perm = vid.argsort()
-    vid = vid[perm]
-    variable = variable[perm]
-    var_pt = var_pt[perm]
-    var_pid = var_pid[perm]
-    time1 = time2
-    time2 = time.time()
-    print("sorting vars: " + str(time2 - time1))
-    (vid_, variable_, var_pt_, var_pid_) = get_variables(cur, variable_view, filt)
+    # Load variables
+    (vid, variable, var_pt, var_pid) = get_variables(cur, variable_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_variables: " + str(time2 - time1))
 
     # remap factor to variable
     remap_fmap(fmap, vid)
-
     time1 = time2
     time2 = time.time()
     print("remap fmap: " + str(time2 - time1))
 
     # Load weight info
     # No filter since weights do not have a partition id
-    weight_data = read_views(cur, weight_view, True)
-
-    time1 = time2
-    time2 = time.time()
-    print("read weight: " + str(time2 - time1))
-
-    # TODO: if we start partitioning weights, these few lines
-    # will have to be modified to be more like variables
-    # (will need to remap weight_id's)
-    # TODO: also need to remap weight id associated with
-    # each factor
-    weight = np.zeros(len(weight_data), Weight)
-    for w in weight_data:
-        wid = w[0]
-        weight[wid]["isFixed"] = w[1]
-        weight[wid]["initialValue"] = w[2]
-
-    time1 = time2
-    time2 = time.time()
-    print("weight for loop: " + str(time2 - time1))
-
-    weight_ = get_weights(cur, weight_view)
+    weight = get_weights(cur, weight_view)
     time1 = time2
     time2 = time.time()
     print("get_weight: " + str(time2 - time1))
-    print(weight == weight_)
 
     domain_mask = np.full(len(variable), True, np.bool)
-
     time1 = time2
     time2 = time.time()
     print("allocate domain_mask: " + str(time2 - time1))
