@@ -343,8 +343,8 @@ class TCPReqServerMinionChannel(object):
         self.serial = salt.payload.Serial(self._opts)
         if USE_LOAD_BALANCER:
             self.req_server = LoadBalancerWorker(
-                (self.socket_queue, self.handle_message,
-                 self.log, io_loop)=self.io_loop
+                self.socket_queue, self.handle_message, \
+                self.log, io_loop=self.io_loop
             )
         else:
             self.req_server = InfLearnMessageServer(self.handle_message,
