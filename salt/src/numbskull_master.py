@@ -229,7 +229,7 @@ class NumbskullMaster:
         # application_dir = "/dfs/scratch0/bryanhe/genomics/"
         # application_dir = "/dfs/scratch0/bryanhe/census/"
         # application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/bryanhe/congress5/"
+        application_dir = "/dfs/scratch0/bryanhe/congress6/"
 
         # obtain database url from file
         with open(application_dir + "/db.url", "r") as f:
@@ -275,9 +275,9 @@ class NumbskullMaster:
             cur.execute(p["sql_to_cost"])
             cost = cur.fetchone()[0]
             print(cost)
-            if p["partition_types"] == "":
+            # if p["partition_types"] == "":
             # if p["partition_types"] == "(0)":
-            # if p["partition_types"] == "(1)":
+            if p["partition_types"] == "(1)":
                 p0 = p
         print(80 * "*")
 
@@ -302,7 +302,8 @@ class NumbskullMaster:
                 print("Unexpected error:", sys.exc_info())
                 conn.rollback()
         sql_to_apply_end = time.time()
-        print("Done running sql_to_apply: " + str(sql_to_apply_end - sql_to_apply_begin))
+        print("Done running sql_to_apply: " +
+              str(sql_to_apply_end - sql_to_apply_begin))
 
         (factor_view, variable_view, weight_view) = messages.get_views(cur)
 
@@ -316,12 +317,14 @@ class NumbskullMaster:
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
          self.factor_pt, self.vid) = messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
-        print("Done running get_fg_data: " + str(get_fg_data_end - get_fg_data_begin))
+        print("Done running get_fg_data: " +
+              str(get_fg_data_end - get_fg_data_begin))
 
         # Close communication with the database
         cur.close()
         conn.close()
 
+        # TODO: could be in numba
         for (i, v) in enumerate(variable):
             # D is only variable partition type on master but not owned
             if self.var_pt[i] == "D":

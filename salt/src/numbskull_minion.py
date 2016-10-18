@@ -168,13 +168,14 @@ def start():
                             "or partition_key = 'H' "
             minion_filter = minion_filter.format(partition_id=partition_id)
 
-            (weight, variable, factor, fmap, domain_mask, edges, var_pt, \
+            (weight, variable, factor, fmap, domain_mask, edges, var_pt,
                 factor_pt, vid) = messages.get_fg_data(cur, minion_filter)
 
             # Close communication with the database
             cur.close()
             conn.close()
 
+            # TODO: could be in numba
             for (i, v) in enumerate(variable):
                 # B is only variable partition type on minions but not owned
                 if var_pt[i] == "B":

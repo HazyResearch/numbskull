@@ -151,7 +151,8 @@ def get_factors(cur, views, sql_filter="True"):
         assert(name[-3] == "weight_id")
         assert(name[-2] == "feature_value")
         assert(name[-1] == "partition_key")
-        cmd = ", ".join(['"' + i + '"' for i in name[:-1]]) + ", ASCII(LEFT(partition_key, 1))"
+        cmd = ", ".join(['"' + i + '"' for i in name[:-1]]) + \
+              ", ASCII(LEFT(partition_key, 1))"
 
         op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
         cur.execute(op)
@@ -168,6 +169,7 @@ def get_factors(cur, views, sql_filter="True"):
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def get_variables_helper(row, vid, variable, var_pt, var_pid, index):
+    """TODO."""
     for v in row:
         vid[index] = v[0]
         variable[index]["isEvidence"] = v[1]
@@ -189,7 +191,8 @@ def get_variables(cur, views, sql_filter="True"):
     #       (one query per table)
     n = 0
     for v in views:
-        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
+        op = op_template.format(cmd="COUNT(*)", table_name=v,
+                                filter=sql_filter)
         cur.execute(op)
         n += cur.fetchone()[0]  # number of factors in this table
 
@@ -208,7 +211,8 @@ def get_variables(cur, views, sql_filter="True"):
             row = cur.fetchmany(10000)
             if row == []:
                 break
-            index = get_variables_helper(row, vid, variable, var_pt, var_pid, index)
+            index = get_variables_helper(row, vid, variable,
+                                         var_pt, var_pid, index)
 
     perm = vid.argsort()
     vid = vid[perm]
@@ -221,6 +225,7 @@ def get_variables(cur, views, sql_filter="True"):
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def get_weights_helper(row, weight):
+    """TODO."""
     for w in row:
         wid = w[0]
         weight[wid]["isFixed"] = w[1]
@@ -237,7 +242,8 @@ def get_weights(cur, views, sql_filter="True"):
     #       (one query per table)
     n = 0
     for v in views:
-        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
+        op = op_template.format(cmd="COUNT(*)", table_name=v,
+                                filter=sql_filter)
         cur.execute(op)
         n += cur.fetchone()[0]  # number of factors in this table
 
@@ -314,6 +320,7 @@ def inverse_map(forward, index):
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def remap_fmap(fmap, vid):
+    """TODO."""
     for i in range(len(fmap)):
         fmap[i]["vid"] = inverse_map(vid, fmap[i]["vid"])
 
