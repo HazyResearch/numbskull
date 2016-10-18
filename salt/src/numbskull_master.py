@@ -54,7 +54,7 @@ def send_to_minion(data, tag, tgt):
 class NumbskullMaster:
     """TODO."""
 
-    def __init__(self, application_dir, machines, argv):
+    def __init__(self, application_dir, machines, partition_type, argv):
         """TODO."""
         # Salt conf init
         self.master_conf_dir = master_conf_dir
@@ -77,6 +77,7 @@ class NumbskullMaster:
         self.ns = None
         self.application_dir = application_dir
         self.num_minions = machines
+        self.partition_type = partition_type
 
     def initialize(self):
         """TODO."""
@@ -155,11 +156,6 @@ class NumbskullMaster:
             pub_func = partial(send_to_minion, data, tag)
             self.clientPool.imap(pub_func, self.minion2host.values())
 
-            # newEvent = self.local_client.cmd([name],
-            #                                  'event.fire',
-            #                                  [data, tag],
-            #                                  expr_form='list')
-
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
@@ -187,7 +183,7 @@ class NumbskullMaster:
         # TODO: switch to proper probs
         end = time.time()
         print(mode + " TOOK", end - begin)
-        return end
+        return end - begin
 
     ##############
     # Init Phase #
@@ -281,7 +277,7 @@ class NumbskullMaster:
             print(cost)
             # if p["partition_types"] == "":
             # if p["partition_types"] == "(0)":
-            if p["partition_types"] == "(1)":
+            if p["partition_types"] == self.partition_type:
                 p0 = p
         print(80 * "*")
 
@@ -483,7 +479,7 @@ class NumbskullMaster:
 
 
 def main(application_dir, machines, threads_per_machine,
-         learning_epochs, inference_epochs):
+         learning_epochs, inference_epochs, partition_type):
     """TODO."""
     # Inputs for experiments:
     #   - dataset
@@ -497,6 +493,7 @@ def main(application_dir, machines, threads_per_machine,
     #   - Time for learning
     #   - Time for inference
     #   - Memory usage (master, all minions)
+    # TODO: how to automate partition selection
     args = ['-l', '1',
             '-i', '1',
             '-t', str(threads_per_machine),
@@ -505,24 +502,28 @@ def main(application_dir, machines, threads_per_machine,
             '-r', '0.1',
             '--quiet']
 
-    ns_master = NumbskullMaster(application_dir, machines, args)
+    ns_master = NumbskullMaster(application_dir, machines, partition_type,
+                                args)
     ns_master.initialize()
     learn_time = ns_master.learning(learning_epochs)
     infer_time = ns_master.inference(inference_epochs)
 
-    return ns_master, learn_time, infer_time
+    return ns_master, {"learning_time": learn_time,
+                       "inference_time": infer_time}
 
 if __name__ == "__main__":
-    if len(sys.argv) == 6:
+    if len(sys.argv) == 7:
         main(sys.argv[1],
              int(sys.argv[2]),
              int(sys.argv[3]),
              int(sys.argv[4]),
-             int(sys.argv[5]))
+             int(sys.argv[5]),
+             sys.argv[6])
     else:
         print("Usage: " + sys.argv[0] +
               "application_dir " +
               "machines " +
               "threads_per_machine " +
               "learning_epochs " +
-              "inference_epochs")
+              "inference_epochs" +
+              "partition_type")
