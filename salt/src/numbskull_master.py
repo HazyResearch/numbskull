@@ -153,8 +153,9 @@ class NumbskullMaster:
                 beginTest = time.time()
                 data = {"values": messages.serialize(variables_to_minions)}
 
-            pub_func = partial(send_to_minion, data, tag)
-            self.clientPool.imap(pub_func, self.minion2host.values())
+            if self.num_minions != 0:
+                pub_func = partial(send_to_minion, data, tag)
+                self.clientPool.imap(pub_func, self.minion2host.values())
 
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
@@ -212,7 +213,8 @@ class NumbskullMaster:
             self.local_client.cmd(self.minions, 'grains.get', ['localhost'],
                                   expr_form='list', timeout=None)
         # Initialize multiprocessing pool for publishing
-        self.clientPool = Pool(len(self.minions))
+        if self.num_minions != 0:
+            self.clientPool = Pool(self.num_minions)
 
     def prep_numbskull(self):
         """TODO."""
