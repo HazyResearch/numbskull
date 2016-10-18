@@ -147,16 +147,18 @@ class NumbskullMaster:
                 weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
                         "weight": messages.serialize(weight_value)}
-
-                pub_func = partial(send_to_minion, data, tag)
-                self.clientPool.imap(pub_func, self.minion2host.values())
             else:
                 tag = messages.INFER
                 beginTest = time.time()
                 data = {"values": messages.serialize(variables_to_minions)}
 
-                pub_func = partial(send_to_minion, data, tag)
-                self.clientPool.imap(pub_func, self.minion2host.values())
+            pub_func = partial(send_to_minion, data, tag)
+            self.clientPool.imap(pub_func, self.minion2host.values())
+
+            # newEvent = self.local_client.cmd([name],
+            #                                  'event.fire',
+            #                                  [data, tag],
+            #                                  expr_form='list')
 
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
