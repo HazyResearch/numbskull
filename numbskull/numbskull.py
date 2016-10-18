@@ -191,7 +191,9 @@ class NumbSkull(object):
         assert(type(fmap) == np.ndarray and fmap.dtype == FactorToVar)
         assert(type(domain_mask) == np.ndarray and
                domain_mask.dtype == np.bool)
-        assert(type(edges) == int or type(edges) == np.int64)
+        assert(type(edges) == int \
+            or type(edges) == long \
+            or type(edges) == np.int64)
 
         # Initialize metadata
         meta = {}
