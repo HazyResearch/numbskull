@@ -190,7 +190,6 @@ def get_variables(cur, views, sql_filter="True"):
     n = 0
     for v in views:
         op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
-        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
         cur.execute(op)
         n += cur.fetchone()[0]  # number of factors in this table
 
@@ -218,6 +217,43 @@ def get_variables(cur, views, sql_filter="True"):
     var_pid = var_pid[perm]
 
     return vid, variable, var_pt.view('c'), var_pid
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def get_weights_helper(row, weight):
+    for w in row:
+        wid = w[0]
+        weight[wid]["isFixed"] = w[1]
+        weight[wid]["initialValue"] = w[2]
+
+
+def get_weights(cur, views, sql_filter="True"):
+    """TODO."""
+    op_template = "SELECT {cmd} FROM {table_name} " \
+                  "WHERE {filter}"
+
+    # Obtain count of variables
+    # TODO: is there a way to do this together with next part?
+    #       (one query per table)
+    n = 0
+    for v in views:
+        op = op_template.format(cmd="COUNT(*)", table_name=v, filter=sql_filter)
+        cur.execute(op)
+        n += cur.fetchone()[0]  # number of factors in this table
+
+    weight = np.zeros(n, Weight)
+
+    index = 0
+    for v in views:
+        op = op_template.format(cmd="*", table_name=v, filter=sql_filter)
+        cur.execute(op)
+        while True:
+            row = cur.fetchmany(10000)
+            if row == []:
+                break
+            index = get_weights_helper(row, weight)
+
+    return weight
 
 
 def read_factor_views(cur, views, sql_filter="True"):
@@ -425,6 +461,12 @@ def get_fg_data(cur, filt):
     time1 = time2
     time2 = time.time()
     print("weight for loop: " + str(time2 - time1))
+
+    weight_ = get_weights(cur, weight_view)
+    time1 = time2
+    time2 = time.time()
+    print("get_weight: " + str(time2 - time1))
+    print(weight == weight_)
 
     domain_mask = np.full(len(variable), True, np.bool)
 
