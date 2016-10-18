@@ -54,7 +54,7 @@ def send_to_minion(data, tag, tgt):
 class NumbskullMaster:
     """TODO."""
 
-    def __init__(self, argv):
+    def __init__(self, application_dir, machines, argv):
         """TODO."""
         # Salt conf init
         self.master_conf_dir = master_conf_dir
@@ -75,7 +75,8 @@ class NumbskullMaster:
         self.argv = argv
         self.args = self.parse_args(argv)
         self.ns = None
-        self.num_minions = 2  # TODO: allow as an argument
+        self.application_dir = application_dir
+        self.num_minions = machines
 
     def initialize(self):
         """TODO."""
@@ -109,7 +110,7 @@ class NumbskullMaster:
     # This is just a trivial wrapper function.
     def learning(self, epochs=1):
         """TODO."""
-        self.inference(epochs, True)
+        return self.inference(epochs, True)
 
     def inference(self, epochs=1, learn=False):
         """TODO."""
@@ -184,6 +185,7 @@ class NumbskullMaster:
         # TODO: switch to proper probs
         end = time.time()
         print(mode + " TOOK", end - begin)
+        return end
 
     ##############
     # Init Phase #
@@ -229,21 +231,21 @@ class NumbskullMaster:
         # application_dir = "/dfs/scratch0/bryanhe/genomics/"
         # application_dir = "/dfs/scratch0/bryanhe/census/"
         # application_dir = "/dfs/scratch0/bryanhe/voting/"
-        application_dir = "/dfs/scratch0/bryanhe/congress6/"
+        # application_dir = "/dfs/scratch0/bryanhe/congress6/"
 
         # obtain database url from file
-        with open(application_dir + "/db.url", "r") as f:
+        with open(self.application_dir + "/db.url", "r") as f:
             db_url = f.read().strip()
 
         # Call deepdive to perform everything up to grounding
         # TODO: check that deepdive ran successfully
         cmd = ["deepdive", "do", "all"]
-        subprocess.call(cmd, cwd=application_dir)
+        subprocess.call(cmd, cwd=self.application_dir)
 
         # Obtain partition information
         cmd = ["ddlog", "semantic-partition", "app.ddlog",
                "--ppa", "-w", str(self.num_minions)]
-        partition_json = subprocess.check_output(cmd, cwd=application_dir)
+        partition_json = subprocess.check_output(cmd, cwd=self.application_dir)
         partition = json.loads(partition_json)
 
         begin = time.time()
@@ -478,23 +480,46 @@ class NumbskullMaster:
         return SUCCESS
 
 
-def main(argv=None):
+def main(application_dir, machines, threads_per_machine, learning_epochs, inference_epochs):
     """TODO."""
-    args = ['../../test',
-            '-l', '1',
+    # Inputs for experiments:
+    #   - dataset
+    #   - number of machines
+    #   - number of threads per machine
+    #   - learning/inference epochs
+    #   - sweeps per epoch
+    # Return values:
+    #   - Time for database
+    #   - Time for loading
+    #   - Time for learning
+    #   - Time for inference
+    #   - Memory usage (master, all minions)
+    args = ['-l', '1',
             '-i', '1',
-            '-t', '1',
+            '-t', str(threads_per_machine),
             '-s', '0.01',
             '--regularization', '2',
             '-r', '0.1',
             '--quiet']
 
-    ns_master = NumbskullMaster(args)
+    ns_master = NumbskullMaster(application_dir, machines, args)
     ns_master.initialize()
-    w = ns_master.learning(0)
-    p = ns_master.inference(0)
-    # return ns_master, w, p
-    return ns_master
+    learn_time = ns_master.learning(learning_epochs)
+    infer_time = ns_master.inference(inference_epochs)
+
+    return ns_master, learn_time, infer_time
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 6:
+        main(sys.argv[1],
+             int(sys.argv[2]),
+             int(sys.argv[3]),
+             int(sys.argv[4]),
+             int(sys.argv[5]))
+    else:
+        print("Usage: " + sys.argv[0] +
+              "application_dir " +
+              "machines " +
+              "threads_per_machine " +
+              "learning_epochs " +
+              "inference_epochs")
