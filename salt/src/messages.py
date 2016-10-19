@@ -405,7 +405,7 @@ def find_connected_components(cur, factor_view):
     
     cc = nx.connected_components(G)
     try:
-        cur.execute("CREATE TABLE variable_to_cc IF NOT EXISTS (dd_id bigint, cc_id bigint);")
+        cur.execute("CREATE TABLE variable_to_cc (dd_id bigint, cc_id bigint);")
     except:
         conn.rollback()
         cur.execute("DROP TABLE variable_to_cc;")
