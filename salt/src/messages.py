@@ -386,7 +386,7 @@ def deserialize(array, dtype):
     except:
         return np.fromstring(array, dtype=dtype)
 
-def find_connected_components(cur, factor_view):
+def find_connected_components(conn, cur, factor_view):
     
     (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
     
@@ -408,7 +408,7 @@ def find_connected_components(cur, factor_view):
         cur.execute("CREATE TABLE variable_to_cc (dd_id bigint, cc_id bigint);")
     except:
         conn.rollback()
-        cur.execute("DROP TABLE variable_to_cc;")
+        cur.execute("TRUNCATE variable_to_cc;")
     
     rows = []
     cc_id = 0
@@ -422,8 +422,10 @@ def find_connected_components(cur, factor_view):
         cur.execute("INSERT INTO variable_to_cc VALUES " + dataText)
         if cc_id > 1:
             cur.execute("CREATE INDEX dd_cc ON variable_to_cc (dd_id);")
+        conn.commit()
         G.clear()
         return True
     except:
+        conn.rollback()
         G.clear()
         return False
