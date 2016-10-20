@@ -130,15 +130,16 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
                          n_learning_epoch=learn,
                          quiet=True,
                          learn_non_evidence=True,
-                         stepsize=0.01,
+                         stepsize=0.0001,
                          burn_in=100,
                          decay=0.001 ** (1.0 / learn),
-                         reg_param=0.15)
+                         regularization=1,
+                         reg_param=0.01)
 
 prior = 0
-accuracy = [1, 0.5]
-abstain = [0, 0, 0]
-copies = 1000
+accuracy = [1, 0.5, 0]
+abstain = [0]
+copies = 10000
 fg = create_fg(prior, accuracy, abstain, copies)
 print("weight")
 print(fg[0])
