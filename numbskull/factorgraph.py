@@ -127,9 +127,10 @@ class FactorGraph(object):
     #    INFERENCE AND LEARNING    #
     ################################
 
-    def burnIn(self, epochs, sample_evidence, var_copy=0, weight_copy=0):
+    def burnIn(self, epochs, sample_evidence, diagnostics=False, var_copy=0, weight_copy=0):
         """TODO."""
-        print("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
         # NUMBA-based method. Implemented in inference.py
         for ep in range(epochs):
             args = (self.threads, var_copy, weight_copy,
@@ -138,17 +139,19 @@ class FactorGraph(object):
                     self.factor_index, self.Z, self.cstart, self.count,
                     self.var_value, self.weight_value, sample_evidence, True)
             run_pool(self.threadpool, self.threads, gibbsthread, args)
-        print("FACTOR " + str(self.fid) + ": DONE WITH BURN-IN")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": DONE WITH BURN-IN")
 
     def inference(self, burnin_epochs, epochs, sample_evidence=False,
                   diagnostics=False, var_copy=0, weight_copy=0):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
-            self.burnIn(burnin_epochs, sample_evidence)
+            self.burnIn(burnin_epochs, sample_evidence, diagnostics=diagnostics)
 
         # Run inference
-        print("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": STARTED INFERENCE")
         for ep in range(epochs):
             with Timer() as timer:
                 args = (self.threads, var_copy, weight_copy, self.weight,
@@ -162,7 +165,8 @@ class FactorGraph(object):
             if diagnostics:
                 print('Inference epoch #%d took %.03f sec.' %
                       (ep, self.inference_epoch_time))
-        print("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": DONE WITH INFERENCE")
         # compute marginals
         if epochs != 0:
             self.marginals = self.count / float(epochs)
@@ -175,10 +179,11 @@ class FactorGraph(object):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
-            self.burnIn(burnin_epochs, True)
+            self.burnIn(burnin_epochs, True, diagnostics=diagnostics)
 
         # Run learning
-        print("FACTOR " + str(self.fid) + ": STARTED LEARNING")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": STARTED LEARNING")
         for ep in range(epochs):
             if diagnostics:
                 print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
@@ -196,15 +201,10 @@ class FactorGraph(object):
                 run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval
             self.learning_total_time += timer.interval
-            if diagnostics:
-                print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
-                print("Current stepsize = " + str(stepsize))
-                if verbose:
-                    self.diagnosticsLearning(weight_copy)
-                sys.stdout.flush()  # otherwise output refuses to show in DD
             # Decay stepsize
             stepsize *= decay
-        print("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
+        if diagnostics:
+            print("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
 
     def dump_weights(self, fout, weight_copy=0):
         """Dump <wid, weight> text file in DW format."""
