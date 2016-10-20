@@ -49,7 +49,7 @@ def draw_sample(var_samp, var_copy, weight_copy, weight, variable, factor,
 
     z = np.random.rand() * Z[cardinality - 1]
 
-    return np.argmax(Z[0:cardinality] >= z)
+    return np.argmax(Z[:cardinality] >= z)
 
 
 @jit(nopython=True, cache=True, nogil=True)
