@@ -92,14 +92,14 @@ def create_fg(prior, accuracy, abstain, copies):
         # y variable
         variable[copy * (1 + n)]["isEvidence"] = 0  # query
         variable[copy * (1 + n)]["initialValue"] = 0  # Do not actually show y
-        variable[copy * (1 + n)]["dataType"] = 0  # binary
+        variable[copy * (1 + n)]["dataType"] = 0  # not sparse
         variable[copy * (1 + n)]["cardinality"] = 2
 
         # labelling function variable
         for i in range(n):
             variable[copy * (1 + n) + 1 + i]["isEvidence"] = 1  # evidence
             variable[copy * (1 + n) + 1 + i]["initialValue"] = lf[i]
-            variable[copy * (1 + n) + 1 + i]["dataType"] = 1  # categorical
+            variable[copy * (1 + n) + 1 + i]["dataType"] = 0  # not sparse
             variable[copy * (1 + n) + 1 + i]["cardinality"] = 3
 
         # Class prior
