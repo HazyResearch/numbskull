@@ -121,7 +121,7 @@ def create_fg(prior, accuracy, abstain, copies):
 
             fmap_index = copy * (1 + 2 * n) + 1 + 2 * i
             fmap[fmap_index]["vid"] = copy * (1 + n)  # y
-            fmap[fmap_index]["vid"] = copy * (1 + n) + i + 1  # labeling func i
+            fmap[fmap_index + 1]["vid"] = copy * (1 + n) + i + 1  # labeling func i
 
     return weight, variable, factor, fmap, domain_mask, edges
 
