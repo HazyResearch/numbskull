@@ -127,7 +127,8 @@ class FactorGraph(object):
     #    INFERENCE AND LEARNING    #
     ################################
 
-    def burnIn(self, epochs, sample_evidence, diagnostics=False, var_copy=0, weight_copy=0):
+    def burnIn(self, epochs, sample_evidence, diagnostics=False,
+               var_copy=0, weight_copy=0):
         """TODO."""
         if diagnostics:
             print("FACTOR " + str(self.fid) + ": STARTED BURN-IN...")
@@ -147,7 +148,8 @@ class FactorGraph(object):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
-            self.burnIn(burnin_epochs, sample_evidence, diagnostics=diagnostics)
+            self.burnIn(burnin_epochs, sample_evidence,
+                        diagnostics=diagnostics)
 
         # Run inference
         if diagnostics:
