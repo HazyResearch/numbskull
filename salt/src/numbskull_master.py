@@ -523,9 +523,9 @@ if __name__ == "__main__":
              sys.argv[6])
     else:
         print("Usage: " + sys.argv[0] +
-              "application_dir " +
-              "machines " +
-              "threads_per_machine " +
-              "learning_epochs " +
-              "inference_epochs" +
-              "partition_type")
+              " application_dir" +
+              " machines" +
+              " threads_per_machine" +
+              " learning_epochs" +
+              " inference_epochs" +
+              " partition_type")
