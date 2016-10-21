@@ -295,7 +295,8 @@ class NumbskullMaster:
                         "or partition_key like 'H%' "
         get_fg_data_begin = time.time()
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.vid) = messages.get_fg_data(cur, master_filter)
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid) = \
+            messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
               str(get_fg_data_end - get_fg_data_begin))

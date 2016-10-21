@@ -65,15 +65,16 @@ def get_views(cur):
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
-                       fmap_index):
+def get_factors_helper(row, ff, factor, factor_pt, factor_ufo, fmap,
+                       factor_index, fmap_index):
     """TODO."""
     for i in row:
         factor[factor_index]["factorFunction"] = ff
-        factor[factor_index]["weightId"] = i[-3]
-        factor[factor_index]["featureValue"] = i[-2]
-        factor_pt[factor_index] = i[-1]
-        factor[factor_index]["arity"] = len(i) - 3
+        factor[factor_index]["weightId"] = i[-4]
+        factor[factor_index]["featureValue"] = i[-3]
+        factor_pt[factor_index] = i[-2]
+        factor_ufo[factor_index] = (i[-1] == 117)  # 117 == 'u'
+        factor[factor_index]["arity"] = len(i) - 4
         if factor_index == 0:
             factor[factor_index]["ftv_offset"] = 0
         else:
@@ -82,7 +83,7 @@ def get_factors_helper(row, ff, factor, factor_pt, fmap, factor_index,
                 factor[factor_index - 1]["arity"]
         factor_index += 1
 
-        for j in i[:-3]:
+        for j in i[:-4]:
             fmap[fmap_index]["vid"] = j
             # TODO: how to actually get categorical info?
             fmap[fmap_index]["dense_equal_to"] = 0
@@ -129,6 +130,7 @@ def get_factors(cur, views, sql_filter="True"):
 
     factor = np.zeros(factors, Factor)
     factor_pt = np.zeros(factors, np.int8)  # partition type
+    factor_ufo = np.zeros(factors, np.bool)  # unary factor optimization
     fmap = np.zeros(edges, FactorToVar)
 
     factor_index = 0
@@ -153,8 +155,9 @@ def get_factors(cur, views, sql_filter="True"):
         assert(name[-3] == "weight_id")
         assert(name[-2] == "feature_value")
         assert(name[-1] == "partition_key")
-        cmd = ", ".join(['"' + i + '"' for i in name[:-1]]) + \
-              ", ASCII(LEFT(partition_key, 1))"
+        cmd = (", ".join(['"' + i + '"' for i in name[:-1]]) +
+               ", ASCII(LEFT(partition_key, 1))" +  # partition key
+               ", ASCII(SUBSTR(partition_key, 2, 1))")  # unary factor opt
 
         op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
         cur.execute(op)
@@ -163,14 +166,14 @@ def get_factors(cur, views, sql_filter="True"):
             if row == []:
                 break
             (factor_index, fmap_index) = \
-                get_factors_helper(row, ff, factor, factor_pt, fmap,
-                                   factor_index, fmap_index)
+                get_factors_helper(row, ff, factor, factor_pt, factor_ufo,
+                                   fmap, factor_index, fmap_index)
 
     return factor, factor_pt.view('c'), fmap, edges
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def get_variables_helper(row, vid, variable, var_pt, var_pid, index):
+def get_variables_helper(row, vid, variable, var_pt, var_ufo, index):
     """TODO."""
     for v in row:
         vid[index] = v[0]
@@ -179,6 +182,7 @@ def get_variables_helper(row, vid, variable, var_pt, var_pid, index):
         variable[index]["dataType"] = v[3]
         variable[index]["cardinality"] = v[4]
         var_pt[index] = v[5]
+        var_ufo[index] = (v[6] == 117)  # 117 == 'u'
         index += 1
     return index
 
@@ -201,12 +205,13 @@ def get_variables(cur, views, sql_filter="True"):
     vid = np.zeros(n, np.int64)
     variable = np.zeros(n, Variable)
     var_pt = np.zeros(n, np.int8)  # partition type
-    var_pid = np.zeros(n, np.int64)  # partition id
+    var_ufo = np.zeros(n, np.bool)  # unary factor opt
 
     index = 0
     for v in views:
-        cmd = "vid, variable_role, init_value, variable_type, cardinality, " \
-              "ASCII(LEFT(partition_key, 1))"
+        cmd = ("vid, variable_role, init_value, variable_type, cardinality, " +
+               "ASCII(LEFT(partition_key, 1)), " +  # partition key
+               "ASCII(SUBSTR(partition_key, 2, 1))")  # unary factor opt
         op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
         cur.execute(op)
         while True:
@@ -214,15 +219,15 @@ def get_variables(cur, views, sql_filter="True"):
             if row == []:
                 break
             index = get_variables_helper(row, vid, variable,
-                                         var_pt, var_pid, index)
+                                         var_pt, var_ufo, index)
 
     perm = vid.argsort()
     vid = vid[perm]
     variable = variable[perm]
     var_pt = var_pt[perm]
-    var_pid = var_pid[perm]
+    var_ufo = var_ufo[perm]
 
-    return vid, variable, var_pt.view('c'), var_pid
+    return vid, variable, var_pt.view('c'), var_ufo
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -344,7 +349,7 @@ def get_fg_data(cur, filt):
     print("get_factors: " + str(time2 - time1))
 
     # Load variables
-    (vid, variable, var_pt, var_pid) = get_variables(cur, variable_view, filt)
+    (vid, variable, var_pt, var_ufo) = get_variables(cur, variable_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_variables: " + str(time2 - time1))
@@ -368,7 +373,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, vid)
+            factor_pt, var_ufo, factor_ufo, vid)
 
 
 def serialize(array):

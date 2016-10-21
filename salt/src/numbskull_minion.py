@@ -169,7 +169,8 @@ def start():
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-                factor_pt, vid) = messages.get_fg_data(cur, minion_filter)
+             factor_pt, var_ufo, factor_ufo, vid) = \
+                messages.get_fg_data(cur, minion_filter)
 
             # Close communication with the database
             cur.close()
