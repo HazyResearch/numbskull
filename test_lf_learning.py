@@ -92,14 +92,14 @@ def create_fg(prior, accuracy, abstain, copies):
         # y variable
         variable[copy * (1 + n)]["isEvidence"] = 0  # query
         variable[copy * (1 + n)]["initialValue"] = 0  # Do not actually show y
-        variable[copy * (1 + n)]["dataType"] = 0  # binary
+        variable[copy * (1 + n)]["dataType"] = 0  # not sparse
         variable[copy * (1 + n)]["cardinality"] = 2
 
         # labelling function variable
         for i in range(n):
             variable[copy * (1 + n) + 1 + i]["isEvidence"] = 1  # evidence
             variable[copy * (1 + n) + 1 + i]["initialValue"] = lf[i]
-            variable[copy * (1 + n) + 1 + i]["dataType"] = 1  # categorical
+            variable[copy * (1 + n) + 1 + i]["dataType"] = 0  # not sparse
             variable[copy * (1 + n) + 1 + i]["cardinality"] = 3
 
         # Class prior
@@ -121,7 +121,7 @@ def create_fg(prior, accuracy, abstain, copies):
 
             fmap_index = copy * (1 + 2 * n) + 1 + 2 * i
             fmap[fmap_index]["vid"] = copy * (1 + n)  # y
-            fmap[fmap_index]["vid"] = copy * (1 + n) + i + 1  # labeling func i
+            fmap[fmap_index + 1]["vid"] = copy * (1 + n) + i + 1  # LF i
 
     return weight, variable, factor, fmap, domain_mask, edges
 
@@ -130,15 +130,16 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
                          n_learning_epoch=learn,
                          quiet=True,
                          learn_non_evidence=True,
-                         stepsize=0.01,
+                         stepsize=0.0001,
                          burn_in=100,
                          decay=0.001 ** (1.0 / learn),
-                         reg_param=0.15)
+                         regularization=1,
+                         reg_param=0.01)
 
 prior = 0
-accuracy = [1, 0.5]
-abstain = [0, 0, 0]
-copies = 1000
+accuracy = [1, 0.5, 0]
+abstain = [0]
+copies = 100
 fg = create_fg(prior, accuracy, abstain, copies)
 print("weight")
 print(fg[0])

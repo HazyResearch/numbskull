@@ -387,37 +387,39 @@ def deserialize(array, dtype):
     except:
         return np.fromstring(array, dtype=dtype)
 
+
 def find_connected_components(conn, cur, factor_view):
-    
+    """TODO."""
     (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
-    
+
     hyperedges = []
     for f in factor:
         newedge = []
-        for i in range(f['ftv_offset'], f['ftv_offset']+f['arity']):
+        for i in range(f['ftv_offset'], f['ftv_offset'] + f['arity']):
             newedge.append(fmap[i]['vid'])
         hyperedges.append(newedge)
     G = nx.Graph()
     for e in hyperedges:
         for i in range(len(e)):
-            for j in range(i+1, len(e)):
-                newedge = (e[i],e[j])
+            for j in range(i + 1, len(e)):
+                newedge = (e[i], e[j])
                 G.add_edge(*e)
-    
+
     cc = nx.connected_components(G)
     try:
-        cur.execute("CREATE TABLE variable_to_cc (dd_id bigint, cc_id bigint);")
+        cur.execute("CREATE TABLE variable_to_cc "
+                    "(dd_id bigint, cc_id bigint);")
     except:
         conn.rollback()
         cur.execute("TRUNCATE variable_to_cc;")
-    
+
     rows = []
     cc_id = 0
     for c in cc:
         for node in c:
             rows.append([node, cc_id])
         cc_id += 1
-    
+
     dataText = ','.join(cur.mogrify('(%s,%s)', row) for row in rows)
     try:
         cur.execute("INSERT INTO variable_to_cc VALUES " + dataText)
