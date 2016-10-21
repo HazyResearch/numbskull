@@ -102,17 +102,13 @@ class NumbskullMaster:
         time4 = time.time()
         print("prepare_db took " + str(time4 - time3))
 
-        self.load_own_fg()
-        time5 = time.time()
-        print("load_own_fg took " + str(time5 - time4))
-
         self.load_minions_fg(self.db_url)
-        time6 = time.time()
-        print("load_minions_fg took " + str(time6 - time5))
+        time5 = time.time()
+        print("load_minions_fg took " + str(time5 - time4))
 
         self.sync_mapping()
-        time7 = time.time()
-        print("sync_mapping took " + str(time7 - time6))
+        time6 = time.time()
+        print("sync_mapping took " + str(time6 - time5))
 
     # The code for learning and inference share a lot of code (computing
     # variable map, handling partial factors) so they are in one func).
@@ -127,6 +123,10 @@ class NumbskullMaster:
         print("BEGINNING " + mode)
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
+        var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
+
+        if learn:
+            var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
 
         for i in range(epochs):
             print("Inference loop", i)
@@ -148,13 +148,20 @@ class NumbskullMaster:
                 variables_to_minions[i] = \
                         self.ns.factorGraphs[-1].var_value[0][m]
 
+            if learn:
+                for (i, m) in enumerate(self.map_to_minions):
+                    var_evid_to_minions[i] = \
+                            self.ns.factorGraphs[-1].var_value_evid[0][m]
+
             # Tell minions to sample
             if learn:
                 tag = messages.LEARN
                 beginTest = time.time()
                 # TODO: which copy of weight to use when multiple
+                # TODO: learning also needs to send var_value evid
                 weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
+                        "v_evid": messages.serialize(var_evid_to_minions),
                         "weight": messages.serialize(weight_value)}
             else:
                 tag = messages.INFER
@@ -185,6 +192,10 @@ class NumbskullMaster:
                         self.ns.factorGraphs[-1].var_value[0][m] = v
 
                     if learn:
+                        vfmin = messages.deserialize(data["v_evid"], np.int64)
+                        for (i, v) in enumerate(vfmin):
+                            m = self.map_from_minion[pid][i]
+                            self.ns.factorGraphs[-1].var_value_evid[0][m] = v
                         self.ns.factorGraphs[-1].weight_value[0] += \
                             messages.deserialize(data["dw"], np.float64)
 
@@ -264,10 +275,10 @@ class NumbskullMaster:
         # semantic partitioning
         if self.partition_method == 'sp':
             cmd = ["ddlog", "semantic-partition", "app.ddlog",
-               "--ppa",
-               # "-u",
-               "--workers", str(self.num_minions),
-               "--cost-model", "simple.costmodel.txt"]
+                   "--ppa",
+                   # "-u",
+                   "--workers", str(self.num_minions),
+                   "--cost-model", "simple.costmodel.txt"]
             partition_json = subprocess.check_output(cmd, 
                                          cwd=self.application_dir)
             partition = json.loads(partition_json)
@@ -386,20 +397,13 @@ class NumbskullMaster:
         sql_to_apply_end = time.time()
         print("Done running sql_to_apply: " +
               str(sql_to_apply_end - sql_to_apply_begin))
+
         # Grab factor graph data
         self.get_fg(cur)
+
         # Close communication with the database
         cur.close()
         self.conn.close()
-
-    def load_own_fg(self):
-        """TODO."""
-        # TODO: this is already in prepare_db
-        # Need to refactor this
-        # Needs to load the factor graph
-        # Track what to sample
-        # Track map for variables/factors from each minion
-        pass
 
     def load_minions_fg(self, db_url):
         """TODO."""
