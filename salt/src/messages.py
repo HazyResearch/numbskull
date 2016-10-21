@@ -462,6 +462,10 @@ def find_metis_parts(conn, cur, parts):
     # Run metis to obtain partitioning
     metis_options = nxmetis.MetisOptions(objtype=nxmetis.enums.MetisObjType.vol)
     cost, partitions = nxmetis.partition(G, parts, options=metis_options)
+    print(80 * "*")
+    print(cost)
+    print(partitions)
+    print(80 * "*")
     
     # Find nodes to master
     master_variables = set([])
@@ -470,6 +474,7 @@ def find_metis_parts(conn, cur, parts):
     for p in partitions:
         H = G.subgraph(p)
         cut_edges -= set(H.edges())
+        print(H.edges())
         H.clear()
     for edge in cut_edges:
         n1, n2 = edge
@@ -487,6 +492,7 @@ def find_metis_parts(conn, cur, parts):
     for node in master_variables:
         rows.append([node, -1])
 
+    print(master_variables)
     # Output minion variables
     pid = 0
     for p in partitions:
@@ -494,10 +500,12 @@ def find_metis_parts(conn, cur, parts):
             if node not in master_variables:
                 rows.append([node, pid])
         pid += 1
+    print(rows)
     dataText = ','.join(cur.mogrify('(%s,%s)', row) for row in rows)
+    print(dataText)
     try:
         cur.execute("INSERT INTO variable_to_cc VALUES " + dataText)
-        if cc_id > 1:
+        if pid > 1:
             cur.execute("CREATE INDEX dd_cc ON variable_to_cc (dd_id);")
         conn.commit()
         G.clear()
