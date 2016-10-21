@@ -81,7 +81,7 @@ class NumbskullMaster:
         self.partition_type = partition_type
 
         # Partitioning variables
-        self.part_method = partition_method
+        self.partition_method = partition_method
 
         # DB variables
         self.db_url = None
@@ -106,7 +106,7 @@ class NumbskullMaster:
         time5 = time.time()
         print("load_own_fg took " + str(time5 - time4))
 
-        self.load_minions_fg(db_url)
+        self.load_minions_fg(self.db_url)
         time6 = time.time()
         print("load_minions_fg took " + str(time6 - time5))
 
@@ -323,19 +323,8 @@ class NumbskullMaster:
         # Open DB connection
         self.open_db_connection()
 
-        # Check if partioning is metis or cc
-        if self.partition_method == 'metis':
-            messages.find_metis_parts(self.conn, self.num_minions)
-        elif self.partition_method == 'cc':
-            messages.find_connected_components(self.conn)
-
-        begin = time.time()
-
         # Open a cursor to perform database operations
         cur = self.conn.cursor()
-
-        print(len(partition))
-        print(partition[0].keys())
 
         # Define functions that sql needs
         for op in partition[0]["sql_prefix"]:
@@ -343,31 +332,42 @@ class NumbskullMaster:
         # Make the changes to the database persistent
         self.conn.commit()
 
-        # Select which partitioning scheme to use
-        if self.partition_type is not None:
-            # Type was prespecified
-            for p in partition:
-                if p["partition_types"] == self.partition_type:
-                    p0 = p
-        else:
-            # Evaluating costs
-            print(80 * "*")
-            optimal_cost = None
-            for p in partition:
-                cur.execute(p["sql_to_cost"])
-                cost = cur.fetchone()[0]
-                print('Partition scheme "' + p["partition_types"] +
-                      '" has cost ' + str(cost))
-                if optimal_cost is None or cost < optimal_cost:
-                    optimal_cost = cost
-                    p0 = p
-            print(80 * "*")
+        # Check if partioning is metis or cc
+        if self.partition_method == 'metis':
+            messages.find_metis_parts(self.conn, cur, self.num_minions)
+            p0 = partition[0]
+        elif self.partition_method == 'cc':
+            messages.find_connected_components(self.conn, cur)
+            p0 = partition[0]
+        elif self.partition_method == 'sp':
 
-        # p0 is partition to use
-        for k in p0.keys():
-            print(k)
-            print(p0[k])
-            print()
+            begin = time.time()
+
+            # Select which partitioning scheme to use
+            if self.partition_type is not None:
+                # Type was prespecified
+                for p in partition:
+                    if p["partition_types"] == self.partition_type:
+                        p0 = p
+            else:
+                # Evaluating costs
+                print(80 * "*")
+                optimal_cost = None
+                for p in partition:
+                    cur.execute(p["sql_to_cost"])
+                    cost = cur.fetchone()[0]
+                    print('Partition scheme "' + p["partition_types"] +
+                          '" has cost ' + str(cost))
+                    if optimal_cost is None or cost < optimal_cost:
+                        optimal_cost = cost
+                        p0 = p
+                print(80 * "*")
+
+            # p0 is partition to use
+            for k in p0.keys():
+                print(k)
+                print(p0[k])
+                print()
 
         # This adds partition information to the database
         print("Running sql_to_apply")

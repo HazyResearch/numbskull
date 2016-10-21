@@ -169,7 +169,7 @@ def get_factors(cur, views, sql_filter="True"):
                 get_factors_helper(row, ff, factor, factor_pt, factor_ufo,
                                    fmap, factor_index, fmap_index)
 
-    return factor, factor_pt.view('c'), fmap, edges
+    return factor, factor_pt.view('c'), factor_ufo, fmap, edges
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -343,7 +343,7 @@ def get_fg_data(cur, filt):
     print("get_views: " + str(time2 - time1))
 
     # Load factors
-    (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view, filt)
+    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_factors: " + str(time2 - time1))
@@ -393,12 +393,11 @@ def deserialize(array, dtype):
         return np.fromstring(array, dtype=dtype)
 
 
-def find_connected_components(conn):
+def find_connected_components(conn, cur):
     """TODO."""
     # Open a cursor to perform database operations
-    cur = self.conn.cursor()
-    (factor_view, variable_view, weight_view) = messages.get_views(cur)
-    (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
+    (factor_view, variable_view, weight_view) = get_views(cur)
+    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view)
 
     hyperedges = []
     for f in factor:
@@ -441,13 +440,12 @@ def find_connected_components(conn):
         G.clear()
         return False
 
-def find_metis_parts(conn, parts):
+def find_metis_parts(conn, cur, parts):
     """TODO"""
     # Open a cursor to perform database operations
-    cur = self.conn.cursor()
-    (factor_view, variable_view, weight_view) = messages.get_views(cur)
+    (factor_view, variable_view, weight_view) = get_views(cur)
     # Obtain graph
-    (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
+    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view)
 
     hyperedges = []
     for f in factor:
