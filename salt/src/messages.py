@@ -388,8 +388,11 @@ def deserialize(array, dtype):
         return np.fromstring(array, dtype=dtype)
 
 
-def find_connected_components(conn, cur, factor_view):
+def find_connected_components(conn):
     """TODO."""
+    # Open a cursor to perform database operations
+    cur = self.conn.cursor()
+    (factor_view, variable_view, weight_view) = messages.get_views(cur)
     (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
 
     hyperedges = []
@@ -433,7 +436,11 @@ def find_connected_components(conn, cur, factor_view):
         G.clear()
         return False
 
-def find_metis_parts(conn, cur, factor_view, parts):
+def find_metis_parts(conn, parts):
+    """TODO"""
+    # Open a cursor to perform database operations
+    cur = self.conn.cursor()
+    (factor_view, variable_view, weight_view) = messages.get_views(cur)
     # Obtain graph
     (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
 
@@ -460,6 +467,7 @@ def find_metis_parts(conn, cur, factor_view, parts):
     for p in partitions:
         H = G.subgraph(p)
         cut_edges -= set(H.edges())
+        H.clear()
     for edge in cut_edges:
         n1, n2 = edge
         master_variables.add(n1)
@@ -494,7 +502,4 @@ def find_metis_parts(conn, cur, factor_view, parts):
     except:
         conn.rollback()
         G.clear()
-        return False
-    
-
-    
+        return False    

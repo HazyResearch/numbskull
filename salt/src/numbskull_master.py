@@ -54,7 +54,8 @@ def send_to_minion(data, tag, tgt):
 class NumbskullMaster:
     """TODO."""
 
-    def __init__(self, application_dir, machines, partition_type, argv):
+    def __init__(self, application_dir, machines, 
+                 partition_method, partition_type, argv):
         """TODO."""
         # Salt conf init
         self.master_conf_dir = master_conf_dir
@@ -79,6 +80,13 @@ class NumbskullMaster:
         self.num_minions = machines
         self.partition_type = partition_type
 
+        # Partitioning variables
+        self.part_method = partition_method
+
+        # DB variables
+        self.db_url = None
+        self.conn = None
+
     def initialize(self):
         """TODO."""
         time1 = time.time()
@@ -90,7 +98,7 @@ class NumbskullMaster:
         time3 = time.time()
         print("prep_numbskull took " + str(time3 - time2))
 
-        db_url = self.prepare_db()
+        out = self.prepare_db()
         time4 = time.time()
         print("prepare_db took " + str(time4 - time3))
 
@@ -225,38 +233,20 @@ class NumbskullMaster:
         if not success:
             print('ERROR: Numbksull not loaded')
 
-    def prepare_db(self):
-        """TODO."""
+    def open_db_connection(self):
         # obtain database url from file
         with open(self.application_dir + "/db.url", "r") as f:
-            db_url = f.read().strip()
-
-        # Call deepdive to perform everything up to grounding
-        # TODO: check that deepdive ran successfully
-        cmd = ["deepdive", "do", "all"]
-        subprocess.call(cmd, cwd=self.application_dir)
-
-        # Obtain partition information
-        cmd = ["ddlog", "semantic-partition", "app.ddlog",
-               "--ppa",
-               # "-u",
-               "--workers", str(self.num_minions),
-               "--cost-model", "simple.costmodel.txt"]
-        print(" ".join(cmd))
-        partition_json = subprocess.check_output(cmd, cwd=self.application_dir)
-        partition = json.loads(partition_json)
-
-        begin = time.time()
+            self.db_url = f.read().strip()
 
         # Connect to an existing database
         # http://stackoverflow.com/questions/15634092/connect-to-an-uri-in-postgres
-        url = urlparse.urlparse(db_url)
+        url = urlparse.urlparse(self.db_url)
         username = url.username
         password = url.password
         database = url.path[1:]
         hostname = url.hostname
         port = url.port
-        conn = psycopg2.connect(
+        self.conn = psycopg2.connect(
             database=database,
             user=username,
             password=password,
@@ -264,8 +254,84 @@ class NumbskullMaster:
             port=port
         )
 
+    def run_deepdive(self):
+        # Call deepdive to perform everything up to grounding
+        # TODO: check that deepdive ran successfully
+        cmd = ["deepdive", "do", "all"]
+        subprocess.call(cmd, cwd=self.application_dir)
+
+    def run_ddlog(self):
+        # semantic partitioning
+        if self.partition_method == 'sp':
+            cmd = ["ddlog", "semantic-partition", "app.ddlog",
+               "--ppa",
+               # "-u",
+               "--workers", str(self.num_minions),
+               "--cost-model", "simple.costmodel.txt"]
+            partition_json = subprocess.check_output(cmd, 
+                                         cwd=self.application_dir)
+            partition = json.loads(partition_json)
+            return partition
+        # Metis or connected components based partitioning
+        elif self.partition_method == 'metis' or self.partition_method == 'cc':
+            cmd = ["ddlog", "cc-partition", "app.ddlog",
+               "--workers", str(self.num_minions)]
+            partition_json = subprocess.check_output(cmd,
+                                         cwd=self.application_dir)
+            partition = json.loads(partition_json)
+            return partition
+        # Default
+        else:
+            print('ERROR: Invalid partition method!')
+            return False
+
+    def get_fg(self, cur):
+        """TODO"""
+        master_filter = "   partition_key = 'A' " \
+                        "or partition_key = 'B' " \
+                        "or partition_key like 'D%' " \
+                        "or partition_key like 'F%' " \
+                        "or partition_key like 'G%' " \
+                        "or partition_key like 'H%' "
+        get_fg_data_begin = time.time()
+        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
+         self.factor_pt, self.vid) = messages.get_fg_data(cur, master_filter)
+        get_fg_data_end = time.time()
+        print("Done running get_fg_data: " +
+              str(get_fg_data_end - get_fg_data_begin))
+
+        # TODO: could be in numba
+        for (i, v) in enumerate(variable):
+            # D is only variable partition type on master but not owned
+            if self.var_pt[i] == "D":
+                v["isEvidence"] = 4  # not owned var type
+
+        self.ns.loadFactorGraph(weight, variable, factor, fmap,
+                                domain_mask, edges)
+
+    def prepare_db(self):
+        """TODO."""
+        # Run deepdive to perform candidate extraction
+        self.run_deepdive()
+
+        # Obtain partition information
+        partition = self.run_ddlog()
+        if not partition:
+            return False
+
+        # Open DB connection
+        self.open_db_connection()
+
+        # Check if partioning is metis or cc
+        if self.partition_method == 'metis':
+            messages.find_metis_parts(self.conn, self.num_minions)
+        elif self.partition_method == 'cc':
+            messages.find_connected_components(self.conn)
+
+        begin = time.time()
+
         # Open a cursor to perform database operations
-        cur = conn.cursor()
+        cur = self.conn.cursor()
 
         print(len(partition))
         print(partition[0].keys())
@@ -274,7 +340,7 @@ class NumbskullMaster:
         for op in partition[0]["sql_prefix"]:
             cur.execute(op)
         # Make the changes to the database persistent
-        conn.commit()
+        self.conn.commit()
 
         # Select which partitioning scheme to use
         if self.partition_type is not None:
@@ -312,48 +378,18 @@ class NumbskullMaster:
             try:
                 cur.execute(op)
                 # Make the changes to the database persistent
-                conn.commit()
+                self.conn.commit()
             except psycopg2.ProgrammingError:
                 print("Unexpected error:", sys.exc_info())
-                conn.rollback()
+                self.conn.rollback()
         sql_to_apply_end = time.time()
         print("Done running sql_to_apply: " +
               str(sql_to_apply_end - sql_to_apply_begin))
-
-        (factor_view, variable_view, weight_view) = messages.get_views(cur)
-
-        master_filter = "   partition_key = 'A' " \
-                        "or partition_key = 'B' " \
-                        "or partition_key like 'D%' " \
-                        "or partition_key like 'F%' " \
-                        "or partition_key like 'G%' " \
-                        "or partition_key like 'H%' "
-        get_fg_data_begin = time.time()
-        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.vid) = messages.get_fg_data(cur, master_filter)
-        get_fg_data_end = time.time()
-        print("Done running get_fg_data: " +
-              str(get_fg_data_end - get_fg_data_begin))
-
+        # Grab factor graph data
+        self.get_fg(cur)
         # Close communication with the database
         cur.close()
-        conn.close()
-
-        # TODO: could be in numba
-        for (i, v) in enumerate(variable):
-            # D is only variable partition type on master but not owned
-            if self.var_pt[i] == "D":
-                v["isEvidence"] = 4  # not owned var type
-
-        self.ns.loadFactorGraph(weight, variable, factor, fmap,
-                                domain_mask, edges)
-
-        # Close communication with the database
-        cur.close()
-        conn.close()
-        end = time.time()
-        print("inner prepare_db took " + str(end - begin))
-        return db_url
+        self.conn.close()
 
     def load_own_fg(self):
         """TODO."""
@@ -494,7 +530,8 @@ class NumbskullMaster:
 
 
 def main(application_dir, machines, threads_per_machine,
-         learning_epochs, inference_epochs, partition_type):
+         learning_epochs, inference_epochs, 
+         partition_method, partition_type=None):
     """TODO."""
     # Inputs for experiments:
     #   - dataset
@@ -517,7 +554,10 @@ def main(application_dir, machines, threads_per_machine,
             '-r', '0.1',
             '--quiet']
 
-    ns_master = NumbskullMaster(application_dir, machines, partition_type,
+    ns_master = NumbskullMaster(application_dir, 
+                                machines, 
+                                partition_method, 
+                                partition_type,
                                 args)
     ns_master.initialize()
     learn_time = ns_master.learning(learning_epochs)
@@ -527,18 +567,20 @@ def main(application_dir, machines, threads_per_machine,
                        "inference_time": infer_time}
 
 if __name__ == "__main__":
-    if len(sys.argv) == 6 or len(sys.argv) == 7:
+    if len(sys.argv) == 7 or len(sys.argv) == 8:
         application_dir = sys.argv[1]
         machines = int(sys.argv[2])
         threads_per_machine = int(sys.argv[3])
         learning_epochs = int(sys.argv[4])
         inference_epochs = int(sys.argv[5])
+        partition_method = sys.argv[6]
         partition_type = None
-        if len(sys.argv) == 7:
-            partition_type = sys.argv[6]
+        if len(sys.argv) == 8:
+            partition_type = sys.argv[7]
 
         main(application_dir, machines, threads_per_machine,
-             learning_epochs, inference_epochs, partition_type)
+             learning_epochs, inference_epochs,
+             partition_method, partition_type)
     else:
         print("Usage: " + sys.argv[0] +
               " application_dir" +
@@ -546,4 +588,5 @@ if __name__ == "__main__":
               " threads_per_machine" +
               " learning_epochs" +
               " inference_epochs" +
-              " partition_type")
+              " partition_method (cc, metis, sp)" +
+              " partition_type (type for sp)")
