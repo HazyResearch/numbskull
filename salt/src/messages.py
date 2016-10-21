@@ -9,6 +9,7 @@ import codecs
 import numba
 import time
 import networkx as nx
+import nxmetis
 
 # Commands from master to minions (Tags)
 ASSIGN_ID = 'ASSIGN_ID'
@@ -429,3 +430,69 @@ def find_connected_components(conn, cur, factor_view):
         conn.rollback()
         G.clear()
         return False
+
+def find_metis_parts(conn, cur, factor_view, parts):
+    # Obtain graph
+    (factor, factor_pt, fmap, edges) = get_factors(cur, factor_view)
+
+    hyperedges = []
+    for f in factor:
+        newedge = []
+        for i in range(f['ftv_offset'], f['ftv_offset']+f['arity']):
+            newedge.append(fmap[i]['vid'])
+        hyperedges.append(newedge)
+    G = nx.Graph()
+    for e in hyperedges:
+        for i in range(len(e)):
+            for j in range(i+1, len(e)):
+                newedge = (e[i],e[j])
+                G.add_edge(*e)
+    # Run metis to obtain partitioning
+    metis_options = nxmetis.MetisOptions(objtype=nxmetis.enums.MetisObjType.vol)
+    cost, partitions = nxmetis.partition(G, parts, options=metis_options)
+    
+    # Find nodes to master
+    master_variables = set([])
+    # Get all edges
+    cut_edges = set(G.edges())
+    for p in partitions:
+        H = G.subgraph(p)
+        cut_edges -= set(H.edges())
+    for edge in cut_edges:
+        n1, n2 = edge
+        master_variables.add(n1)
+        master_variables.add(n2)
+    # Store parition in DB
+    try:
+        cur.execute("CREATE TABLE variable_to_cc (dd_id bigint, cc_id bigint);")
+    except:
+        conn.rollback()
+        cur.execute("TRUNCATE variable_to_cc;")
+
+    rows = []
+    # Output master variables
+    for node in master_variables:
+        rows.append([node, -1])
+
+    # Output minion variables
+    pid = 0
+    for p in partitions:
+        for node in p:
+            if node not in master_variables:
+                rows.append([node, pid])
+        pid += 1
+    dataText = ','.join(cur.mogrify('(%s,%s)', row) for row in rows)
+    try:
+        cur.execute("INSERT INTO variable_to_cc VALUES " + dataText)
+        if cc_id > 1:
+            cur.execute("CREATE INDEX dd_cc ON variable_to_cc (dd_id);")
+        conn.commit()
+        G.clear()
+        return True
+    except:
+        conn.rollback()
+        G.clear()
+        return False
+    
+
+    
