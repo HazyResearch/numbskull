@@ -158,7 +158,6 @@ class NumbskullMaster:
                 tag = messages.LEARN
                 beginTest = time.time()
                 # TODO: which copy of weight to use when multiple
-                # TODO: learning also needs to send var_value evid
                 weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
                         "v_evid": messages.serialize(var_evid_to_minions),
@@ -298,12 +297,12 @@ class NumbskullMaster:
 
     def get_fg(self, cur):
         """TODO"""
-        master_filter = "   partition_key = 'A' " \
-                        "or partition_key = 'B' " \
-                        "or partition_key like 'D%' " \
-                        "or partition_key like 'F%' " \
-                        "or partition_key like 'G%' " \
-                        "or partition_key like 'H%' "
+        master_filter = "   partition_key similar to 'A(|u)' " \
+                        "or partition_key similar to 'B(|u)' " \
+                        "or partition_key similar to 'D(|u)%' " \
+                        "or partition_key similar to 'F(|u)%' " \
+                        "or partition_key similar to 'G(|u)%' " \
+                        "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
          self.factor_pt, self.var_ufo, self.factor_ufo, self.vid) = \
@@ -450,7 +449,7 @@ class NumbskullMaster:
         self.map_from_minion = [None for i in range(len(self.minions))]
         resp = 0
         while resp < len(self.minions):
-            # TODO: receive map and save
+            # receive map and save
             evdata = self.event_bus.get_event(wait=5,
                                               tag=messages.SYNC_MAPPING_RES,
                                               full=True)

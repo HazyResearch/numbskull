@@ -159,13 +159,13 @@ def start():
 
             # Open a cursor to perform database operations
             cur = conn.cursor()
-            minion_filter = "   partition_key = 'B' " \
-                            "or partition_key = 'C[u]{partition_id}' " \
-                            "or partition_key = 'D[u]{partition_id}' " \
-                            "or partition_key = 'E[u]{partition_id}' " \
-                            "or partition_key = 'F[u]{partition_id}' " \
-                            "or partition_key = 'G[u]{partition_id}' " \
-                            "or partition_key = 'H' "
+            minion_filter = "   partition_key similar to 'B(|u)' " \
+                            "or partition_key similar to 'C(|u){partition_id}' " \
+                            "or partition_key similar to 'D(|u){partition_id}' " \
+                            "or partition_key similar to 'E(|u){partition_id}' " \
+                            "or partition_key similar to 'F(|u){partition_id}' " \
+                            "or partition_key similar to 'G(|u){partition_id}' " \
+                            "or partition_key similar to 'H(|u)' "
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
