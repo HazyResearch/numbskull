@@ -227,7 +227,6 @@ class NumbskullMaster:
 
     def prepare_db(self):
         """TODO."""
-
         # obtain database url from file
         with open(self.application_dir + "/db.url", "r") as f:
             db_url = f.read().strip()
@@ -539,7 +538,7 @@ if __name__ == "__main__":
             partition_type = sys.argv[6]
 
         main(application_dir, machines, threads_per_machine,
-         learning_epochs, inference_epochs, partition_type)
+             learning_epochs, inference_epochs, partition_type)
     else:
         print("Usage: " + sys.argv[0] +
               " application_dir" +
