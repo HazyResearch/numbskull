@@ -321,6 +321,8 @@ def inverse_map(forward, index):
     """TODO."""
     # TODO: should probably also check that nothing is duplicated?
     ans = np.searchsorted(forward, index)
+    print(index)
+    print(forward[ans])
     assert(forward[ans] == index)
     return ans
 
@@ -496,10 +498,13 @@ def find_metis_parts(conn, cur, parts):
     # Output minion variables
     pid = 0
     for p in partitions:
+        only_master = True
         for node in p:
             if node not in master_variables:
+                only_master = False
                 rows.append([node, pid])
-        pid += 1
+        if not only_master:
+            pid += 1
     print(rows)
     dataText = ','.join(cur.mogrify('(%s,%s)', row) for row in rows)
     print(dataText)
