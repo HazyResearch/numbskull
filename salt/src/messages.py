@@ -321,10 +321,14 @@ def inverse_map(forward, index):
     """TODO."""
     # TODO: should probably also check that nothing is duplicated?
     ans = np.searchsorted(forward, index)
-    print(index)
-    print(forward[ans])
     assert(forward[ans] == index)
     return ans
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def variable_exists(forward, index):
+    """TODO."""
+    ans = np.searchsorted(forward, index)
+    return ans < len(forward) and forward[ans] == index
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -356,6 +360,30 @@ def get_fg_data(cur, filt):
     time2 = time.time()
     print("get_variables: " + str(time2 - time1))
 
+    print("factor: ", factor)
+    print("factor_pt: ", factor_pt)
+    print("factor_ufo: ", factor_ufo)
+    print("fmap: ", fmap)
+    print("edges: ", edges)
+    print("vid: ", vid)
+    print("variable: ", variable)
+    print("var_pt: ", var_pt)
+    print("var_ufo: ", var_ufo)
+    print()
+
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
+
+    print("factor: ", factor)
+    print("factor_pt: ", factor_pt)
+    print("factor_ufo: ", factor_ufo)
+    print("fmap: ", fmap)
+    print("edges: ", edges)
+    print("vid: ", vid)
+    print("variable: ", variable)
+    print("var_pt: ", var_pt)
+    print("var_ufo: ", var_ufo)
+    print()
+
     # remap factor to variable
     remap_fmap(fmap, vid)
     time1 = time2
@@ -375,7 +403,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, vid)
+            factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv)
 
 
 def serialize(array):
@@ -519,3 +547,261 @@ def find_metis_parts(conn, cur, parts):
         conn.rollback()
         G.clear()
         return False    
+
+@numba.jit(cache=True, nogil=True)
+def remove_noop(factor, factor_pt, factor_ufo, fmap):
+
+    factor_des, fmap_des = remove_noop_helper(factor, factor_pt, factor_ufo, fmap)
+
+    factor = np.resize(factor, factor_des)
+    factor_pt = np.resize(factor_pt, factor_des)
+    factor_ufo = np.resize(factor_ufo, factor_des)
+
+    fmap = np.resize(fmap, fmap_des)
+
+    return factor, factor_pt, factor_ufo, fmap, fmap_des
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
+    factor_des = 0
+    fmap_des = 0
+
+    for factor_src in range(len(factor)):
+        if factor[factor_src]["factorFunction"] == numbskull.inference.FUNC_NOOP:
+            continue
+
+        factor[factor_des] = factor[factor_src]
+        factor_pt[factor_des] = factor_pt[factor_src]
+        factor_ufo[factor_des] = factor_ufo[factor_src]
+
+        for i in range(factor[factor_src]["arity"]):
+            fmap[fmap_des + i] = fmap[factor[factor_src]["ftv_offset"] + i]
+
+        fmap_des += factor[factor_des]["arity"]
+        factor_des += 1
+
+    return factor_des, fmap_des
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
+    # Count number of factors with UFO
+    n_ufo_recv = 0  # Number of ufo to receive
+    n_ufo_send = 0  # Number of ufo to send
+    for i in range(len(factor)):
+        if factor_ufo[i]:
+            # UFO only makes sense for 2-var factors
+            assert(factor[i]["arity"] == 2)
+
+            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
+            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
+            exist1 = variable_exists(vid, vid1)
+            exist2 = variable_exists(vid, vid2)
+
+            # At least one must be present
+            assert(exist1 or exist2)
+
+            if exist1 and exist2:
+                # Both vars are present
+                # This machine computes the UFO
+                n_ufo_send += 1
+            else:
+                # One var is missing
+                # This machine gets the UFO
+                n_ufo_recv += 1
+
+    ufo_recv = np.empty(n_ufo_recv, dtype=UnaryFactorOpt)
+    ufo_send = np.empty(n_ufo_send, dtype=UnaryFactorOpt)
+    n_ufo_recv = 0
+    n_ufo_send = 0
+    for i in range(len(factor)):
+        if factor_ufo[i]:
+            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
+            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
+            exist1 = variable_exists(vid, vid1)
+            exist2 = variable_exists(vid, vid2)
+
+            # At least one must be present
+            assert(exist1 or exist2)
+
+            if not exist1:
+                # Only vid2 on this machine (must be the UFO)
+                var = vid2
+                # Only vid1 on this machine (must be the UFO)
+            elif not exist2:
+                var = vid1
+            else:
+                # Both on this machine
+                # Check which is actually the UFO
+                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
+                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
+                assert(is_ufo1 != is_ufo2)  # exactly one of these must be UFO
+                if is_ufo1:
+                    var = vid1
+                else:
+                    var = vid2
+
+
+            if exist1 and exist2:
+                ufo_send[n_ufo_send]['vid'] = var
+                ufo_send[n_ufo_send]['weightId'] = factor[i]['weightId']
+
+                n_ufo_send += 1
+            else:
+                ufo_recv[n_ufo_recv]['vid'] = var
+                ufo_recv[n_ufo_recv]['weightId'] = factor[i]['weightId']
+
+                n_ufo_recv += 1
+                factor[i]["factorFunction"] = numbskull.inference.FUNC_NOOP
+
+    return ufo_send, ufo_recv
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def extra_space(vid, variable, ufo_recv):
+    m_factors = len(ufo_recv)
+    m_fmap = 0
+    m_var = 0
+    for ufo in ufo_recv:
+        card = variable[inverse_map(vid, ufo["vid"])]["cardinality"]
+        m_fmap += card
+        m_var += card - 1
+    return m_factors, m_fmap, m_var
+
+@numba.jit(cache=True, nogil=True)
+def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var):
+    ftv_offset = 0
+    if len(factor) > 0:
+        ftv_offset = factor[-1]["ftv_offset"] + factor[-1]["arity"]
+
+    n_vid = np.iinfo(vid.dtype).max - len(vid) + n_var + 1
+    for (i, ufo) in enumerate(ufo_recv):
+        card = variable[inverse_map(vid, ufo["vid"])]["cardinality"]
+
+        factor[n_factors + i]["factorFunction"] = numbskull.inference.FUNC_UFO
+        factor[n_factors + i]["weightId"] = ufo["weightId"]
+        factor[n_factors + i]["featureValue"] = 1 # TODO: feature value may not match
+        factor[n_factors + i]["arity"] = card
+        factor[n_factors + i]["ftv_offset"] = ftv_offset
+
+        factor_pt[n_factors + i] = 0  # TODO: Does this actually matter at all?
+
+        factor_ufo[n_factors + i] = True
+
+        fmap[n_fmap]["vid"] = ufo["vid"]
+        n_fmap += 1
+        for j in range(card - 1):
+            fmap[n_fmap]["vid"] = n_vid
+
+            vid[n_var] = n_vid
+
+            variable[n_var]["isEvidence"] = 4
+            variable[n_var]["initialValue"]
+            variable[n_var]["dataType"]
+            variable[n_var]["cardinality"]
+            variable[n_var]["vtf_offset"]
+
+            var_pt[n_var] = 0  # TODO: Does this actually matter at all?
+
+            var_ufo[n_var] = True
+
+            n_vid += 1
+            n_fmap += 1
+            n_var += 1
+
+        ftv_offset += card
+
+
+@numba.jit(cache=True, nogil=True)
+def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv):
+    n_factors = len(factor)
+    n_fmap = len(fmap)
+    n_var = len(variable)
+
+    m_factors, m_fmap, m_var = extra_space(vid, variable, ufo_recv)
+
+    factor = np.resize(factor, n_factors + m_factors)
+    factor_pt = np.resize(factor_pt, n_factors + m_factors)
+    factor_ufo = np.resize(factor_ufo, n_factors + m_factors)
+
+    fmap = np.resize(fmap, n_fmap + m_fmap)
+
+    vid = np.resize(vid, n_var + m_var)
+    variable = np.resize(variable, n_var + m_var)
+    var_pt = np.resize(var_pt, n_var + m_var)
+    var_ufo = np.resize(var_ufo, n_var + m_var)
+
+    set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var)
+
+    return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
+
+
+@numba.jit(cache=True, nogil=True)
+def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
+
+    ufo_send, ufo_recv = find_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo)
+
+    factor, factor_pt, factor_ufo, fmap, edges = remove_noop(factor, factor_pt.view(np.int8), factor_ufo, fmap)
+
+    # compute unique
+    ufo_send = np.unique(ufo_send)
+    ufo_recv = np.unique(ufo_recv)
+    ufo_send.sort()
+    ufo_recv.sort()
+
+    # add fake factors vars for UFO
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv)
+
+    return factor, factor_pt.view('c'), factor_ufo, fmap, vid, variable, var_pt.view('c'), var_ufo, ufo_send, ufo_recv
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_map_master(vid, var_pt):
+    l = 0
+    for i in range(len(var_pt)):
+        if var_pt[i] == 66:  # 66 = "B"
+            l += 1
+
+    map_to_minions = np.zeros(l, np.int64)
+    l = 0
+    for i in range(len(var_pt)):
+        if var_pt[i] == 66:  # 66 = "B"
+            map_to_minions[l] = vid[i]
+            l += 1
+
+    return map_to_minions
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_map_minion(vid, var_pt):
+    l = 0
+    for i in range(len(var_pt)):
+        if var_pt[i] == 68:  # 68 = "D"
+            l += 1
+
+    map_to_master = np.zeros(l, np.int64)
+    l = 0
+    for i in range(len(var_pt)):
+        if var_pt[i] == 68:  # 68 = "D"
+            map_to_master[l] = vid[i]
+            l += 1
+
+    return map_to_master
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def apply_inverse_map(vid, array):
+    for i in range(len(array)):
+        array[i] = inverse_map(vid, array[i])
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_vars_to_send(map, var_to_send, var_value):
+    # TODO: handle multiple copies
+    for (i, m) in enumerate(map):
+        var_to_send[i] = var_value[m]
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def process_received_vars(map, var_recv, var_value):
+    for (i, v) in enumerate(var_recv):
+        m = map[i]
+        var_value[m] = v

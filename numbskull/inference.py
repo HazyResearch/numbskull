@@ -73,6 +73,7 @@ def potential(var_samp, value, var_copy, weight_copy, weight, variable, factor,
 
 FACTORS = {
     # Factor functions for boolean variables
+    "NOOP": -1,
     "IMPLY_NATURAL": 0,
     "OR": 1,
     "EQUAL": 3,
@@ -133,6 +134,9 @@ FACTORS = {
 
     # h(l_1, l_2) := if l_1 != 0 and l_2 != 0: -1, else: 0
     "DP_GEN_DEP_EXCLUSIVE": 25,
+
+    # Factor functions for distribution
+    "UFO": 30
 }
 
 for (key, value) in FACTORS.items():
@@ -150,7 +154,9 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
     ftv_start = fac["ftv_offset"]
     ftv_end = ftv_start + fac["arity"]
 
-    if fac["factorFunction"] == FUNC_IMPLY_NATURAL:
+    if fac["factorFunction"] == FUNC_NOOP:
+        return 0
+    elif fac["factorFunction"] == FUNC_IMPLY_NATURAL:
         for l in range(ftv_start, ftv_end):
             v = value if (fmap[l]["vid"] == var_samp) else \
                 var_value[var_copy][fmap[l]["vid"]]
@@ -367,6 +373,22 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         return 0 if l1_index == 1 or l2_index == 1 else -1
+
+    ###########################################
+    # FACTORS FOR OPTIMIZING DISTRIBUTED CODE #
+    ###########################################
+    elif factor[factor_id]["factorFunction"] == FUNC_UFO:
+        v = value if fmap[ftv_start]["vid"] == var_samp else \
+            var_value[var_copy][fmap[ftv_start]["vid"]]
+        if v == 0:
+            return 0
+
+        return value if fmap[ftv_start + v - 1]["vid"] == var_samp else \
+               var_value[var_copy][fmap[ftv_start + v - 1]["vid"]]
+
+    ######################
+    # FACTOR NOT DEFINED #
+    ######################
     else:  # FUNC_UNDEFINED
         print("Error: Factor Function", factor[factor_id]["factorFunction"],
               "( used in factor", factor_id, ") is not implemented.")

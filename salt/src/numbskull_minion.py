@@ -169,18 +169,14 @@ def start():
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-             factor_pt, var_ufo, factor_ufo, vid) = \
+             factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv) = \
                 messages.get_fg_data(cur, minion_filter)
 
             # Close communication with the database
             cur.close()
             conn.close()
 
-            # TODO: could be in numba
-            for (i, v) in enumerate(variable):
-                # B is only variable partition type on minions but not owned
-                if var_pt[i] == "B":
-                    v["isEvidence"] = 4  # not owned var type
+            variable[var_pt == "B"]["isEvidence"] = 4  # not owned var type
 
             ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
                                          domain_mask, edges)
@@ -194,25 +190,11 @@ def start():
             map_from_master = messages.deserialize(data["map"], np.int64)
 
             # compute map
-            l = 0
-            for i in range(len(var_pt)):
-                if var_pt[i] == "D":
-                    l += 1
+            map_to_master = messages.compute_map_minion(vid, var_pt.view(np.int8))
 
-            map_to_master = np.zeros(l, np.int64)
-            l = 0
-            for i in range(len(var_pt)):
-                if var_pt[i] == "D":
-                    map_to_master[l] = vid[i]
-                    l += 1
+            messages.apply_inverse_map(vid, map_from_master)
+            messages.apply_inverse_map(vid, map_to_master)
 
-            for i in range(len(map_from_master)):
-                map_from_master[i] = \
-                        messages.inverse_map(vid, map_from_master[i])
-
-            for i in range(len(map_to_master)):
-                map_to_master[i] = \
-                        messages.inverse_map(vid, map_to_master[i])
             variables_to_master = np.zeros(map_to_master.size, np.int64)
             var_evid_to_master = np.zeros(map_to_master.size, np.int64)
 
@@ -223,18 +205,12 @@ def start():
         elif tag == messages.INFER or tag == messages.LEARN:
             variables_from_master = \
                 messages.deserialize(data["values"], np.int64)
-            for i in range(map_from_master.size):
-                m = map_from_master[i]
-                v = variables_from_master[i]
-                ns_minion.ns.factorGraphs[-1].var_value[0][m] = v
+            messages.process_received_vars(map_from_master, variables_from_master, ns_minion.ns.factorGraphs[-1].var_value[0])
 
             if tag == messages.LEARN:
                 var_evid_from_master = \
                     messages.deserialize(data["v_evid"], np.int64)
-                for i in range(map_from_master.size):
-                    m = map_from_master[i]
-                    v = var_evid_from_master[i]
-                    ns_minion.ns.factorGraphs[-1].var_value_evid[0][m] = v
+                messages.process_received_vars(map_from_master, var_evid_from_master, ns_minion.ns.factorGraphs[-1].var_value_evid[0])
 
                 ns_minion.ns.factorGraphs[-1].weight_value[0] = \
                         messages.deserialize(data["weight"], np.float64)
@@ -252,19 +228,16 @@ def start():
             log.debug("INFERENCE LOOP TOOK " + str(end - begin))
 
             # Respond to master
-            for (i, m) in enumerate(map_to_master):
-                variables_to_master[i] = \
-                    ns_minion.ns.factorGraphs[-1].var_value[0][m]
+            messages.compute_vars_to_send(map_to_master, variables_to_master, ns_minion.ns.factorGraphs[-1].var_value[0])
 
             if tag == messages.INFER:
                 data = {"pid": partition_id,
                         "values": messages.serialize(variables_to_master)}
                 __salt__['event.send'](messages.INFER_RES, data)
             else:
-                for (i, m) in enumerate(map_to_master):
-                    var_evid_to_master[i] = \
-                        ns_minion.ns.factorGraphs[-1].var_value_evid[0][m]
+                messages.compute_vars_to_send(map_to_master, var_evid_to_master, ns_minion.ns.factorGraphs[-1].var_value_evid[0])
                 dweight = ns_minion.ns.factorGraphs[-1].weight_value[0] - w0
+
                 data = {"pid": partition_id,
                         "values": messages.serialize(variables_to_master),
                         "v_evid": messages.serialize(var_evid_to_master),

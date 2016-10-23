@@ -125,9 +125,6 @@ class NumbskullMaster:
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
         var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
 
-        if learn:
-            var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
-
         for i in range(epochs):
             print("Inference loop", i)
             # sample own variables
@@ -144,19 +141,15 @@ class NumbskullMaster:
 
             # gather values to ship to minions
             # TODO: handle multiple copies
-            for (i, m) in enumerate(self.map_to_minions):
-                variables_to_minions[i] = \
-                        self.ns.factorGraphs[-1].var_value[0][m]
+            messages.compute_vars_to_send(self.map_to_minions, variables_to_minions, self.ns.factorGraphs[-1].var_value[0])
 
             if learn:
-                for (i, m) in enumerate(self.map_to_minions):
-                    var_evid_to_minions[i] = \
-                            self.ns.factorGraphs[-1].var_value_evid[0][m]
+                messages.compute_vars_to_send(self.map_to_minions, var_evid_to_minions, self.ns.factorGraphs[-1].var_value_evid[0])
 
             # Tell minions to sample
+            beginTest = time.time()
             if learn:
                 tag = messages.LEARN
-                beginTest = time.time()
                 # TODO: which copy of weight to use when multiple
                 weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
@@ -164,7 +157,6 @@ class NumbskullMaster:
                         "weight": messages.serialize(weight_value)}
             else:
                 tag = messages.INFER
-                beginTest = time.time()
                 data = {"values": messages.serialize(variables_to_minions)}
 
             if self.num_minions != 0:
@@ -186,15 +178,12 @@ class NumbskullMaster:
                     pid = data["pid"]
                     # Process variables from minions
                     vfmin = messages.deserialize(data["values"], np.int64)
-                    for (i, v) in enumerate(vfmin):
-                        m = self.map_from_minion[pid][i]
-                        self.ns.factorGraphs[-1].var_value[0][m] = v
+                    messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value[0])
 
                     if learn:
                         vfmin = messages.deserialize(data["v_evid"], np.int64)
-                        for (i, v) in enumerate(vfmin):
-                            m = self.map_from_minion[pid][i]
-                            self.ns.factorGraphs[-1].var_value_evid[0][m] = v
+                        messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value_evid[0])
+
                         self.ns.factorGraphs[-1].weight_value[0] += \
                             messages.deserialize(data["dw"], np.float64)
 
@@ -274,8 +263,8 @@ class NumbskullMaster:
         # semantic partitioning
         if self.partition_method == 'sp':
             cmd = ["ddlog", "semantic-partition", "app.ddlog",
-                   "--ppa",
-                   # "-u",
+                   "--ppc",
+                   "-u",
                    "--workers", str(self.num_minions),
                    "--cost-model", "simple.costmodel.txt"]
             partition_json = subprocess.check_output(cmd, 
@@ -305,17 +294,13 @@ class NumbskullMaster:
                         "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
         (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid) = \
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid, self.ufo_send, self.ufo_recv) = \
             messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
               str(get_fg_data_end - get_fg_data_begin))
 
-        # TODO: could be in numba
-        for (i, v) in enumerate(variable):
-            # D is only variable partition type on master but not owned
-            if self.var_pt[i] == "D":
-                v["isEvidence"] = 4  # not owned var type
+        variable[self.var_pt == "D"]["isEvidence"] = 4  # not owned var type
 
         self.ns.loadFactorGraph(weight, variable, factor, fmap,
                                 domain_mask, edges)
@@ -425,18 +410,7 @@ class NumbskullMaster:
 
     def sync_mapping(self):
         """TODO."""
-        # compute map
-        l = 0
-        for i in range(len(self.var_pt)):
-            if self.var_pt[i] == "B":
-                l += 1
-
-        self.map_to_minions = np.zeros(l, np.int64)
-        l = 0
-        for i in range(len(self.var_pt)):
-            if self.var_pt[i] == "B":
-                self.map_to_minions[l] = self.vid[i]
-                l += 1
+        self.map_to_minions = messages.compute_map_master(self.vid, self.var_pt.view(np.int8))
 
         # send mapping to minions
         tag = messages.SYNC_MAPPING
@@ -460,14 +434,10 @@ class NumbskullMaster:
                 resp += 1
         print("DONE WITH SENDING MAPPING")
 
-        for i in range(len(self.map_to_minions)):
-            self.map_to_minions[i] = \
-                messages.inverse_map(self.vid, self.map_to_minions[i])
+        messages.apply_inverse_map(self.vid, self.map_to_minions)
 
         for i in range(len(self.map_from_minion)):
-            for j in range(len(self.map_from_minion[i])):
-                self.map_from_minion[i][j] = \
-                    messages.inverse_map(self.vid, self.map_from_minion[i][j])
+            messages.apply_inverse_map(self.vid, self.map_from_minion[i])
 
     # Helper
     def parse_args(self, argv):

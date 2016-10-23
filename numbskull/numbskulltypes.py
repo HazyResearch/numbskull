@@ -34,3 +34,6 @@ FactorToVar = np.dtype([("vid", np.int64),
 VarToFactor = np.dtype([("value", np.int64),
                         ("factor_index_offset", np.int64),
                         ("factor_index_length", np.int64)])
+
+UnaryFactorOpt = np.dtype([('vid', np.int64),
+                           ('weightId', np.int64)])
