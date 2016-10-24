@@ -173,7 +173,6 @@ class NumbskullMaster:
                 messages.clear_ufo_values(self.ns.factorGraphs[-1].var_value_evid[0], self.ufo_var_begin)
 
             resp = 0
-            print(80*"*")
             while resp < len(self.minions):
                 tag = messages.LEARN_RES if learn else messages.INFER_RES
                 evdata = self.event_bus.get_event(wait=5,
@@ -195,6 +194,9 @@ class NumbskullMaster:
 
                         self.ns.factorGraphs[-1].weight_value[0] += \
                             messages.deserialize(data["dw"], np.float64)
+
+            end1 = time.time()
+            print("FULL " + mode + " LOOP TOOK " + str(end1 - begin1))
 
         # TODO: get and return marginals
         # TODO: switch to proper probs
