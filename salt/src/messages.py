@@ -804,7 +804,7 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
     return ufo_start, ufo_map
 
 
-#@numba.jit(nopython=True, cache=True, nogil=True)
+@numba.jit(nopython=True, cache=True, nogil=True)
 def compute_ufo_values(factor, fmap, var_value, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo):
     var_copy = 0
     ufo_index = 0
