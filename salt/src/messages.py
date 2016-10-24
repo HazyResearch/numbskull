@@ -372,6 +372,9 @@ def get_fg_data(cur, filt):
     print()
 
     factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
+    time1 = time2
+    time2 = time.time()
+    print("process_ufo: " + str(time2 - time1))
 
     print("factor: ", factor)
     print("factor_pt: ", factor_pt)
