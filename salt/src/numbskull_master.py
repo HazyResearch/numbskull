@@ -99,13 +99,23 @@ class NumbskullMaster:
         time3 = time.time()
         print("prep_numbskull took " + str(time3 - time2))
 
-        out = self.prepare_db()
+        # Open DB connection
+        self.open_db_connection()
+
+        # Open a cursor to perform database operations
+        cur = self.conn.cursor()
+
+        out = self.prepare_db(cur)
         time4 = time.time()
         print("prepare_db took " + str(time4 - time3))
 
-        self.load_minions_fg(self.db_url)
+        self.load_all_fg(self.db_url, cur)
         time5 = time.time()
-        print("load_minions_fg took " + str(time5 - time4))
+        print("load_all_fg took " + str(time5 - time4))
+
+        # Close communication with the database
+        cur.close()
+        self.conn.close()
 
         self.sync_mapping()
         time6 = time.time()
@@ -120,14 +130,14 @@ class NumbskullMaster:
 
     def inference(self, epochs=1, learn=False):
         """TODO."""
-        mode = "LEARNING" if learn else "INFERENCE"
-        print("BEGINNING " + mode)
+        mode = "Learning" if learn else "Inference"
+        print("BEGINNING " + mode.upper())
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
         var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
 
         for i in range(epochs):
-            print("Inference loop", i)
+            print(mode + " loop " + str(i))
             # sample own variables
             begin1 = time.time()
             fgID = 0
@@ -196,7 +206,7 @@ class NumbskullMaster:
                             messages.deserialize(data["dw"], np.float64)
 
             end1 = time.time()
-            print("FULL " + mode + " LOOP TOOK " + str(end1 - begin1))
+            print("FULL " + mode + " LOOP TOOK " + str(end1 - begin1) + "\n")
 
         # TODO: get and return marginals
         # TODO: switch to proper probs
@@ -316,7 +326,7 @@ class NumbskullMaster:
         self.ns.loadFactorGraph(weight, variable, self.factor, self.fmap,
                                 domain_mask, edges)
 
-    def prepare_db(self):
+    def prepare_db(self, cur):
         """TODO."""
         # Run deepdive to perform candidate extraction
         self.run_deepdive()
@@ -325,12 +335,6 @@ class NumbskullMaster:
         partition = self.run_ddlog()
         if not partition:
             return False
-
-        # Open DB connection
-        self.open_db_connection()
-
-        # Open a cursor to perform database operations
-        cur = self.conn.cursor()
 
         # Define functions that sql needs
         for op in partition[0]["sql_prefix"]:
@@ -393,14 +397,8 @@ class NumbskullMaster:
         print("Done running sql_to_apply: " +
               str(sql_to_apply_end - sql_to_apply_begin))
 
-        # Grab factor graph data
-        self.get_fg(cur)
 
-        # Close communication with the database
-        cur.close()
-        self.conn.close()
-
-    def load_minions_fg(self, db_url):
+    def load_all_fg(self, db_url, cur):
         """TODO."""
         tag = messages.LOAD_FG
         data = {"db_url": db_url}
@@ -409,7 +407,14 @@ class NumbskullMaster:
                                          [data, tag],
                                          expr_form='list')
 
+        begin = time.time()
+        # Grab factor graph data
+        self.get_fg(cur)
+        end = time.time()
+        print("get_fg", end - begin)
+
         print("WAITING FOR MINION LOAD_FG_RES")
+        begin = time.time()
         resp = 0
         while resp < len(self.minions):
             evdata = self.event_bus.get_event(wait=5,
@@ -417,7 +422,8 @@ class NumbskullMaster:
                                               full=True)
             if evdata:
                 resp += 1
-        print("DONE WAITING FOR MINION LOAD_FG_RES")
+        end = time.time()
+        print("DONE WAITING FOR MINION LOAD_FG_RES", end - begin)
 
     def sync_mapping(self):
         """TODO."""
