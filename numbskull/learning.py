@@ -10,7 +10,7 @@ from numbskull.inference import draw_sample, eval_factor
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def learnthread(shardID, nshards, step, regularization, reg_param,
+def learnthread(shardID, nshards, step, regularization, reg_param, truncation,
                 var_copy, weight_copy, weight,
                 variable, factor, fmap,
                 vmap, factor_index, Z, fids, var_value, var_value_evid,
@@ -24,7 +24,7 @@ def learnthread(shardID, nshards, step, regularization, reg_param,
         if variable[var_samp]["isEvidence"] == 4:
             # This variable is not owned by this machine
             continue
-        sample_and_sgd(var_samp, step, regularization, reg_param,
+        sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
                        var_copy, weight_copy, weight, variable,
                        factor, fmap, vmap,
                        factor_index, Z[shardID], fids[shardID], var_value,
@@ -44,8 +44,8 @@ def get_factor_id_range(variable, vmap, var_samp, val):
 
 
 @jit(nopython=True, cache=True, nogil=True)
-def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
-                   weight_copy, weight, variable, factor, fmap,
+def sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
+                   var_copy, weight_copy, weight, variable, factor, fmap,
                    vmap, factor_index, Z, fids, var_value, var_value_evid,
                    weight_value, learn_non_evidence):
     """TODO."""
@@ -87,6 +87,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
         s = range_fids[1] - range_fids[0]
         fids[:s] = factor_index[range_fids[0]:range_fids[1]]
 
+    truncate = random.random() < 1.0 / truncation
     # go over all factor ids, ignoring dupes
     last_fid = -1  # numba 0.28 would complain if this were None
     for factor_id in fids[:s]:
@@ -115,10 +116,10 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, var_copy,
             # Truncated Gradient
             # "Sparse Online Learning via Truncated Gradient"
             #  Langford et al. 2009
-            l1delta = reg_param * step
             w -= step * gradient
-            w = max(0, w - l1delta) if w > 0 \
-                else min(0, w + l1delta)
+            if truncate:
+                l1delta = reg_param * step * truncation
+                w = max(0, w - l1delta) if w > 0 else min(0, w + l1delta)
         else:
             w -= step * gradient
         weight_value[weight_copy][weight_id] = w

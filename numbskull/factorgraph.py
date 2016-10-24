@@ -175,8 +175,8 @@ class FactorGraph(object):
         if diagnostics:
             self.diagnostics(epochs)
 
-    def learn(self, burnin_epochs, epochs, stepsize, decay,
-              regularization, reg_param, diagnostics=False, verbose=False,
+    def learn(self, burnin_epochs, epochs, stepsize, decay, regularization,
+              reg_param, truncation, diagnostics=False, verbose=False,
               learn_non_evidence=False, var_copy=0, weight_copy=0):
         """TODO."""
         # Burn-in
@@ -195,8 +195,8 @@ class FactorGraph(object):
                 sys.stdout.flush()  # otherwise output refuses to show in DD
             with Timer() as timer:
                 args = (self.threads, stepsize, regularization, reg_param,
-                        var_copy, weight_copy, self.weight, self.variable,
-                        self.factor, self.fmap,
+                        truncation, var_copy, weight_copy, self.weight,
+                        self.variable, self.factor, self.fmap,
                         self.vmap, self.factor_index, self.Z, self.fids,
                         self.var_value, self.var_value_evid,
                         self.weight_value, learn_non_evidence)

@@ -95,6 +95,15 @@ arguments = [
          'default': 2,
          'type': int,
          'help': 'regularization (l1 or l2) [Enter as "1" or "2"]'}),
+    (('-k', '--truncation'),
+        {'metavar': 'TRUNCATION',
+         'dest': 'truncation',
+         'default': 1,
+         'type': int,
+         'help': 'If using l1 regularization, truncation is applied with '
+                 'probability 1/k and with magnitude '
+                 'step_size * reg_param * k. If not using l1 regularization, '
+                 'this parameter has no effect.'}),
     (('-b', '--burn_in'),
         {'metavar': 'BURN_IN',
          'dest': 'burn_in',
@@ -359,9 +368,10 @@ class NumbSkull(object):
         decay = self.decay
         regularization = self.regularization
         reg_param = self.reg_param
+        truncation = self.truncation
         fg = self.factorGraphs[fgID]
         fg.learn(burn_in, n_learning_epoch,
-                 stepsize, decay, regularization, reg_param,
+                 stepsize, decay, regularization, reg_param, truncation,
                  diagnostics=not self.quiet,
                  verbose=self.verbose,
                  learn_non_evidence=self.learn_non_evidence)
