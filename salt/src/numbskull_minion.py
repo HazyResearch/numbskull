@@ -192,15 +192,16 @@ def start():
             # compute map
             map_to_master = messages.compute_map_minion(vid, var_pt.view(np.int8))
 
+            data = {"pid": partition_id,
+                    "map": messages.serialize(map_to_master)}
+            __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
+
             messages.apply_inverse_map(vid, map_from_master)
             messages.apply_inverse_map(vid, map_to_master)
 
             variables_to_master = np.zeros(map_to_master.size, np.int64)
             var_evid_to_master = np.zeros(map_to_master.size, np.int64)
 
-            data = {"pid": partition_id,
-                    "map": messages.serialize(map_to_master)}
-            __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
             log.debug("DONE SYNC_MAPPING")
         elif tag == messages.INFER or tag == messages.LEARN:
             variables_from_master = \
