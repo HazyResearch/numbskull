@@ -383,16 +383,11 @@ class NumbskullMaster:
         print("Running sql_to_apply")
         sql_to_apply_begin = time.time()
         for op in p0["sql_to_apply"]:
-            # Currently ignoring the column already exists error generated
-            # from ALTER statements
-            # TODO: better fix?
-            try:
-                cur.execute(op)
-                # Make the changes to the database persistent
-                self.conn.commit()
-            except psycopg2.ProgrammingError:
-                print("Unexpected error:", sys.exc_info())
-                self.conn.rollback()
+            cur.execute(op)
+
+        # Make the changes to the database persistent
+        self.conn.commit()
+
         sql_to_apply_end = time.time()
         print("Done running sql_to_apply: " +
               str(sql_to_apply_end - sql_to_apply_begin))
