@@ -371,7 +371,7 @@ def get_fg_data(cur, filt):
     print("var_ufo: ", var_ufo)
     print()
 
-    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
 
     print("factor: ", factor)
     print("factor_pt: ", factor_pt)
@@ -403,7 +403,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv)
+            factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin)
 
 
 def serialize(array):
@@ -566,6 +566,7 @@ def remove_noop(factor, factor_pt, factor_ufo, fmap):
 def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
     factor_des = 0
     fmap_des = 0
+    ftv_offset = 0
 
     for factor_src in range(len(factor)):
         if factor[factor_src]["factorFunction"] == numbskull.inference.FUNC_NOOP:
@@ -574,6 +575,9 @@ def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
         factor[factor_des] = factor[factor_src]
         factor_pt[factor_des] = factor_pt[factor_src]
         factor_ufo[factor_des] = factor_ufo[factor_src]
+
+        factor[factor_des]["ftv_offset"] = ftv_offset
+        ftv_offset += factor[factor_des]["arity"]
 
         for i in range(factor[factor_src]["arity"]):
             fmap[fmap_des + i] = fmap[factor[factor_src]["ftv_offset"] + i]
@@ -733,7 +737,105 @@ def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
     set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var)
 
-    return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
+    return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, n_var
+
+
+# @numba.jit(cache=True, nogil=True)  # TODO this really need to be in numba
+def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send):
+    ufo_length = np.zeros(ufo_send.size + 1, np.int64)
+    if len(ufo_send) == 0:
+        return ufo_length, np.zeros(0, np.int64)
+
+    for i in range(len(factor)):
+        if factor_ufo[i]:
+            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
+            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
+            exist1 = variable_exists(vid, vid1)
+            exist2 = variable_exists(vid, vid2)
+
+            if exist1 and exist2:
+                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
+                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
+                if is_ufo1:
+                    var = vid1
+                else:
+                    var = vid2
+                weightId = factor[i]['weightId']
+
+                # TODO: is there a way to not create a list of length 1
+                ufo = np.empty(1, dtype=UnaryFactorOpt)
+                ufo[0]["vid"] = var
+                ufo[0]["weightId"] = weightId
+                j = np.searchsorted(ufo_send, ufo[0])  # TODO: this prevents nopython numba
+                assert(ufo_send[j] == ufo[0])
+
+                ufo_length[j + 1] += 1
+
+    ufo_start = np.cumsum(ufo_length)
+    ufo_length = np.zeros(ufo_send.size, np.int64)
+    ufo_map = np.zeros(ufo_start[-1], np.int64)
+
+    for i in range(len(factor)):
+        if factor_ufo[i]:
+            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
+            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
+            exist1 = variable_exists(vid, vid1)
+            exist2 = variable_exists(vid, vid2)
+
+            if exist1 and exist2:
+                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
+                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
+                if is_ufo1:
+                    var = vid1
+                else:
+                    var = vid2
+                weightId = factor[i]['weightId']
+
+                # TODO: is there a way to not create a list of length 1
+                ufo = np.empty(1, dtype=UnaryFactorOpt)
+                ufo[0]["vid"] = var
+                ufo[0]["weightId"] = weightId
+                j = np.searchsorted(ufo_send, ufo[0])  # TODO: this prevents nopython numba
+                assert(ufo_send[j] == ufo[0])
+
+                ufo_map[ufo_start[j] + ufo_length[j]] = i
+                ufo_length[j] += 1
+
+    return ufo_start, ufo_map
+
+
+#@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_ufo_values(factor, fmap, var_value, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo):
+    var_copy = 0
+    ufo_index = 0
+
+    for i in range(len(ufo)):
+        ufo[i] = 0
+
+    for i in range(len(ufo_send)):
+        var_samp = ufo_send[i]["vid"]
+        for j in range(ufo_start[i], ufo_start[i + 1]):
+            factor_id = ufo_map[j]
+            value = 0
+
+            f0 = numbskull.inference.eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap, var_value)
+
+            for value in range(1, variable[var_samp]["cardinality"]):
+                ufo[ufo_index + value - 1] += numbskull.inference.eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap, var_value) - f0
+        ufo_index += variable[var_samp]["cardinality"] - 1
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def clear_ufo_values(var_value, ufo_var_begin):
+    for i in range(ufo_var_begin, len(var_value)):
+        var_value[i] = 0
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def apply_ufo_values(factor, fmap, var_value, ufo_map, ufo_values):
+    for i in range(len(ufo_map)):
+        assert(factor[i]["arity"] == 2)
+        var_value[fmap[factor[i]["ftv_offset"] + 1]["vid"]] += ufo_values[i]
 
 
 @numba.jit(cache=True, nogil=True)
@@ -750,9 +852,12 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     ufo_recv.sort()
 
     # add fake factors vars for UFO
-    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv)
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_var_begin = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv)
 
-    return factor, factor_pt.view('c'), factor_ufo, fmap, vid, variable, var_pt.view('c'), var_ufo, ufo_send, ufo_recv
+    # Provide a fast method of finding factors that need to be evaluated for UFO
+    ufo_start, ufo_map = compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send)
+
+    return factor, factor_pt.view('c'), factor_ufo, fmap, vid, variable, var_pt.view('c'), var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def compute_map_master(vid, var_pt):
@@ -805,3 +910,13 @@ def process_received_vars(map, var_recv, var_value):
     for (i, v) in enumerate(var_recv):
         m = map[i]
         var_value[m] = v
+
+
+#@numba.jit(cache=True, nogil=True)
+def ufo_to_factor(ufo, ufo_map, n_factors):
+    index = np.empty(ufo.size, np.int64)
+    for i in range(len(ufo)):
+        j = np.searchsorted(ufo_map, ufo[i])
+        assert(ufo_map[j] == ufo[i])
+        index[i] = n_factors - len(ufo_map) + j
+    return index

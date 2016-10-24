@@ -10,6 +10,7 @@ import logging
 import os.path
 import numbskull
 from numbskull import numbskull
+from numbskull.numbskulltypes import *
 import argparse
 import sys
 import subprocess
@@ -166,7 +167,13 @@ class NumbskullMaster:
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
+
+            messages.clear_ufo_values(self.ns.factorGraphs[-1].var_value[0], self.ufo_var_begin)
+            if learn:
+                messages.clear_ufo_values(self.ns.factorGraphs[-1].var_value_evid[0], self.ufo_var_begin)
+
             resp = 0
+            print(80*"*")
             while resp < len(self.minions):
                 tag = messages.LEARN_RES if learn else messages.INFER_RES
                 evdata = self.event_bus.get_event(wait=5,
@@ -179,10 +186,12 @@ class NumbskullMaster:
                     # Process variables from minions
                     vfmin = messages.deserialize(data["values"], np.int64)
                     messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value[0])
+                    messages.apply_ufo_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value[0], self.ufo_from_minion[pid], messages.deserialize(data["ufo"], np.int64))
 
                     if learn:
                         vfmin = messages.deserialize(data["v_evid"], np.int64)
                         messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value_evid[0])
+                        messages.apply_ufo_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value_evid[0], self.ufo_from_minion[pid], messages.deserialize(data["ufo_evid"], np.int64))
 
                         self.ns.factorGraphs[-1].weight_value[0] += \
                             messages.deserialize(data["dw"], np.float64)
@@ -293,8 +302,8 @@ class NumbskullMaster:
                         "or partition_key similar to 'G(|u)%' " \
                         "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
-        (weight, variable, factor, fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid, self.ufo_send, self.ufo_recv) = \
+        (weight, variable, self.factor, self.fmap, domain_mask, edges, self.var_pt,
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin) = \
             messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
@@ -302,7 +311,7 @@ class NumbskullMaster:
 
         variable[self.var_pt == "D"]["isEvidence"] = 4  # not owned var type
 
-        self.ns.loadFactorGraph(weight, variable, factor, fmap,
+        self.ns.loadFactorGraph(weight, variable, self.factor, self.fmap,
                                 domain_mask, edges)
 
     def prepare_db(self):
@@ -421,6 +430,7 @@ class NumbskullMaster:
                                          expr_form='list')
 
         self.map_from_minion = [None for i in range(len(self.minions))]
+        self.ufo_from_minion = [None for i in range(len(self.minions))]
         resp = 0
         while resp < len(self.minions):
             # receive map and save
@@ -429,8 +439,10 @@ class NumbskullMaster:
                                               full=True)
             if evdata:
                 tag, data = evdata['tag'], evdata['data']['data']
-                self.map_from_minion[data["pid"]] = \
+                pid = data["pid"]
+                self.map_from_minion[pid] = \
                     messages.deserialize(data["map"], np.int64)
+                self.ufo_from_minion[pid] = messages.ufo_to_factor(messages.deserialize(data["ufo"], UnaryFactorOpt), self.ufo_recv, len(self.factor_pt))
                 resp += 1
         print("DONE WITH SENDING MAPPING")
 

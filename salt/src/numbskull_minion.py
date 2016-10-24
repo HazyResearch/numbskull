@@ -169,7 +169,7 @@ def start():
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-             factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv) = \
+             factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin) = \
                 messages.get_fg_data(cur, minion_filter)
 
             # Close communication with the database
@@ -193,7 +193,8 @@ def start():
             map_to_master = messages.compute_map_minion(vid, var_pt.view(np.int8))
 
             data = {"pid": partition_id,
-                    "map": messages.serialize(map_to_master)}
+                    "map": messages.serialize(map_to_master),
+                    "ufo": messages.serialize(ufo_send)}
             __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
 
             messages.apply_inverse_map(vid, map_from_master)
@@ -201,6 +202,11 @@ def start():
 
             variables_to_master = np.zeros(map_to_master.size, np.int64)
             var_evid_to_master = np.zeros(map_to_master.size, np.int64)
+
+            m_factors, m_fmap, m_var = messages.extra_space(vid, variable, ufo_send)
+            ufo_to_master = np.empty(m_var, np.int64)
+            ufo_evid_to_master = np.empty(m_var, np.int64)
+
 
             log.debug("DONE SYNC_MAPPING")
         elif tag == messages.INFER or tag == messages.LEARN:
@@ -230,18 +236,27 @@ def start():
 
             # Respond to master
             messages.compute_vars_to_send(map_to_master, variables_to_master, ns_minion.ns.factorGraphs[-1].var_value[0])
+            messages.compute_ufo_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo_to_master)
+            print(80 * "*")
+            print(ns_minion.ns.factorGraphs[-1].var_value)
+            print(ufo_to_master)
+
 
             if tag == messages.INFER:
                 data = {"pid": partition_id,
-                        "values": messages.serialize(variables_to_master)}
+                        "values": messages.serialize(variables_to_master),
+                        "ufo": messages.serialize(ufo_to_master)}
                 __salt__['event.send'](messages.INFER_RES, data)
             else:
                 messages.compute_vars_to_send(map_to_master, var_evid_to_master, ns_minion.ns.factorGraphs[-1].var_value_evid[0])
+                messages.compute_ufo_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value_evid, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo_evid_to_master)
                 dweight = ns_minion.ns.factorGraphs[-1].weight_value[0] - w0
 
                 data = {"pid": partition_id,
                         "values": messages.serialize(variables_to_master),
                         "v_evid": messages.serialize(var_evid_to_master),
+                        "ufo": messages.serialize(ufo_to_master),
+                        "ufo_evid": messages.serialize(ufo_to_master),
                         "dw": messages.serialize(dweight)}
                 __salt__['event.send'](messages.LEARN_RES, data)
         loop_end = time.time()
