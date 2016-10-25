@@ -743,9 +743,51 @@ def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
     return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, n_var
 
 
-# @numba.jit(cache=True, nogil=True)  # TODO this really need to be in numba
+@numba.jit(nopython=True, cache=True, nogil=True)
+def ufo_equal(u, v):
+    """Numba-compatible equality check."""
+
+    # TODO: is there a way to do this in a safer way?
+    #       (in the sense that this changes if def of UFO changes)
+    return u["vid"] == v["vid"] and \
+           u["weightId"] == v["weightId"]
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def ufo_less(u, v):
+    """Numba-compatible equality check."""
+
+    # TODO: is there a way to do this in a safer way?
+    if u["vid"] != v["vid"]:
+        return u["vid"] < v["vid"]
+    return u["weightId"] < v["weightId"]
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def ufo_check_sorted(a):
+    """Checks if a numpy-array of ufo's is sorted."""
+    for i in range(1, len(a)):
+        assert(ufo_less(a[i - 1], a[i]))
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def ufo_searchsorted(a, b):
+    begin = -1
+    end = len(a)
+    while begin + 1 < end:
+        mid = (begin + end) / 2
+        if ufo_less(a[mid], b):
+            begin = mid
+        else:
+            end = mid
+    return end
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)  # TODO this really need to be in numba
 def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send):
-    ufo_length = np.zeros(ufo_send.size + 1, np.int64)
+    ufo_length = np.zeros(ufo_send.size, np.int64)
+    ufo_start = np.zeros(ufo_send.size + 1, np.int64)
+    ufo = np.empty(1, dtype=UnaryFactorOpt)[0]
     if len(ufo_send) == 0:
         return ufo_length, np.zeros(0, np.int64)
 
@@ -766,16 +808,17 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                 weightId = factor[i]['weightId']
 
                 # TODO: is there a way to not create a list of length 1
-                ufo = np.empty(1, dtype=UnaryFactorOpt)
-                ufo[0]["vid"] = var
-                ufo[0]["weightId"] = weightId
-                j = np.searchsorted(ufo_send, ufo[0])  # TODO: this prevents nopython numba
-                assert(ufo_send[j] == ufo[0])
+                ufo["vid"] = var
+                ufo["weightId"] = weightId
+                j = ufo_searchsorted(ufo_send, ufo)
+                val = ufo_equal(ufo_send[j], ufo)
 
-                ufo_length[j + 1] += 1
+                ufo_length[j] += 1
 
-    ufo_start = np.cumsum(ufo_length)
-    ufo_length = np.zeros(ufo_send.size, np.int64)
+    for i in range(ufo_send.size):
+        ufo_start[i + 1] = ufo_start[i] + ufo_length[i]
+        ufo_length[i] = 0
+
     ufo_map = np.zeros(ufo_start[-1], np.int64)
 
     for i in range(len(factor)):
@@ -794,12 +837,10 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                     var = vid2
                 weightId = factor[i]['weightId']
 
-                # TODO: is there a way to not create a list of length 1
-                ufo = np.empty(1, dtype=UnaryFactorOpt)
-                ufo[0]["vid"] = var
-                ufo[0]["weightId"] = weightId
-                j = np.searchsorted(ufo_send, ufo[0])  # TODO: this prevents nopython numba
-                assert(ufo_send[j] == ufo[0])
+                ufo["vid"] = var
+                ufo["weightId"] = weightId
+                j = ufo_searchsorted(ufo_send, ufo)
+                assert(ufo_equal(ufo_send[j], ufo))
 
                 ufo_map[ufo_start[j] + ufo_length[j]] = i
                 ufo_length[j] += 1
@@ -844,9 +885,15 @@ def apply_ufo_values(factor, fmap, var_value, ufo_map, ufo_values):
 @numba.jit(cache=True, nogil=True)
 def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
 
+    time1 = time.time()
     ufo_send, ufo_recv = find_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo)
+    time2 = time.time()
+    print("find_ufo took ", time2 - time1)
 
     factor, factor_pt, factor_ufo, fmap, edges = remove_noop(factor, factor_pt.view(np.int8), factor_ufo, fmap)
+    time1 = time2
+    time2 = time.time()
+    print("remove_noop took ", time2 - time1)
 
     # compute unique
     ufo_send = np.unique(ufo_send)
@@ -854,11 +901,25 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     ufo_send.sort()
     ufo_recv.sort()
 
+    # Checking that numpy sort uses the same comparison
+    ufo_check_sorted(ufo_send)
+    ufo_check_sorted(ufo_recv)
+
+    time1 = time2
+    time2 = time.time()
+    print("unique + sort took ", time2 - time1)
+
     # add fake factors vars for UFO
     factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_var_begin = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv)
+    time1 = time2
+    time2 = time.time()
+    print("add_ufo took ", time2 - time1)
 
     # Provide a fast method of finding factors that need to be evaluated for UFO
     ufo_start, ufo_map = compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send)
+    time1 = time2
+    time2 = time.time()
+    print("compute_ufo_map took ", time2 - time1)
 
     return factor, factor_pt.view('c'), factor_ufo, fmap, vid, variable, var_pt.view('c'), var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin
 
@@ -915,11 +976,11 @@ def process_received_vars(map, var_recv, var_value):
         var_value[m] = v
 
 
-#@numba.jit(cache=True, nogil=True)
+@numba.jit(nopython=True, cache=True, nogil=True)
 def ufo_to_factor(ufo, ufo_map, n_factors):
     index = np.empty(ufo.size, np.int64)
     for i in range(len(ufo)):
-        j = np.searchsorted(ufo_map, ufo[i])
-        assert(ufo_map[j] == ufo[i])
+        j = ufo_searchsorted(ufo_map, ufo[i])
+        assert(ufo_equal(ufo_map[j], ufo[i]))
         index[i] = n_factors - len(ufo_map) + j
     return index
