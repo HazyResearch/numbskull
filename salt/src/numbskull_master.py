@@ -56,7 +56,7 @@ class NumbskullMaster:
     """TODO."""
 
     def __init__(self, application_dir, machines, 
-                 partition_method, partition_type, argv):
+                 partition_method, partition_scheme, use_ufo, partition_type, argv):
         """TODO."""
         # Salt conf init
         self.master_conf_dir = master_conf_dir
@@ -79,6 +79,8 @@ class NumbskullMaster:
         self.ns = None
         self.application_dir = application_dir
         self.num_minions = machines
+        self.partition_scheme = partition_scheme
+        self.use_ufo = use_ufo
         self.partition_type = partition_type
 
         # Partitioning variables
@@ -284,10 +286,11 @@ class NumbskullMaster:
         # semantic partitioning
         if self.partition_method == 'sp':
             cmd = ["ddlog", "semantic-partition", "app.ddlog",
-                   "--ppc",
-                   "-u",
+                   self.partition_scheme,
                    "--workers", str(self.num_minions),
                    "--cost-model", "simple.costmodel.txt"]
+            if self.use_ufo:
+                cmd.append("-u")
             partition_json = subprocess.check_output(cmd, 
                                          cwd=self.application_dir)
             partition = json.loads(partition_json)
@@ -445,6 +448,7 @@ class NumbskullMaster:
                 pid = data["pid"]
                 self.map_from_minion[pid] = \
                     messages.deserialize(data["map"], np.int64)
+                print(self.ufo_recv)
                 self.ufo_from_minion[pid] = messages.ufo_to_factor(messages.deserialize(data["ufo"], UnaryFactorOpt), self.ufo_recv, len(self.factor_pt))
                 resp += 1
         print("DONE WITH SENDING MAPPING")
@@ -520,7 +524,7 @@ class NumbskullMaster:
 
 def main(application_dir, machines, threads_per_machine,
          learning_epochs, inference_epochs, 
-         partition_method, partition_type=None):
+         partition_method, partition_scheme, use_ufo, partition_type=None):
     """TODO."""
     # Inputs for experiments:
     #   - dataset
@@ -546,6 +550,8 @@ def main(application_dir, machines, threads_per_machine,
     ns_master = NumbskullMaster(application_dir, 
                                 machines, 
                                 partition_method, 
+                                partition_scheme,
+                                use_ufo,
                                 partition_type,
                                 args)
     ns_master.initialize()
@@ -556,20 +562,34 @@ def main(application_dir, machines, threads_per_machine,
                        "inference_time": infer_time}
 
 if __name__ == "__main__":
-    if len(sys.argv) == 7 or len(sys.argv) == 8:
+    if len(sys.argv) == 7 or \
+       len(sys.argv) == 8 or \
+       len(sys.argv) == 9:
         application_dir = sys.argv[1]
         machines = int(sys.argv[2])
         threads_per_machine = int(sys.argv[3])
         learning_epochs = int(sys.argv[4])
         inference_epochs = int(sys.argv[5])
         partition_method = sys.argv[6]
+        assert(partition_method == "cc" or
+               partition_method == "metis" or
+               partition_method == "sp")
+
+        partition_scheme = None
+        use_ufo = False
+        if partition_method == "sp":
+            assert(len(sys.argv) >= 8)
+            partition_scheme = "--pp" + sys.argv[7][0]
+            if len(sys.argv[7]) > 1 and sys.argv[7][1] == "u":
+                use_ufo = True
+
         partition_type = None
-        if len(sys.argv) == 8:
-            partition_type = sys.argv[7]
+        if len(sys.argv) == 9:
+            partition_type = sys.argv[8]
 
         main(application_dir, machines, threads_per_machine,
              learning_epochs, inference_epochs,
-             partition_method, partition_type)
+             partition_method, partition_scheme, use_ufo, partition_type)
     else:
         print("Usage: " + sys.argv[0] +
               " application_dir" +
@@ -578,4 +598,5 @@ if __name__ == "__main__":
               " learning_epochs" +
               " inference_epochs" +
               " partition_method (cc, metis, sp)" +
+              " partition_scheme (for sp) {a,b,c,au,bu,cu}" +
               " partition_type (type for sp)")
