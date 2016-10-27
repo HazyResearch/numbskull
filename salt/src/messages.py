@@ -679,13 +679,14 @@ def extra_space(vid, variable, ufo_recv):
         m_var += card - 1
     return m_factors, m_fmap, m_var
 
-@numba.jit(cache=True, nogil=True)
-def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var):
+@numba.jit(nopython=True, cache=True, nogil=True)
+def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var, vid_max):
+    # vid_max should just be np.iinfo(vid.dtype).max, but numba doesn't support iinfo
     ftv_offset = 0
     if len(factor) > 0:
         ftv_offset = factor[-1]["ftv_offset"] + factor[-1]["arity"]
 
-    n_vid = np.iinfo(vid.dtype).max - len(vid) + n_var + 1
+    n_vid = vid_max - len(vid) + n_var + 1
     for (i, ufo) in enumerate(ufo_recv):
         card = variable[inverse_map(vid, ufo["vid"])]["cardinality"]
 
@@ -742,7 +743,7 @@ def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
     var_pt = np.resize(var_pt, n_var + m_var)
     var_ufo = np.resize(var_ufo, n_var + m_var)
 
-    set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var)
+    set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var, np.iinfo(vid.dtype).max)
 
     return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, n_var
 
