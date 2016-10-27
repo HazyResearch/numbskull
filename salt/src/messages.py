@@ -84,7 +84,7 @@ def get_factors_helper(row, fid, ff, factor, factor_pt, factor_ufo, fmap,
                 factor[factor_index - 1]["arity"]
         factor_index += 1
 
-        for j in i[:-4]:
+        for j in i[:-5]:
             fmap[fmap_index]["vid"] = j
             # TODO: how to actually get categorical info?
             fmap[fmap_index]["dense_equal_to"] = 0
@@ -124,7 +124,7 @@ def get_factors(cur, views, sql_filter="True"):
 
         count = count_template.format(table_name=table)
         cur.execute(count)
-        v = cur.fetchone()[0] - 3  # number of vars used by these factors
+        v = cur.fetchone()[0] - 4  # number of vars used by these factors
 
         factors += f
         edges += f * v
