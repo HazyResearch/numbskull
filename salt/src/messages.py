@@ -65,16 +65,17 @@ def get_views(cur):
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def get_factors_helper(row, ff, factor, factor_pt, factor_ufo, fmap,
+def get_factors_helper(row, fid, ff, factor, factor_pt, factor_ufo, fmap,
                        factor_index, fmap_index):
     """TODO."""
     for i in row:
+        fid[factor_index] = i[-1]
         factor[factor_index]["factorFunction"] = ff
-        factor[factor_index]["weightId"] = i[-4]
-        factor[factor_index]["featureValue"] = i[-3]
-        factor_pt[factor_index] = i[-2]
-        factor_ufo[factor_index] = (i[-1] == 117)  # 117 == 'u'
-        factor[factor_index]["arity"] = len(i) - 4
+        factor[factor_index]["weightId"] = i[-5]
+        factor[factor_index]["featureValue"] = i[-4]
+        factor_pt[factor_index] = i[-3]
+        factor_ufo[factor_index] = (i[-2] == 117)  # 117 == 'u'
+        factor[factor_index]["arity"] = len(i) - 5
         if factor_index == 0:
             factor[factor_index]["ftv_offset"] = 0
         else:
@@ -128,6 +129,7 @@ def get_factors(cur, views, sql_filter="True"):
         factors += f
         edges += f * v
 
+    fid = np.zeros(factors, np.int64)
     factor = np.zeros(factors, Factor)
     factor_pt = np.zeros(factors, np.int8)  # partition type
     factor_ufo = np.zeros(factors, np.bool)  # unary factor optimization
@@ -152,12 +154,14 @@ def get_factors(cur, views, sql_filter="True"):
         for i in range(len(name)):
             assert(len(name[i]) == 1)
             name[i] = name[i][0]
-        assert(name[-3] == "weight_id")
-        assert(name[-2] == "feature_value")
-        assert(name[-1] == "partition_key")
-        cmd = (", ".join(['"' + i + '"' for i in name[:-1]]) +
+        assert(name[-4] == "weight_id")
+        assert(name[-3] == "feature_value")
+        assert(name[-2] == "partition_key")
+        assert(name[-1] == "fid")
+        cmd = (", ".join(['"' + i + '"' for i in name[:-2]]) +
                ", ASCII(LEFT(partition_key, 1))" +  # partition key
-               ", ASCII(SUBSTR(partition_key, 2, 1))")  # unary factor opt
+               ", ASCII(SUBSTR(partition_key, 2, 1))" +  # unary factor opt
+               ", fid")
 
         op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
         cur.execute(op)
@@ -166,10 +170,10 @@ def get_factors(cur, views, sql_filter="True"):
             if row == []:
                 break
             (factor_index, fmap_index) = \
-                get_factors_helper(row, ff, factor, factor_pt, factor_ufo,
+                get_factors_helper(row, fid, ff, factor, factor_pt, factor_ufo,
                                    fmap, factor_index, fmap_index)
 
-    return factor, factor_pt.view('c'), factor_ufo, fmap, edges
+    return fid, factor, factor_pt.view('c'), factor_ufo, fmap, edges
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -349,7 +353,7 @@ def get_fg_data(cur, filt):
     print("get_views: " + str(time2 - time1))
 
     # Load factors
-    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view, filt)
+    (fid, factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_factors: " + str(time2 - time1))
@@ -406,7 +410,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin)
+            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin)
 
 
 def serialize(array):

@@ -318,7 +318,7 @@ class NumbskullMaster:
                         "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
         (weight, variable, self.factor, self.fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.var_ufo, self.factor_ufo, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin) = \
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.fid, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin) = \
             messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
