@@ -137,6 +137,8 @@ class NumbskullMaster:
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
         var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
+        pf_to_minions = np.zeros(self.pf_list.size, np.int64)
+        pf_evid_to_minions = np.zeros(self.pf_list.size, np.int64)
 
         for i in range(epochs):
             print(mode + " loop " + str(i))
@@ -155,9 +157,11 @@ class NumbskullMaster:
             # gather values to ship to minions
             # TODO: handle multiple copies
             messages.compute_vars_to_send(self.map_to_minions, variables_to_minions, self.ns.factorGraphs[-1].var_value[0])
+            messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value, self.variable, self.pf_list, pf_to_minions)
 
             if learn:
                 messages.compute_vars_to_send(self.map_to_minions, var_evid_to_minions, self.ns.factorGraphs[-1].var_value_evid[0])
+                messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value_evid, self.variable, self.pf_list, pf_evid_to_minions)
 
             # Tell minions to sample
             beginTest = time.time()
@@ -167,10 +171,13 @@ class NumbskullMaster:
                 weight_value = self.ns.factorGraphs[-1].weight_value[0]
                 data = {"values": messages.serialize(variables_to_minions),
                         "v_evid": messages.serialize(var_evid_to_minions),
+                        "pf": messages.serialize(pf_to_minions),
+                        "pf_evid": messages.serialize(pf_evid_to_minions),
                         "weight": messages.serialize(weight_value)}
             else:
                 tag = messages.INFER
-                data = {"values": messages.serialize(variables_to_minions)}
+                data = {"values": messages.serialize(variables_to_minions),
+                        "pf": messages.serialize(pf_to_minions)}
 
             if self.num_minions != 0:
                 pub_func = partial(send_to_minion, data, tag)
@@ -197,11 +204,13 @@ class NumbskullMaster:
                     # Process variables from minions
                     vfmin = messages.deserialize(data["values"], np.int64)
                     messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value[0])
+                    messages.apply_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value[0], self.variable, self.pf_from_minion[pid], messages.deserialize(data["pf"], np.int64))
                     messages.apply_ufo_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value[0], self.ufo_from_minion[pid], messages.deserialize(data["ufo"], np.int64))
 
                     if learn:
                         vfmin = messages.deserialize(data["v_evid"], np.int64)
                         messages.process_received_vars(self.map_from_minion[pid], vfmin, self.ns.factorGraphs[-1].var_value_evid[0])
+                        messages.apply_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value[0], self.variable, self.pf_from_minion[pid], messages.deserialize(data["pf_evid"], np.int64))
                         messages.apply_ufo_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value_evid[0], self.ufo_from_minion[pid], messages.deserialize(data["ufo_evid"], np.int64))
 
                         self.ns.factorGraphs[-1].weight_value[0] += \
@@ -317,16 +326,16 @@ class NumbskullMaster:
                         "or partition_key similar to 'G(|u)%' " \
                         "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
-        (weight, variable, self.factor, self.fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.var_ufo, self.factor_ufo, self.fid, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin) = \
+        (self.weight, self.variable, self.factor, self.fmap, domain_mask, edges, self.var_pt,
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.fid, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin, self.pf_list) = \
             messages.get_fg_data(cur, master_filter)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
               str(get_fg_data_end - get_fg_data_begin))
 
-        variable[self.var_pt == "D"]["isEvidence"] = 4  # not owned var type
+        self.variable[self.var_pt == "D"]["isEvidence"] = 4  # not owned var type
 
-        self.ns.loadFactorGraph(weight, variable, self.factor, self.fmap,
+        self.ns.loadFactorGraph(self.weight, self.variable, self.factor, self.fmap,
                                 domain_mask, edges)
 
     def prepare_db(self, cur):
@@ -426,16 +435,19 @@ class NumbskullMaster:
     def sync_mapping(self):
         """TODO."""
         self.map_to_minions = messages.compute_map_master(self.vid, self.var_pt.view(np.int8))
+        print(self.fid[self.pf_list])
 
         # send mapping to minions
         tag = messages.SYNC_MAPPING
-        data = {"map": messages.serialize(self.map_to_minions)}
+        data = {"map": messages.serialize(self.map_to_minions),
+                "pf": messages.serialize(self.fid[self.pf_list])}
         newEvent = self.local_client.cmd(self.minions,
                                          'event.fire',
                                          [data, tag],
                                          expr_form='list')
 
         self.map_from_minion = [None for i in range(len(self.minions))]
+        self.pf_from_minion = [None for i in range(len(self.minions))]
         self.ufo_from_minion = [None for i in range(len(self.minions))]
         resp = 0
         while resp < len(self.minions):
@@ -448,15 +460,14 @@ class NumbskullMaster:
                 pid = data["pid"]
                 self.map_from_minion[pid] = \
                     messages.deserialize(data["map"], np.int64)
-                print(self.ufo_recv)
+                messages.apply_inverse_map(self.vid, self.map_from_minion[pid])
+                self.pf_from_minion[pid] = messages.deserialize(data["pf"], np.int64)
+                messages.apply_inverse_map(self.fid, self.pf_from_minion[pid])
                 self.ufo_from_minion[pid] = messages.ufo_to_factor(messages.deserialize(data["ufo"], UnaryFactorOpt), self.ufo_recv, len(self.factor_pt))
                 resp += 1
         print("DONE WITH SENDING MAPPING")
 
         messages.apply_inverse_map(self.vid, self.map_to_minions)
-
-        for i in range(len(self.map_from_minion)):
-            messages.apply_inverse_map(self.vid, self.map_from_minion[i])
 
     # Helper
     def parse_args(self, argv):

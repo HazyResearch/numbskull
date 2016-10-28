@@ -375,10 +375,29 @@ def get_fg_data(cur, filt):
     print("var_ufo: ", var_ufo)
     print()
 
+    fmap, vid, variable, var_pt, var_ufo, pf_list, pf_var_begin = process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo)
+    time1 = time2
+    time2 = time.time()
+    print("process_pf: " + str(time2 - time1))
+
+    print("factor: ", factor)
+    print("factor_pt: ", factor_pt)
+    print("factor_ufo: ", factor_ufo)
+    print("fmap: ", fmap)
+    print("edges: ", edges)
+    print("vid: ", vid)
+    print("variable: ", variable)
+    print("var_pt: ", var_pt)
+    print("var_ufo: ", var_ufo)
+    print()
+
     factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
     time1 = time2
     time2 = time.time()
     print("process_ufo: " + str(time2 - time1))
+
+    # need to decrease vids of pf's to not overlap with ufo fake vid
+    vid[pf_var_begin:ufo_var_begin] -= len(vid) - ufo_var_begin
 
     print("factor: ", factor)
     print("factor_pt: ", factor_pt)
@@ -410,7 +429,7 @@ def get_fg_data(cur, filt):
     print("allocate domain_mask: " + str(time2 - time1))
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin)
+            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list)
 
 
 def serialize(array):
@@ -880,6 +899,92 @@ def apply_ufo_values(factor, fmap, var_value, ufo_map, ufo_values):
 
 
 @numba.jit(cache=True, nogil=True)
+def process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
+    """Process partial factor."""
+
+    pf_var_begin = len(vid)
+
+    pf_list = find_pf(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo)
+
+    vid = np.resize(vid, len(vid) + len(pf_list))
+    variable = np.resize(variable, len(variable) + len(pf_list))
+    var_pt = np.resize(var_pt, len(var_pt) + len(pf_list))
+    var_ufo = np.resize(var_ufo, len(var_ufo) + len(pf_list))
+
+    ftv_offset = set_pf(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo, pf_var_begin, np.iinfo(vid.dtype).max)
+
+    fmap = np.resize(fmap, ftv_offset)
+
+    return fmap, vid, variable, var_pt.view('c'), var_ufo, pf_list, pf_var_begin
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def find_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
+    count = 0
+    for i in range(len(factor)):
+        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+            count += 1
+
+    pf_list = np.zeros(count, np.int64)
+    count = 0
+    for i in range(len(factor)):
+        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+            pf_list[count] = i
+            count += 1
+
+    return pf_list
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_var_begin, vid_max):
+    # vid_max should just be np.iinfo(vid.dtype).max, but numba doesn't support iinfo   
+
+    # Setting fake variables
+    for i in range(pf_var_begin, len(vid)):
+        vid[i] = vid_max - len(vid) + i  # I think this can have a +1, but it doesn't really matter
+
+        variable[i]["isEvidence"] = 4
+        variable[i]["initialValue"]
+        variable[i]["dataType"]
+        variable[i]["cardinality"]
+        variable[i]["vtf_offset"]
+
+        var_pt[i] = 0  # TODO: Does this actually matter at all?
+
+        var_ufo[i] = False
+
+    ftv_offset = 0
+    ftv_offset_src = 0
+    count = 0
+    for i in range(len(factor)):
+        factor[i]["ftv_offset"] = ftv_offset
+
+        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+            # Is a partial factor
+            arity = 0
+            for j in range(factor[i]["arity"]):
+                if variable_exists(vid, fmap[ftv_offset + j]["vid"]):
+                    fmap[ftv_offset + arity] = fmap[ftv_offset_src + j]
+                    arity += 1
+            assert(arity < factor[i]["arity"])  # there isn't space allocated for extra vid
+
+            fmap[ftv_offset + arity]["vid"] = vid[pf_var_begin + count]
+            count += 1
+            arity += 1
+            factor[i]["arity"] = arity
+            ftv_offset += arity
+            ftv_offset_src += factor[i]["arity"]
+        else:
+            for j in range(factor[i]["arity"]):
+                if variable_exists(vid, fmap[ftv_offset + j]["vid"]):
+                    fmap[ftv_offset + j] = fmap[ftv_offset_src + j]
+            ftv_offset += factor[i]["arity"]
+            ftv_offset_src += factor[i]["arity"]
+
+    return ftv_offset
+
+
+@numba.jit(cache=True, nogil=True)
 def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
 
     time1 = time.time()
@@ -953,10 +1058,25 @@ def compute_map_minion(vid, var_pt):
 
     return map_to_master
 
+
 @numba.jit(nopython=True, cache=True, nogil=True)
 def apply_inverse_map(vid, array):
     for i in range(len(array)):
         array[i] = inverse_map(vid, array[i])
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def loose_inverse_map(forward, index):
+    """TODO."""
+    ans = np.searchsorted(forward, index)
+    if forward[ans] != index:
+        return -1
+    return ans
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def apply_loose_inverse_map(vid, array):
+    for i in range(len(array)):
+        array[i] = loose_inverse_map(vid, array[i])
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -981,3 +1101,25 @@ def ufo_to_factor(ufo, ufo_map, n_factors):
         assert(ufo_equal(ufo_map[j], ufo[i]))
         index[i] = n_factors - len(ufo_map) + j
     return index
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_pf_values(factor, fmap, var_value, variable, pf_list, pf):
+    for i in range(len(pf_list)):
+        assert(factor[pf_list[i]]["factorFunction"] in [numbskull.inference.FUNC_OR,
+                                                        numbskull.inference.FUNC_AND,
+                                                        numbskull.inference.FUNC_ISTRUE])
+
+        factor[pf_list[i]]["arity"] -= 1
+        factor_id = pf_list[i]
+        var_samp = -1
+        value = -1
+        var_copy = 0
+        pf[i] = numbskull.inference.eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap, var_value)
+        factor[pf_list[i]]["arity"] += 1
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def apply_pf_values(factor, fmap, var_value, variable, pf_list, pf_values):
+    for i in range(len(pf_list)):
+        fac = factor[pf_list[i]]
+        var_value[fmap[fac["ftv_offset"] + fac["arity"] - 1]["vid"]] = pf_values[i]
