@@ -670,6 +670,7 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                     is_ufo = var_ufo[inverse_map(vid, vid1)]
                     if is_ufo:
                         assert(var == -1)  # This must be the first seen
+                        var = vid1
                 assert(var != -1)
 
                 ufo_send[n_ufo_send]['vid'] = var
