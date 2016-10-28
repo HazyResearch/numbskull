@@ -116,11 +116,16 @@ def get_factors(cur, views, sql_filter="True"):
 
     # Pre-count number of factors and edges
     # TODO: can this step be avoided?
-    for table in views:
-        op = op_template.format(cmd="COUNT(*)", table_name=table,
+    min_fid = np.zeros(len(views), np.int64)
+    max_fid = np.zeros(len(views), np.int64)
+    for (i, table) in enumerate(views):
+        op = op_template.format(cmd="COUNT(*), MIN(fid), MAX(fid)", table_name=table,
                                 filter=sql_filter)
         cur.execute(op)
-        f = cur.fetchone()[0]  # number of factors in this table
+        info = cur.fetchone()
+        f = info[0]  # number of factors in this table
+        min_fid[i] = info[1] if info[1] is not None else 0
+        max_fid[i] = info[2] if info[2] is not None else 0
 
         count = count_template.format(table_name=table)
         cur.execute(count)
@@ -128,6 +133,15 @@ def get_factors(cur, views, sql_filter="True"):
 
         factors += f
         edges += f * v
+    perm = min_fid.argsort()
+    min_fid = min_fid[perm]
+    max_fid = max_fid[perm]
+    assert(all(max_fid[i] <= max_fid[i + 1] for i in xrange(len(max_fid) - 1)))
+    # TODO: cannot directly apply perm to views (standard array, not numpy array)
+    views_temp = views
+    for i in range(len(views)):
+        views_temp[i] = views[perm[i]]
+    views = views_temp
 
     fid = np.zeros(factors, np.int64)
     factor = np.zeros(factors, Factor)
