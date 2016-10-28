@@ -138,7 +138,7 @@ def get_factors(cur, views, sql_filter="True"):
     max_fid = max_fid[perm]
     assert(all(max_fid[i] <= max_fid[i + 1] for i in xrange(len(max_fid) - 1)))
     # TODO: cannot directly apply perm to views (standard array, not numpy array)
-    views_temp = views
+    views_temp = [None for i in range(len(views))]
     for i in range(len(views)):
         views_temp[i] = views[perm[i]]
     views = views_temp
@@ -177,7 +177,8 @@ def get_factors(cur, views, sql_filter="True"):
                ", ASCII(SUBSTR(partition_key, 2, 1))" +  # unary factor opt
                ", fid")
 
-        op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter)
+        # TODO: should actually put the ORDER BY fid in its own var
+        op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter + "ORDER BY fid")
         cur.execute(op)
         while True:
             row = cur.fetchmany(10000)
