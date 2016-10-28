@@ -602,25 +602,22 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
     n_ufo_send = 0  # Number of ufo to send
     for i in range(len(factor)):
         if factor_ufo[i]:
-            # UFO only makes sense for 2-var factors
-            assert(factor[i]["arity"] == 2)
+            exist = 0  # number of vars manifested on this machine
+            for j in range(factor[i]["arity"]):
+                vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
+                exist += variable_exists(vid, vid1)
 
-            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
-            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
-            exist1 = variable_exists(vid, vid1)
-            exist2 = variable_exists(vid, vid2)
+            # Must have exactly one or all vars on this machine
+            assert(exist == 1 or exist == factor[i]["arity"])
 
-            # At least one must be present
-            assert(exist1 or exist2)
-
-            if exist1 and exist2:
-                # Both vars are present
-                # This machine computes the UFO
-                n_ufo_send += 1
-            else:
+            if exist == 1:
                 # One var is missing
                 # This machine gets the UFO
                 n_ufo_recv += 1
+            else:
+                # All vars are present
+                # This machine computes the UFO
+                n_ufo_send += 1
 
     ufo_recv = np.empty(n_ufo_recv, dtype=UnaryFactorOpt)
     ufo_send = np.empty(n_ufo_send, dtype=UnaryFactorOpt)
@@ -628,43 +625,38 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
     n_ufo_send = 0
     for i in range(len(factor)):
         if factor_ufo[i]:
-            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
-            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
-            exist1 = variable_exists(vid, vid1)
-            exist2 = variable_exists(vid, vid2)
-
-            # At least one must be present
-            assert(exist1 or exist2)
-
-            if not exist1:
-                # Only vid2 on this machine (must be the UFO)
-                var = vid2
-                # Only vid1 on this machine (must be the UFO)
-            elif not exist2:
-                var = vid1
-            else:
-                # Both on this machine
-                # Check which is actually the UFO
-                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
-                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
-                assert(is_ufo1 != is_ufo2)  # exactly one of these must be UFO
-                if is_ufo1:
+            exist = 0  # number of vars manifested on this machine
+            var = -1
+            for j in range(factor[i]["arity"]):
+                vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
+                ex = variable_exists(vid, vid1)
+                exist += ex
+                if ex:
                     var = vid1
-                else:
-                    var = vid2
 
-
-            if exist1 and exist2:
-                ufo_send[n_ufo_send]['vid'] = var
-                ufo_send[n_ufo_send]['weightId'] = factor[i]['weightId']
-
-                n_ufo_send += 1
-            else:
+            if exist == 1:
+                # Only one var on this machine
+                # This machine receives the ufo
                 ufo_recv[n_ufo_recv]['vid'] = var
                 ufo_recv[n_ufo_recv]['weightId'] = factor[i]['weightId']
 
                 n_ufo_recv += 1
                 factor[i]["factorFunction"] = numbskull.inference.FUNC_NOOP
+            else:
+                # Both on this machine
+                # Check which is actually the UFO
+                var = -1
+                for j in range(factor[i]["arity"]):
+                    vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
+                    is_ufo = var_ufo[inverse_map(vid, vid1)]
+                    if is_ufo:
+                        assert(var == -1)  # This must be the first seen
+                assert(var != -1)
+
+                ufo_send[n_ufo_send]['vid'] = var
+                ufo_send[n_ufo_send]['weightId'] = factor[i]['weightId']
+
+                n_ufo_send += 1
 
     return ufo_send, ufo_recv
 
