@@ -194,10 +194,12 @@ def start():
             # compute map
             map_to_master = messages.compute_map_minion(vid, var_pt.view(np.int8))
 
+            ufo_to_master = ufo_send.copy()
+            ufo_to_master["vid"] = vid[ufo_to_master["vid"]]
             data = {"pid": partition_id,
                     "map": messages.serialize(map_to_master),
                     "pf": messages.serialize(fid[pf_list]),
-                    "ufo": messages.serialize(ufo_send)}
+                    "ufo": messages.serialize(ufo_to_master)}
             __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
 
             messages.apply_inverse_map(vid, map_from_master)

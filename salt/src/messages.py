@@ -357,6 +357,13 @@ def remap_fmap(fmap, vid):
         fmap[i]["vid"] = inverse_map(vid, fmap[i]["vid"])
 
 
+@numba.jit(nopython=True, cache=True, nogil=True)
+def remap_ufo(ufo, vid):
+    """TODO."""
+    for i in range(len(ufo)):
+        ufo[i]["vid"] = inverse_map(vid, ufo[i]["vid"])
+
+
 def get_fg_data(cur, filt):
     """TODO."""
     print("***GET_FG_DATA***")
@@ -708,7 +715,7 @@ def extra_space(vid, variable, ufo_recv):
     m_fmap = 0
     m_var = 0
     for ufo in ufo_recv:
-        card = variable[inverse_map(vid, ufo["vid"])]["cardinality"]
+        card = variable[ufo["vid"]]["cardinality"]
         m_fmap += card
         m_var += card - 1
     return m_factors, m_fmap, m_var
@@ -722,7 +729,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
     n_vid = vid_max - len(vid) + n_var + 1
     for (i, ufo) in enumerate(ufo_recv):
-        card = variable[inverse_map(vid, ufo["vid"])]["cardinality"]
+        card = variable[ufo["vid"]]["cardinality"]
 
         factor[n_factors + i]["factorFunction"] = numbskull.inference.FUNC_UFO
         factor[n_factors + i]["weightId"] = ufo["weightId"]
@@ -734,7 +741,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
         factor_ufo[n_factors + i] = True
 
-        fmap[n_fmap]["vid"] = ufo["vid"]
+        fmap[n_fmap]["vid"] = vid[ufo["vid"]]
         n_fmap += 1
         for j in range(card - 1):
             fmap[n_fmap]["vid"] = n_vid
@@ -832,25 +839,35 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
 
     for i in range(len(factor)):
         if factor_ufo[i]:
-            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
-            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
-            exist1 = variable_exists(vid, vid1)
-            exist2 = variable_exists(vid, vid2)
-
-            if exist1 and exist2:
-                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
-                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
-                if is_ufo1:
+            exist = 0  # number of vars manifested on this machine
+            var = -1
+            for j in range(factor[i]["arity"]):
+                vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
+                ex = variable_exists(vid, vid1)
+                exist += ex
+                if ex and var_ufo[inverse_map(vid, vid1)]:
+                    # This variable is on this machine and is ufo
+                    assert(var == -1)  # There can only be one ufo var
                     var = vid1
-                else:
-                    var = vid2
+
+            # Must have exactly one or all vars on this machine
+            assert(exist == 1 or exist == factor[i]["arity"])
+
+            if exist == 1:
+                # Only one var on this machine
+                # This machine receives the ufo
+                # No computation will be done
+                pass
+            else:
+                # All vars on this machine
+                # Will be computing
                 weightId = factor[i]['weightId']
 
                 # TODO: is there a way to not create a list of length 1
-                ufo["vid"] = var
+                ufo["vid"] = inverse_map(vid, var)
                 ufo["weightId"] = weightId
                 j = ufo_searchsorted(ufo_send, ufo)
-                val = ufo_equal(ufo_send[j], ufo)
+                assert(ufo_equal(ufo_send[j], ufo))
 
                 ufo_length[j] += 1
 
@@ -862,21 +879,24 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
 
     for i in range(len(factor)):
         if factor_ufo[i]:
-            vid1 = fmap[factor[i]["ftv_offset"]]["vid"]
-            vid2 = fmap[factor[i]["ftv_offset"] + 1]["vid"]
-            exist1 = variable_exists(vid, vid1)
-            exist2 = variable_exists(vid, vid2)
-
-            if exist1 and exist2:
-                is_ufo1 = var_ufo[inverse_map(vid, vid1)]
-                is_ufo2 = var_ufo[inverse_map(vid, vid2)]
-                if is_ufo1:
+            exist = 0
+            var = -1
+            for j in range(factor[i]["arity"]):
+                vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
+                ex = variable_exists(vid, vid1)
+                exist += ex
+                if ex and var_ufo[inverse_map(vid, vid1)]:
+                    # This variable is on this machine and is ufo
+                    assert(var == -1)  # There can only be one ufo var
                     var = vid1
-                else:
-                    var = vid2
+
+            # Must have exactly one or all vars on this machine
+            assert(exist == 1 or exist == factor[i]["arity"])
+
+            if exist == factor[i]["arity"]:
                 weightId = factor[i]['weightId']
 
-                ufo["vid"] = var
+                ufo["vid"] = inverse_map(vid, var)
                 ufo["weightId"] = weightId
                 j = ufo_searchsorted(ufo_send, ufo)
                 assert(ufo_equal(ufo_send[j], ufo))
@@ -1029,6 +1049,9 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     # Checking that numpy sort uses the same comparison
     ufo_check_sorted(ufo_send)
     ufo_check_sorted(ufo_recv)
+
+    remap_ufo(ufo_send, vid)
+    remap_ufo(ufo_recv, vid)
 
     time1 = time2
     time2 = time.time()

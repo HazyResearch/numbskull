@@ -452,6 +452,8 @@ class NumbskullMaster:
         self.map_from_minion = [None for i in range(len(self.minions))]
         self.pf_from_minion = [None for i in range(len(self.minions))]
         self.ufo_from_minion = [None for i in range(len(self.minions))]
+        self.ufo_map_from_minion = self.ufo_recv.copy()
+        self.ufo_map_from_minion["vid"] = self.vid[self.ufo_map_from_minion["vid"]]
         resp = 0
         while resp < len(self.minions):
             # receive map and save
@@ -466,7 +468,7 @@ class NumbskullMaster:
                 messages.apply_inverse_map(self.vid, self.map_from_minion[pid])
                 self.pf_from_minion[pid] = messages.deserialize(data["pf"], np.int64)
                 messages.apply_inverse_map(self.fid, self.pf_from_minion[pid])
-                self.ufo_from_minion[pid] = messages.ufo_to_factor(messages.deserialize(data["ufo"], UnaryFactorOpt), self.ufo_recv, len(self.factor_pt))
+                self.ufo_from_minion[pid] = messages.ufo_to_factor(messages.deserialize(data["ufo"], UnaryFactorOpt), self.ufo_map_from_minion, len(self.factor_pt))
                 resp += 1
         print("DONE WITH SENDING MAPPING")
 
