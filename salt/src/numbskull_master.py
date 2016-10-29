@@ -140,6 +140,14 @@ class NumbskullMaster:
         pf_to_minions = np.zeros(self.pf_list.size, np.int64)
         pf_evid_to_minions = np.zeros(self.pf_list.size, np.int64)
 
+        print("***LENGTHS***")
+        print("Variables to minions:         ", len(variables_to_minions))
+        print("Partial Factors to minions:   ", len(pf_to_minions))
+        print("Variables from Minions:       ", sum([len(i) for i in self.map_from_minion]))
+        print("Partial Factors from Minions: ", sum([len(i) for i in self.pf_from_minion]))
+        print("UFO from Minions:             ", sum([len(i) for i in self.ufo_from_minion]))
+        print("*************")
+
         for i in range(epochs):
             print(mode + " loop " + str(i))
             # sample own variables
