@@ -441,10 +441,13 @@ class NumbskullMaster:
         tag = messages.SYNC_MAPPING
         data = {"map": messages.serialize(self.map_to_minions),
                 "pf": messages.serialize(self.fid[self.pf_list])}
-        newEvent = self.local_client.cmd(self.minions,
-                                         'event.fire',
-                                         [data, tag],
-                                         expr_form='list')
+        if self.num_minions != 0:
+            pub_func = partial(send_to_minion, data, tag)
+            self.clientPool.imap(pub_func, self.minion2host.values())
+        #newEvent = self.local_client.cmd(self.minions,
+        #                                 'event.fire',
+        #                                 [data, tag],
+        #                                 expr_form='list')
 
         self.map_from_minion = [None for i in range(len(self.minions))]
         self.pf_from_minion = [None for i in range(len(self.minions))]
