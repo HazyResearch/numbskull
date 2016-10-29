@@ -458,7 +458,12 @@ def serialize(array):
 
 def deserialize(array, dtype):
     """TODO."""
-    return np.array(array, dtype=dtype)
+    try:
+        return np.array(array, dtype=dtype)
+    except:
+        # For UnaryFactorOpt and other complicated dtypes
+        # Salt converts list of tuples into list of lists, which breaks the original version
+        return np.array([tuple(i) for i in array], dtype=dtype)
     # try:
     #     ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
     #     return np.fromstring(ar, dtype=dtype)
