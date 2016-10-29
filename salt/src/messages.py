@@ -449,19 +449,21 @@ def get_fg_data(cur, filt):
 
 def serialize(array):
     """TODO."""
-    try:
-        return array.tobytes().decode('utf16').encode('utf8')
-    except:
-        return array.tobytes()
+    return array.tolist()
+    # try:
+    #     return array.tobytes().decode('utf16').encode('utf8')
+    # except:
+    #     return array.tobytes()
 
 
 def deserialize(array, dtype):
     """TODO."""
-    try:
-        ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
-        return np.fromstring(ar, dtype=dtype)
-    except:
-        return np.fromstring(array, dtype=dtype)
+    return np.array(array, dtype=dtype)
+    # try:
+    #     ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
+    #     return np.fromstring(ar, dtype=dtype)
+    # except:
+    #     return np.fromstring(array, dtype=dtype)
 
 
 def find_connected_components(conn, cur):
