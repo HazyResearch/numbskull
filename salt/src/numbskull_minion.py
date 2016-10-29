@@ -1,7 +1,7 @@
 """TODO."""
 
 # Import python libs
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 import json
 import logging
 import sys
