@@ -1139,5 +1139,6 @@ def compute_pf_values(factor, fmap, var_value, variable, pf_list, pf):
 @numba.jit(nopython=True, cache=True, nogil=True)
 def apply_pf_values(factor, fmap, var_value, variable, pf_list, pf_values):
     for i in range(len(pf_list)):
-        fac = factor[pf_list[i]]
-        var_value[fmap[fac["ftv_offset"] + fac["arity"] - 1]["vid"]] = pf_values[i]
+        if pf_list[i] != -1:
+            fac = factor[pf_list[i]]
+            var_value[fmap[fac["ftv_offset"] + fac["arity"] - 1]["vid"]] = pf_values[i]
