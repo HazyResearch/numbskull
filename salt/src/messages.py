@@ -829,11 +829,11 @@ def ufo_searchsorted(a, b):
     return end
 
 
-@numba.jit(nopython=True, cache=True, nogil=True)  # TODO this really need to be in numba
+@numba.jit(nopython=True, cache=True, nogil=True)
 def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send):
     ufo_length = np.zeros(ufo_send.size, np.int64)
     ufo_start = np.zeros(ufo_send.size + 1, np.int64)
-    ufo = np.empty(1, dtype=UnaryFactorOpt)[0]
+    ufo = np.zeros(1, dtype=UnaryFactorOpt)
     if len(ufo_send) == 0:
         return ufo_length, np.zeros(0, np.int64)
 
@@ -864,10 +864,10 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                 weightId = factor[i]['weightId']
 
                 # TODO: is there a way to not create a list of length 1
-                ufo["vid"] = inverse_map(vid, var)
-                ufo["weightId"] = weightId
-                j = ufo_searchsorted(ufo_send, ufo)
-                assert(ufo_equal(ufo_send[j], ufo))
+                ufo[0]["vid"] = inverse_map(vid, var)
+                ufo[0]["weightId"] = weightId
+                j = ufo_searchsorted(ufo_send, ufo[0])
+                assert(ufo_equal(ufo_send[j], ufo[0]))
 
                 ufo_length[j] += 1
 
@@ -896,10 +896,10 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
             if exist == factor[i]["arity"]:
                 weightId = factor[i]['weightId']
 
-                ufo["vid"] = inverse_map(vid, var)
-                ufo["weightId"] = weightId
-                j = ufo_searchsorted(ufo_send, ufo)
-                assert(ufo_equal(ufo_send[j], ufo))
+                ufo[0]["vid"] = inverse_map(vid, var)
+                ufo[0]["weightId"] = weightId
+                j = ufo_searchsorted(ufo_send, ufo[0])
+                assert(ufo_equal(ufo_send[j], ufo[0]))
 
                 ufo_map[ufo_start[j] + ufo_length[j]] = i
                 ufo_length[j] += 1
