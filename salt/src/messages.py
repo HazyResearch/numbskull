@@ -645,48 +645,32 @@ def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
-    print("FIND_UFO 1")
     # Count number of factors with UFO
     n_ufo_recv = 0  # Number of ufo to receive
     n_ufo_send = 0  # Number of ufo to send
     for i in range(len(factor)):
-        print("FIND_UFO 1a")
         if factor_ufo[i]:
-            print("FIND_UFO 1b")
             exist = 0  # number of vars manifested on this machine
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
                 exist += variable_exists(vid, vid1)
-            print("FIND_UFO 1c")
 
-            # Must have exactly one, or all but one, or all vars on this machine
-            # one means that this receives ufo
-            # all but one means that missing var comes as partial factor (this machine evaluates)
-            # all vars means that this machine evaluates
-            print(exist)
-            print(factor[i]["arity"])
-            assert(exist == 1 or
-                   exist == factor[i]["arity"] - 1 or
-                   exist == factor[i]["arity"])
-            print("FIND_UFO 1d")
+            # Must have exactly one or all vars on this machine
+            assert(exist == 1 or exist == factor[i]["arity"])
 
             if exist == 1:
-                print("FIND_UFO 1e")
                 # One var is missing
                 # This machine gets the UFO
                 n_ufo_recv += 1
             else:
-                print("FIND_UFO 1f")
                 # All vars are present
                 # This machine computes the UFO
                 n_ufo_send += 1
-    print("FIND_UFO 2")
 
     ufo_recv = np.empty(n_ufo_recv, dtype=UnaryFactorOpt)
     ufo_send = np.empty(n_ufo_send, dtype=UnaryFactorOpt)
     n_ufo_recv = 0
     n_ufo_send = 0
-    print("FIND_UFO 3")
     for i in range(len(factor)):
         if factor_ufo[i]:
             exist = 0  # number of vars manifested on this machine
@@ -712,17 +696,7 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                 var = -1
                 for j in range(factor[i]["arity"]):
                     vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-
-                    local_vid = np.searchsorted(vid, vid1)
-                    if vid[local_vid] == vid1:
-                        # this variable is on this machine
-                        is_ufo = var_ufo[local_vid]
-                    else:
-                        # this variable is not one this machine
-                        # must be coming as a partial factor
-                        # also must be the ufo var
-                        is_ufo = True
-
+                    is_ufo = var_ufo[inverse_map(vid, vid1)]
                     if is_ufo:
                         assert(var == -1)  # This must be the first seen
                         var = vid1
@@ -732,7 +706,6 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                 ufo_send[n_ufo_send]['weightId'] = factor[i]['weightId']
 
                 n_ufo_send += 1
-    print("FIND_UFO 4")
 
     return ufo_send, ufo_recv
 
@@ -1057,7 +1030,6 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
 @numba.jit(cache=True, nogil=True)
 def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
 
-    print("ENTERED PROCESS_UFO")
     time1 = time.time()
     ufo_send, ufo_recv = find_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo)
     time2 = time.time()
@@ -1071,19 +1043,15 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     # compute unique
     ufo_send = np.unique(ufo_send)
     ufo_recv = np.unique(ufo_recv)
-    print("AFTER UNIQUE")
     ufo_send.sort()
     ufo_recv.sort()
-    print("AFTER SORT")
 
     # Checking that numpy sort uses the same comparison
     ufo_check_sorted(ufo_send)
     ufo_check_sorted(ufo_recv)
 
-    print("BEFORE REMAP_UFO")
-
-    #remap_ufo(ufo_send, vid)
-    #remap_ufo(ufo_recv, vid)
+    remap_ufo(ufo_send, vid)
+    remap_ufo(ufo_recv, vid)
 
     time1 = time2
     time2 = time.time()
