@@ -191,8 +191,9 @@ class NumbSkull(object):
         self.factorGraphs.append(fg)
 
     def loadFactorGraph(self, weight, variable, factor, fmap, domain_mask,
-                        edges, var_copies=1, weight_copies=1):
+                        edges, var_copies=1, weight_copies=1, factors_to_skip=np.empty(0, np.int64)):
         """TODO."""
+        # Note: factors_to_skip must be sorted
         # Assert input arguments correspond to NUMPY arrays
         assert(type(weight) == np.ndarray and weight.dtype == Weight)
         assert(type(variable) == np.ndarray and variable.dtype == Variable)
@@ -203,12 +204,16 @@ class NumbSkull(object):
         assert(type(edges) == int or
                type(edges) == long or
                type(edges) == np.int64)
+        assert(type(factors_to_skip) == np.ndarray and factors_to_skip.dtype == np.int64)
 
         # Initialize metadata
         meta = {}
         meta['weights'] = weight.shape[0]
         meta['variables'] = variable.shape[0]
         meta['factors'] = factor.shape[0]
+        # TODO: should probably just delete edges as an argument
+        # Not really needed (can just be computed from factors)
+        edges = sum(factor["arity"]) - sum(factor[factors_to_skip]["arity"])
         meta['edges'] = edges
 
         # count total number of VTF records needed
@@ -221,11 +226,15 @@ class NumbSkull(object):
                 num_vtfs += var["cardinality"]
 
         vmap = np.zeros(num_vtfs, VarToFactor)
+        # factors_to_skip is a list of indices of factors
+        # these factors need to exist for the distributed sampler
+        # but cannot be sampled
+        # TODO: edges is really poorly defined with factors_to_skip
         factor_index = np.zeros(meta["edges"], np.int64)
 
         # Numba-based method. Defined in dataloading.py
         compute_var_map(variable, factor, fmap, vmap,
-                        factor_index, domain_mask)
+                        factor_index, domain_mask, factors_to_skip)
 
         fg = FactorGraph(weight, variable, factor, fmap, vmap, factor_index,
                          var_copies, weight_copies,

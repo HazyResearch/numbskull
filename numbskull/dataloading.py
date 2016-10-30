@@ -14,7 +14,7 @@ def dataType(i):
 
 
 @jit(nopython=True, cache=True)
-def compute_var_map(variables, factors, fmap, vmap, factor_index, domain_mask):
+def compute_var_map(variables, factors, fmap, vmap, factor_index, domain_mask, factors_to_skip):
     """TODO."""
     # Fill in domain values (for mapping when dumping marginals)
     for i, v in enumerate(variables):
@@ -46,7 +46,12 @@ def compute_var_map(variables, factors, fmap, vmap, factor_index, domain_mask):
 
     # Step 3: populate factor_index
     offsets = vmap["factor_index_offset"].copy()
+    fts_index = 0  # factors_to_skip index
     for i, fac in enumerate(factors):
+        if fts_index < len(factors_to_skip) and factors_to_skip[fts_index] == i:
+            fts_index += 1
+            continue
+
         for j in range(fac["ftv_offset"], fac["ftv_offset"] + fac["arity"]):
             ftv = fmap[j]
             vid = ftv["vid"]
