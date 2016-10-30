@@ -164,7 +164,7 @@ def start():
                             "or partition_key similar to 'D(|u){partition_id}' " \
                             "or partition_key similar to 'E(|u){partition_id}' " \
                             "or partition_key similar to 'F(|u){partition_id}' " \
-                            "or partition_key similar to 'G(|u){partition_id}' " \
+                            "or partition_key similar to 'G(|um|uw|umw){partition_id}' " \
                             "or partition_key similar to 'H(|u)' "
             minion_filter = minion_filter.format(partition_id=partition_id)
 
