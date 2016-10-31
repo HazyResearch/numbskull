@@ -687,6 +687,7 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
         if factor_ufo[i]:
             exist = 0  # number of vars manifested on this machine
             var = -1
+            is_pf = False
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
                 local_vid = loose_inverse_map(vid, vid1)
@@ -694,6 +695,8 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                 exist += ex
                 if ex:
                     var = vid1
+                if (local_vid != -1) and var_pt[local_vid] == 80:
+                    is_pf = True
 
             if exist == 1:
                 # Only one var on this machine
@@ -702,7 +705,8 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                 ufo_recv[n_ufo_recv]['weightId'] = factor[i]['weightId']
 
                 n_ufo_recv += 1
-                factor[i]["factorFunction"] = numbskull.inference.FUNC_NOOP
+                if not is_pf:
+                    factor[i]["factorFunction"] = numbskull.inference.FUNC_NOOP
             else:
                 # Both on this machine
                 # Check which is actually the UFO
