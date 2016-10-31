@@ -335,8 +335,8 @@ class NumbskullMaster:
                         "or partition_key similar to 'H(|u)%' "
         get_fg_data_begin = time.time()
         (self.weight, self.variable, self.factor, self.fmap, domain_mask, edges, self.var_pt,
-         self.factor_pt, self.var_ufo, self.factor_ufo, self.fid, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin, self.pf_list) = \
-            messages.get_fg_data(cur, master_filter)
+         self.factor_pt, self.var_ufo, self.factor_ufo, self.fid, self.vid, self.ufo_send, self.ufo_recv, self.ufo_start, self.ufo_map, self.ufo_var_begin, self.pf_list, factors_to_skip) = \
+            messages.get_fg_data(cur, master_filter, True)
         get_fg_data_end = time.time()
         print("Done running get_fg_data: " +
               str(get_fg_data_end - get_fg_data_begin))
@@ -344,7 +344,7 @@ class NumbskullMaster:
         self.variable[self.var_pt == "D"]["isEvidence"] = 4  # not owned var type
 
         self.ns.loadFactorGraph(self.weight, self.variable, self.factor, self.fmap,
-                                domain_mask, edges)
+                                domain_mask, edges, 1, 1, factors_to_skip)
 
     def prepare_db(self, cur):
         """TODO."""

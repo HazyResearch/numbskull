@@ -364,7 +364,7 @@ def remap_ufo(ufo, vid):
         ufo[i]["vid"] = inverse_map(vid, ufo[i]["vid"])
 
 
-def get_fg_data(cur, filt):
+def get_fg_data(cur, filt, ismaster):
     """TODO."""
     print("***GET_FG_DATA***")
 
@@ -397,7 +397,7 @@ def get_fg_data(cur, filt):
     print("var_ufo: ", var_ufo)
     print()
 
-    fmap, vid, variable, var_pt, var_ufo, pf_list, pf_var_begin = process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo)
+    fmap, vid, variable, var_pt, var_ufo, pf_list, pf_var_begin, pf_ufo_var_list = process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, ismaster)
     time1 = time2
     time2 = time.time()
     print("process_pf: " + str(time2 - time1))
@@ -412,8 +412,11 @@ def get_fg_data(cur, filt):
     print("var_pt: ", var_pt)
     print("var_ufo: ", var_ufo)
     print()
+    print("pf_list: ", pf_list)
+    print("pf_var_begin: ", pf_var_begin)
+    print("pf_ufo_var_list: ", pf_ufo_var_list)
 
-    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo)
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, pf_ufo_var_list, pf_var_begin)
     time1 = time2
     time2 = time.time()
     print("process_ufo: " + str(time2 - time1))
@@ -450,8 +453,15 @@ def get_fg_data(cur, filt):
     time2 = time.time()
     print("allocate domain_mask: " + str(time2 - time1))
 
+    factors_to_skip = compute_skipped_factors(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo)
+
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list)
+            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip)
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
+    return np.zeros(0, np.int64)
 
 
 def serialize(array):
@@ -644,7 +654,7 @@ def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
+def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, pf_ufo_var_list, pf_var_begin):
     # Count number of factors with UFO
     n_ufo_recv = 0  # Number of ufo to receive
     n_ufo_send = 0  # Number of ufo to send
@@ -653,7 +663,12 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
             exist = 0  # number of vars manifested on this machine
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-                exist += variable_exists(vid, vid1)
+                local_vid = loose_inverse_map(vid, vid1)
+                exist += (local_vid != -1) and (var_pt[local_vid] != 80 or var_ufo[local_vid])
+                # (local_vid != -1) specifies that this var must be on this machine to exist
+                # (var_pt[local_vid] != 80 or var_ufo[local_vid])
+                # part 1 (check against 80) mean that this is not a partial factor var
+                # part 2 is a check that it replaced an ufo var
 
             # Must have exactly one or all vars on this machine
             assert(exist == 1 or exist == factor[i]["arity"])
@@ -677,7 +692,8 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
             var = -1
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-                ex = variable_exists(vid, vid1)
+                local_vid = loose_inverse_map(vid, vid1)
+                ex = (local_vid != -1) and (var_pt[local_vid] != 80 or var_ufo[local_vid])
                 exist += ex
                 if ex:
                     var = vid1
@@ -696,11 +712,24 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
                 var = -1
                 for j in range(factor[i]["arity"]):
                     vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-                    is_ufo = var_ufo[inverse_map(vid, vid1)]
+                    local_vid = inverse_map(vid, vid1)
+                    is_ufo = var_ufo[local_vid]
                     if is_ufo:
                         assert(var == -1)  # This must be the first seen
-                        var = vid1
-                assert(var != -1)
+                        is_pf = (var_pt[local_vid] == 80)  # check if this is a partial factor
+                        if is_pf:
+                            var = pf_ufo_var_list[local_vid - pf_var_begin]
+                        else:
+                            var = vid1
+                # if var == -1:
+                #     # no ufo var found yet
+                #     # this factor must have been partial factored
+                #     # last var has to be the partial factor var
+                #     vid1 = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
+                #     local_vid = inverse_map(vid, vid1)
+                #     is_pf = (var_pt[local_vid] == 80)  # check that this is a partial factor
+                #     assert(is_pf)
+                #     var = pf_ufo_var_list[local_vid - pf_var_begin]
 
                 ufo_send[n_ufo_send]['vid'] = var
                 ufo_send[n_ufo_send]['weightId'] = factor[i]['weightId']
@@ -737,7 +766,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
         factor[n_factors + i]["arity"] = card
         factor[n_factors + i]["ftv_offset"] = ftv_offset
 
-        factor_pt[n_factors + i] = 0  # TODO: Does this actually matter at all?
+        factor_pt[n_factors + i] = 85  # TODO: Does this actually matter at all?
 
         factor_ufo[n_factors + i] = True
 
@@ -754,7 +783,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
             variable[n_var]["cardinality"]
             variable[n_var]["vtf_offset"]
 
-            var_pt[n_var] = 0  # TODO: Does this actually matter at all?
+            var_pt[n_var] = 85  # TODO: Does this actually matter at all?
 
             var_ufo[n_var] = True
 
@@ -830,7 +859,7 @@ def ufo_searchsorted(a, b):
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send):
+def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, pf_ufo_var_list, pf_var_begin):
     ufo_length = np.zeros(ufo_send.size, np.int64)
     ufo_start = np.zeros(ufo_send.size + 1, np.int64)
     ufo = np.zeros(1, dtype=UnaryFactorOpt)
@@ -843,12 +872,26 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
             var = -1
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-                ex = variable_exists(vid, vid1)
+                local_vid = inverse_map(vid, vid1)
+                ex = (local_vid != -1) and (var_pt[local_vid] != 80 or var_ufo[local_vid])
                 exist += ex
-                if ex and var_ufo[inverse_map(vid, vid1)]:
+                if ex and var_ufo[local_vid]:
                     # This variable is on this machine and is ufo
-                    assert(var == -1)  # There can only be one ufo var
-                    var = vid1
+                    assert(var == -1)  # This must be the first seen
+                    is_pf = (var_pt[local_vid] == 80)  # check if this is a partial factor
+                    if is_pf:
+                        var = pf_ufo_var_list[local_vid - pf_var_begin]
+                    else:
+                        var = vid1
+            # if var == -1:
+            #     # no ufo var found yet
+            #     # this factor must have been partial factored
+            #     # last var has to be the partial factor var
+            #     vid1 = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
+            #     local_vid = inverse_map(vid, vid1)
+            #     is_pf = (var_pt[local_vid] == 80)  # check that this is a partial factor
+            #     assert(is_pf)
+            #     var = pf_ufo_var_list[local_vid - pf_var_begin]
 
             # Must have exactly one or all vars on this machine
             assert(exist == 1 or exist == factor[i]["arity"])
@@ -864,7 +907,7 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                 weightId = factor[i]['weightId']
 
                 # TODO: is there a way to not create a list of length 1
-                ufo[0]["vid"] = inverse_map(vid, var)
+                ufo[0]["vid"] = var
                 ufo[0]["weightId"] = weightId
                 j = ufo_searchsorted(ufo_send, ufo[0])
                 assert(ufo_equal(ufo_send[j], ufo[0]))
@@ -883,12 +926,26 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
             var = -1
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
-                ex = variable_exists(vid, vid1)
+                local_vid = inverse_map(vid, vid1)
+                ex = (local_vid != -1) and (var_pt[local_vid] != 80 or var_ufo[local_vid])
                 exist += ex
-                if ex and var_ufo[inverse_map(vid, vid1)]:
+                if ex and var_ufo[local_vid]:
                     # This variable is on this machine and is ufo
-                    assert(var == -1)  # There can only be one ufo var
-                    var = vid1
+                    assert(var == -1)  # This must be the first seen
+                    is_pf = (var_pt[local_vid] == 80)  # check if this is a partial factor
+                    if is_pf:
+                        var = pf_ufo_var_list[local_vid - pf_var_begin]
+                    else:
+                        var = vid1
+            # if var == -1:
+            #     # no ufo var found yet
+            #     # this factor must have been partial factored
+            #     # last var has to be the partial factor var
+            #     vid1 = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
+            #     local_vid = inverse_map(vid, vid1)
+            #     is_pf = (var_pt[local_vid] == 80)  # check that this is a partial factor
+            #     assert(is_pf)
+            #     var = pf_ufo_var_list[local_vid - pf_var_begin]
 
             # Must have exactly one or all vars on this machine
             assert(exist == 1 or exist == factor[i]["arity"])
@@ -896,7 +953,7 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
             if exist == factor[i]["arity"]:
                 weightId = factor[i]['weightId']
 
-                ufo[0]["vid"] = inverse_map(vid, var)
+                ufo[0]["vid"] = var
                 ufo[0]["weightId"] = weightId
                 j = ufo_searchsorted(ufo_send, ufo[0])
                 assert(ufo_equal(ufo_send[j], ufo[0]))
@@ -942,7 +999,7 @@ def apply_ufo_values(factor, fmap, var_value, ufo_map, ufo_values):
 
 
 @numba.jit(cache=True, nogil=True)
-def process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
+def process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, ismaster):
     """Process partial factor."""
 
     pf_var_begin = len(vid)
@@ -954,24 +1011,28 @@ def process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, 
     var_pt = np.resize(var_pt, len(var_pt) + len(pf_list))
     var_ufo = np.resize(var_ufo, len(var_ufo) + len(pf_list))
 
-    ftv_offset = set_pf(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo, pf_var_begin, np.iinfo(vid.dtype).max)
+    pf_ufo_var_list = np.zeros(pf_list.size, np.int64)  # This is a list of one of the vars that was deleted from a partial factor
+                                                        # In this case that this factor is also UFO'd, then this var is the UFO var
+    ftv_offset = set_pf(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo, pf_var_begin, np.iinfo(vid.dtype).max, ismaster, pf_ufo_var_list)
 
     fmap = np.resize(fmap, ftv_offset)
 
-    return fmap, vid, variable, var_pt.view('c'), var_ufo, pf_list, pf_var_begin
+    return fmap, vid, variable, var_pt.view('c'), var_ufo, pf_list, pf_var_begin, pf_ufo_var_list
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def find_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
     count = 0
     for i in range(len(factor)):
-        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+        if ((factor_pt[i] == 68 and not factor_ufo[i])  # "D"
+          or factor_pt[i] == 71):  # "G"
             count += 1
 
     pf_list = np.zeros(count, np.int64)
     count = 0
     for i in range(len(factor)):
-        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+        if ((factor_pt[i] == 68 and not factor_ufo[i])  # "D"
+          or factor_pt[i] == 71):  # "G"
             pf_list[count] = i
             count += 1
 
@@ -979,7 +1040,7 @@ def find_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_var_begin, vid_max):
+def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_var_begin, vid_max, ismaster, pf_ufo_var_list):
     # vid_max should just be np.iinfo(vid.dtype).max, but numba doesn't support iinfo   
 
     # Setting fake variables
@@ -992,7 +1053,7 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
         variable[i]["cardinality"]
         variable[i]["vtf_offset"]
 
-        var_pt[i] = 0  # TODO: Does this actually matter at all?
+        var_pt[i] = 80  # TODO: Does this actually matter at all?
 
         var_ufo[i] = False
 
@@ -1002,16 +1063,30 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
     for i in range(len(factor)):
         factor[i]["ftv_offset"] = ftv_offset
 
-        if factor_pt[i] == 71 and not factor_ufo[i]:  # "G"
+        if ((factor_pt[i] == 68 and not factor_ufo[i])  # "D"
+          or factor_pt[i] == 71):  # "G"
             # Is a partial factor
             arity = 0
+            var_was_ufo = False
             for j in range(factor[i]["arity"]):
-                if variable_exists(vid, fmap[ftv_offset + j]["vid"]):
+                # Minions are loading Au vars right now for PPB with UFO
+                # Because PPB partitions on factors, the var never appears on minion
+                # but information about the minion needs to exist to figure out how
+                # to handle the UFO
+                local_vid = loose_inverse_map(vid, fmap[ftv_offset + j]["vid"])
+                if local_vid != -1 and (ismaster or var_pt[local_vid] != 65):  # "A"
                     fmap[ftv_offset + arity] = fmap[ftv_offset_src + j]
                     arity += 1
+                else:
+                    # This variable is being deleted
+                    # Could be a ufo var
+                    # save for later use
+                    pf_ufo_var_list[count] = fmap[ftv_offset_src + j]["vid"]
+                    var_was_ufo = var_ufo[local_vid]
             assert(arity < factor[i]["arity"])  # there isn't space allocated for extra vid
 
             fmap[ftv_offset + arity]["vid"] = vid[pf_var_begin + count]
+            var_ufo[pf_var_begin + count] = var_was_ufo
             count += 1
             arity += 1
             factor[i]["arity"] = arity
@@ -1019,7 +1094,8 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
             ftv_offset_src += factor[i]["arity"]
         else:
             for j in range(factor[i]["arity"]):
-                if variable_exists(vid, fmap[ftv_offset + j]["vid"]):
+                local_vid = loose_inverse_map(vid, fmap[ftv_offset + j]["vid"])
+                if local_vid != -1 and (ismaster or var_pt[local_vid] != 65):  # "A"
                     fmap[ftv_offset + j] = fmap[ftv_offset_src + j]
             ftv_offset += factor[i]["arity"]
             ftv_offset_src += factor[i]["arity"]
@@ -1028,10 +1104,10 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
 
 
 @numba.jit(cache=True, nogil=True)
-def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo):
+def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, pf_ufo_var_list, pf_var_begin):
 
     time1 = time.time()
-    ufo_send, ufo_recv = find_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo)
+    ufo_send, ufo_recv = find_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, pf_ufo_var_list, pf_var_begin)
     time2 = time.time()
     print("find_ufo took ", time2 - time1)
 
@@ -1052,6 +1128,7 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
 
     remap_ufo(ufo_send, vid)
     remap_ufo(ufo_recv, vid)
+    apply_loose_inverse_map(vid, pf_ufo_var_list)
 
     time1 = time2
     time2 = time.time()
@@ -1064,7 +1141,7 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     print("add_ufo took ", time2 - time1)
 
     # Provide a fast method of finding factors that need to be evaluated for UFO
-    ufo_start, ufo_map = compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send)
+    ufo_start, ufo_map = compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, pf_ufo_var_list, pf_var_begin)
     time1 = time2
     time2 = time.time()
     print("compute_ufo_map took ", time2 - time1)

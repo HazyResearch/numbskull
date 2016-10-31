@@ -159,7 +159,13 @@ def start():
 
             # Open a cursor to perform database operations
             cur = conn.cursor()
-            minion_filter = "   partition_key similar to 'B(|u)' " \
+
+            # TODO: the Au filter should only be for variables
+            # For partition scheme PPB with UFO,
+            # variables are missing from the minion
+            # and the minion needs to know the cardinality
+            minion_filter = "   partition_key similar to 'Au' " \
+                            "or partition_key similar to 'B(|u)' " \
                             "or partition_key similar to 'C(|u){partition_id}' " \
                             "or partition_key similar to 'D(|u){partition_id}' " \
                             "or partition_key similar to 'E(|u){partition_id}' " \
@@ -169,8 +175,8 @@ def start():
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-             factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list) = \
-                messages.get_fg_data(cur, minion_filter)
+             factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip) = \
+                messages.get_fg_data(cur, minion_filter, False)
 
             # Close communication with the database
             cur.close()
@@ -179,7 +185,7 @@ def start():
             variable[var_pt == "B"]["isEvidence"] = 4  # not owned var type
 
             ns_minion.ns.loadFactorGraph(weight, variable, factor, fmap,
-                                         domain_mask, edges)
+                                         domain_mask, edges, 1, 1, factors_to_skip)
 
             # Respond to master
             data = {}
