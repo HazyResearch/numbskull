@@ -882,7 +882,7 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                     if is_pf:
                         var = pf_ufo_var_list[local_vid - pf_var_begin]
                     else:
-                        var = vid1
+                        var = local_vid
             # if var == -1:
             #     # no ufo var found yet
             #     # this factor must have been partial factored
@@ -936,7 +936,7 @@ def compute_ufo_map(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, 
                     if is_pf:
                         var = pf_ufo_var_list[local_vid - pf_var_begin]
                     else:
-                        var = vid1
+                        var = local_vid
             # if var == -1:
             #     # no ufo var found yet
             #     # this factor must have been partial factored
