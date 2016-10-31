@@ -421,9 +421,6 @@ def get_fg_data(cur, filt, ismaster):
     time2 = time.time()
     print("process_ufo: " + str(time2 - time1))
 
-    # need to decrease vids of pf's to not overlap with ufo fake vid
-    vid[pf_var_begin:ufo_var_begin] -= len(vid) - ufo_var_begin
-
     print("factor: ", factor)
     print("factor_pt: ", factor_pt)
     print("factor_ufo: ", factor_ufo)
@@ -795,7 +792,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
 
 @numba.jit(cache=True, nogil=True)
-def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv):
+def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, pf_var_begin):
     n_factors = len(factor)
     n_fmap = len(fmap)
     n_var = len(variable)
@@ -813,9 +810,20 @@ def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
     var_pt = np.resize(var_pt, n_var + m_var)
     var_ufo = np.resize(var_ufo, n_var + m_var)
 
+    # need to decrease vids of pf's to not overlap with ufo fake vid
+    decrease_vid(fmap, vid, m_var, pf_var_begin, n_var)
+
     set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var, np.iinfo(vid.dtype).max)
 
     return factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, n_var
+
+
+@numba.jit(nopython=True, cache=True, nogil=True)
+def decrease_vid(fmap, vid, amount, begin, end):
+    for i in range(len(fmap)):
+        if vid[begin] <= fmap[i]["vid"] <= vid[end - 1]:
+            fmap[i]["vid"] -= amount
+    vid[begin:end] -= amount
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
@@ -1135,7 +1143,7 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
     print("unique + sort took ", time2 - time1)
 
     # add fake factors vars for UFO
-    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_var_begin = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv)
+    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_var_begin = add_ufo(factor, factor_pt.view(np.int8), factor_ufo, fmap, vid, variable, var_pt.view(np.int8), var_ufo, ufo_recv, pf_var_begin)
     time1 = time2
     time2 = time.time()
     print("add_ufo took ", time2 - time1)
