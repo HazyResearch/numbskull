@@ -450,15 +450,38 @@ def get_fg_data(cur, filt, ismaster):
     time2 = time.time()
     print("allocate domain_mask: " + str(time2 - time1))
 
-    factors_to_skip = compute_skipped_factors(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo)
+    factors_to_skip, pf_to_send = compute_skipped_factors(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo, pf_list, ismaster)
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip)
+            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip, pf_to_send)
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo):
-    return np.zeros(0, np.int64)
+def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_list, ismaster):
+    n_pf_send = 0
+    n_pf_skip = 0
+    n_ufo_skip = 0
+    for i in range(len(factor)):
+        if factor_pt[i] == 80:  # is partial factor
+            var = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
+            if var_pt[var] == 80 and not var_ufo[var]:
+                # This variable is parial factor and ufo
+                # This means that this partial factor has to actually be sent
+                n_pf_send += 1
+
+
+    pf_to_send = np.empty(n_pf_send, np.int64)
+    n_pf_send = 0
+    for i in range(len(factor)):
+        if factor_pt[i] == 80:  # is partial factor
+            var = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
+            if var_pt[var] == 80 and not var_ufo[var]:
+                # This variable is parial factor and ufo
+                # This means that this partial factor has to actually be sent
+                pf_to_send[n_pf_send] = i
+                n_pf_send += 1
+
+    return np.zeros(0, np.int64), pf_to_send
 
 
 def serialize(array):

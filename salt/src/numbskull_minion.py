@@ -175,7 +175,7 @@ def start():
             minion_filter = minion_filter.format(partition_id=partition_id)
 
             (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-             factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip) = \
+             factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip, pf_to_send) = \
                 messages.get_fg_data(cur, minion_filter, False)
 
             # Close communication with the database
@@ -204,7 +204,7 @@ def start():
             ufo_map_to_master["vid"] = vid[ufo_map_to_master["vid"]]
             data = {"pid": partition_id,
                     "map": messages.serialize(map_to_master),
-                    "pf": messages.serialize(fid[pf_list]),
+                    "pf": messages.serialize(fid[pf_to_send]),
                     "ufo": messages.serialize(ufo_map_to_master)}
             __salt__['event.send'](messages.SYNC_MAPPING_RES, data)
 
@@ -214,8 +214,8 @@ def start():
             variables_to_master = np.zeros(map_to_master.size, np.int64)
             var_evid_to_master = np.zeros(map_to_master.size, np.int64)
 
-            pf_to_master = np.zeros(pf_list.size, np.int64)
-            pf_evid_to_master = np.zeros(pf_list.size, np.int64)
+            pf_to_master = np.zeros(pf_to_send.size, np.int64)
+            pf_evid_to_master = np.zeros(pf_to_send.size, np.int64)
 
             m_factors, m_fmap, m_var = messages.extra_space(vid, variable, ufo_send)
             ufo_to_master = np.empty(m_var, np.int64)
@@ -251,7 +251,7 @@ def start():
 
             # Respond to master
             messages.compute_vars_to_send(map_to_master, variables_to_master, ns_minion.ns.factorGraphs[-1].var_value[0])
-            messages.compute_pf_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value, variable, pf_list, pf_to_master)
+            messages.compute_pf_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value, variable, pf_to_send, pf_to_master)
             messages.compute_ufo_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo_to_master)
             print(80 * "*")
             print(ns_minion.ns.factorGraphs[-1].var_value)
@@ -266,7 +266,7 @@ def start():
                 __salt__['event.send'](messages.INFER_RES, data)
             else:
                 messages.compute_vars_to_send(map_to_master, var_evid_to_master, ns_minion.ns.factorGraphs[-1].var_value_evid[0])
-                messages.compute_pf_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value_evid, variable, pf_list, pf_evid_to_master)
+                messages.compute_pf_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value_evid, variable, pf_to_send, pf_evid_to_master)
                 messages.compute_ufo_values(factor, fmap, ns_minion.ns.factorGraphs[-1].var_value_evid, variable, var_ufo, ufo_send, ufo_start, ufo_map, ufo_evid_to_master)
                 dweight = ns_minion.ns.factorGraphs[-1].weight_value[0] - w0
 
