@@ -1191,7 +1191,7 @@ def apply_inverse_map(vid, array):
 def loose_inverse_map(forward, index):
     """TODO."""
     ans = np.searchsorted(forward, index)
-    if forward[ans] != index:
+    if ans >= len(forward) or forward[ans] != index:
         return -1
     return ans
 
