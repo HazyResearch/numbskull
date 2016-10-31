@@ -460,28 +460,47 @@ def get_fg_data(cur, filt, ismaster):
 def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_list, ismaster):
     n_pf_send = 0
     n_pf_skip = 0
-    n_ufo_skip = 0
+    # n_ufo_skip = 0
+    # UFO's never have to be skipped?
+    # minion will not generate extra factors for UFO
+    # and if master has an extra factor, it will always actually be using the ufo (and may have partial factors for minions)
     for i in range(len(factor)):
         if factor_pt[i] == 80:  # is partial factor
             var = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
-            if var_pt[var] == 80 and not var_ufo[var]:
-                # This variable is parial factor and ufo
-                # This means that this partial factor has to actually be sent
-                n_pf_send += 1
+            if var_pt[var] == 80:
+                if var_ufo[var]:
+                    # This variable is parial factor and ufo
+                    # This means that this partial factor only exists to be evaluated for other machines
+                    # Should not actually evaluate this while sampling locally
+                    n_pf_skip += 1
+                else:
+                    # This variable is parial factor and not ufo
+                    # This means that this partial factor has to actually be sent
+                    n_pf_send += 1
 
 
+    # factors_to_skip = np.empty(n_pf_send + n_ufo_skip, np.int64)
+    factors_to_skip = np.empty(n_pf_send, np.int64)
     pf_to_send = np.empty(n_pf_send, np.int64)
     n_pf_send = 0
+    n_pf_skip = 0
     for i in range(len(factor)):
         if factor_pt[i] == 80:  # is partial factor
             var = fmap[factor[i]["ftv_offset"] + factor[i]["arity"] - 1]["vid"]
-            if var_pt[var] == 80 and not var_ufo[var]:
-                # This variable is parial factor and ufo
-                # This means that this partial factor has to actually be sent
-                pf_to_send[n_pf_send] = i
-                n_pf_send += 1
+            if var_pt[var] == 80:
+                if var_ufo[var]:
+                    # This variable is parial factor and ufo
+                    # This means that this partial factor only exists to be evaluated for other machines
+                    # Should not actually evaluate this while sampling locally
+                    factors_to_skip[n_pf_skip] = i
+                    n_pf_skip += 1
+                else:
+                    # This variable is parial factor and not ufo
+                    # This means that this partial factor has to actually be sent
+                    pf_to_send[n_pf_send] = i
+                    n_pf_send += 1
 
-    return np.zeros(0, np.int64), pf_to_send
+    return factors_to_skip, pf_to_send
 
 
 def serialize(array):
