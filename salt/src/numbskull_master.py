@@ -137,8 +137,8 @@ class NumbskullMaster:
         begin = time.time()
         variables_to_minions = np.zeros(self.map_to_minions.size, np.int64)
         var_evid_to_minions = np.zeros(self.map_to_minions.size, np.int64)
-        pf_to_minions = np.zeros(self.pf_list.size, np.int64)
-        pf_evid_to_minions = np.zeros(self.pf_list.size, np.int64)
+        pf_to_minions = np.zeros(self.pf_to_send.size, np.int64)
+        pf_evid_to_minions = np.zeros(self.pf_to_send.size, np.int64)
 
         print("***LENGTHS***")
         print("Variables to minions:         ", len(variables_to_minions))
@@ -165,11 +165,11 @@ class NumbskullMaster:
             # gather values to ship to minions
             # TODO: handle multiple copies
             messages.compute_vars_to_send(self.map_to_minions, variables_to_minions, self.ns.factorGraphs[-1].var_value[0])
-            messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value, self.variable, self.pf_list, pf_to_minions)
+            messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value, self.variable, self.pf_to_send, pf_to_minions)
 
             if learn:
                 messages.compute_vars_to_send(self.map_to_minions, var_evid_to_minions, self.ns.factorGraphs[-1].var_value_evid[0])
-                messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value_evid, self.variable, self.pf_list, pf_evid_to_minions)
+                messages.compute_pf_values(self.factor, self.fmap, self.ns.factorGraphs[-1].var_value_evid, self.variable, self.pf_to_send, pf_evid_to_minions)
 
             # Tell minions to sample
             beginTest = time.time()
