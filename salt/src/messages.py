@@ -1128,8 +1128,9 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
                 # Because PPB partitions on factors, the var never appears on minion
                 # but information about the minion needs to exist to figure out how
                 # to handle the UFO
-                local_vid = loose_inverse_map(vid, fmap[ftv_offset + j]["vid"])
+                local_vid = loose_inverse_map(vid, fmap[ftv_offset_src + j]["vid"])
                 if local_vid != -1 and (ismaster or var_pt[local_vid] != 65):  # "A"
+                    # This variable is owned by this machine
                     fmap[ftv_offset + arity] = fmap[ftv_offset_src + j]
                     arity += 1
                 else:
@@ -1138,18 +1139,37 @@ def set_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_
                     # save for later use
                     pf_ufo_var_list[count] = fmap[ftv_offset_src + j]["vid"]
                     var_was_ufo = var_ufo[local_vid]
-            assert(arity < factor[i]["arity"])  # there isn't space allocated for extra vid
 
-            fmap[ftv_offset + arity]["vid"] = vid[pf_var_begin + count]
-            var_ufo[pf_var_begin + count] = var_was_ufo
-            count += 1
-            arity += 1
-            factor[i]["arity"] = arity
+            # In Cu, it is possible for this factor (which is a partial factor)
+            # to receive some (or all) of its non-owned vars from another machine
+            # this part swaps everything to the back
+            back = ftv_offset + factor[i]["arity"] - 1
+            front = ftv_offset
+            while front < back:
+                local_vid = loose_inverse_map(vid, fmap[front]["vid"])
+                if local_vid != -1 and \
+                   ((ismaster and var_pt[local_vid] == 68)  # "D"
+                 or (not ismaster and var_pt[local_vid] == 66)):  # "B"
+                    # This variable exists on this machine
+                    # but is not owned by the machine
+                    # need to ship the var from another machine
+                    fmap[front], fmap[back] = fmap[back], fmap[front]
+                    back -= 1
+                front += 1
+            if arity < factor[i]["arity"]:
+                # there is enough space allocated for extra vid
+                # this means that something was deleted
+                # so a partial factor will be received
+                fmap[ftv_offset + arity]["vid"] = vid[pf_var_begin + count]
+                var_ufo[pf_var_begin + count] = var_was_ufo
+                count += 1
+                arity += 1
             ftv_offset += arity
             ftv_offset_src += factor[i]["arity"]
+            factor[i]["arity"] = arity
         else:
             for j in range(factor[i]["arity"]):
-                local_vid = loose_inverse_map(vid, fmap[ftv_offset + j]["vid"])
+                local_vid = loose_inverse_map(vid, fmap[ftv_offset_src + j]["vid"])
                 if local_vid != -1 and (ismaster or var_pt[local_vid] != 65):  # "A"
                     fmap[ftv_offset + j] = fmap[ftv_offset_src + j]
             ftv_offset += factor[i]["arity"]
