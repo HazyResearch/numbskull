@@ -866,9 +866,10 @@ def add_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def decrease_vid(fmap, vid, amount, begin, end):
-    for i in range(len(fmap)):
-        if vid[begin] <= fmap[i]["vid"] <= vid[end - 1]:
-            fmap[i]["vid"] -= amount
+    if begin < end:
+        for i in range(len(fmap)):
+            if vid[begin] <= fmap[i]["vid"] <= vid[end - 1]:
+                fmap[i]["vid"] -= amount
     vid[begin:end] -= amount
 
 
