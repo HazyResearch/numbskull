@@ -12,14 +12,15 @@ if __name__ == "__main__":
     learning_epochs = 100
     inference_epochs = 100
     f = open("congress.dat", "w")
-    for machines in range(0, 4 + 1):
-        partition_type = "" if machines == 0 else "(1)"
-        (ns, res) = numbskull_master.main(application_dir, machines,
+    for m in range(0, machines + 1):
+        partition_type = "" if m == 0 else "(1)"
+        (ns, res) = numbskull_master.main(application_dir, m,
                                           threads_per_machine,
                                           learning_epochs, inference_epochs,
+                                          "sp", "a", False,
                                           partition_type)
 
-        f.write(str(machines) + "\t" +
+        f.write(str(m) + "\t" +
                 str(res["learning_time"]) + "\t" +
                 str(res["inference_time"]) + "\n")
         f.flush()
