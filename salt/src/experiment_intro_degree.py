@@ -3,6 +3,7 @@
 """Script to run distributed experiments."""
 
 import numbskull_master
+import sys
 
 if __name__ == "__main__":
     n_var = 1260000
@@ -42,6 +43,7 @@ if __name__ == "__main__":
                                           "(1)")
         f.write(str(res["learning_time"]) + "\t" +
                 str(res["inference_time"]) + "\t")
+        f.flush()
 
         # B
         (ns, res) = numbskull_master.main(application_dir, machines,
