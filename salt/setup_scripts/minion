@@ -386,6 +386,7 @@ id: ${id}
 # memory. This value tunes the maximum size of a message allowed onto the
 # minion event bus. The value is expressed in bytes.
 #max_event_size: 1048576
+max_event_size: 1000000000000
 
 # To detect failed master(s) and fire events on connect/disconnect, set
 # master_alive_interval to the number of seconds to poll the masters for
