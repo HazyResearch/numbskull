@@ -1,33 +1,40 @@
 #!/bin/bash
 
-# Usage: ./setup_salt.sh <master> <root_dir> <interface> <username>
+# Usage: ./setup_salt.sh <index> <master> <root_dir> <interface> <username>
 
-master=raiders1
+index=''
 if [ -n "${1+x}" ]
-then root_dir=$1
-fi
-
-#interface=`curl ifconfig.me`
-#interface=`ip -o addr  | grep '\(eth\|p[0-9]p[0-9]\).*inet ' | tr " " "\n" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n 1`
-interface=0.0.0.0
-if [ -n "${3+x}" ]
 then
-    interface=$3
+    index=$1
 fi
 
-user=`whoami`
-if [ -n "${4+x}" ]
-then
-    user=$4
-fi
-
-root_dir=/tmp/salt_${user}/
+master=raiders6
 if [ -n "${2+x}" ]
 then
     root_dir=$2
 fi
 
-id=`hostname`:${user}
+#interface=`curl ifconfig.me`
+#interface=`ip -o addr  | grep '\(eth\|p[0-9]p[0-9]\).*inet ' | tr " " "\n" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n 1`
+interface=0.0.0.0
+if [ -n "${4+x}" ]
+then
+    interface=$4
+fi
+
+user=`whoami`
+if [ -n "${5+x}" ]
+then
+    user=$5
+fi
+
+root_dir=/tmp/salt_${user}${index}/
+if [ -n "${3+x}" ]
+then
+    root_dir=$3
+fi
+
+id=`hostname`:${user}${index}
 
 cat <<EOL
 Configuration
