@@ -38,12 +38,11 @@ class FactorGraph(object):
         self.factor_index = factor_index
 
         # This is just cumsum shifted by 1
-        self.cstart = np.zeros(self.variable.shape[0] + 1, np.int64)
-        for i in range(self.variable.shape[0]):
-            c = self.variable[i]["cardinality"]
-            if self.variable[i]["dataType"] == 0:
-                c = 1
-            self.cstart[i + 1] = self.cstart[i] + c
+        self.cstart = np.empty(self.variable.shape[0] + 1, np.int64)
+        self.cstart[0] = 0
+        self.cstart[1:] = self.variable["cardinality"]
+        self.cstart[self.cstart == 2] = 1  # Save space for binary vars
+        np.cumsum(self.cstart, out=self.cstart)
         self.count = np.zeros(self.cstart[self.variable.shape[0]], np.int64)
 
         self.var_value_evid = \
@@ -219,7 +218,7 @@ class FactorGraph(object):
         epochs = epochs or 1
         with open(fout, 'w') as out:
             for i, v in enumerate(self.variable):
-                if v["dataType"] == 0:
+                if v["cardinality"] == 2:
                     prob = float(self.count[self.cstart[i]]) / epochs
                     out.write('%d %d %.3f\n' % (i, 1, prob))
                 else:

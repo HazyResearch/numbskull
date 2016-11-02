@@ -27,7 +27,7 @@ def gibbsthread(shardID, nshards, var_copy, weight_copy, weight, variable,
                             var_value, weight_value)
             var_value[var_copy][var_samp] = v
             if not burnin:
-                if variable[var_samp]["dataType"] == 0:
+                if variable[var_samp]["cardinality"] == 2:
                     count[cstart[var_samp]] += v
                 else:
                     count[cstart[var_samp] + v] += 1
