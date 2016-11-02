@@ -11,7 +11,11 @@ def generate(directory, degree, copies):
     print("Generating " + directory + "...")
     sys.stdout.flush()
 
-    shutil.rmtree(directory)
+    try:
+        shutil.rmtree(directory)
+    except:
+        # exception can be thrown if dir does not exist
+        pass
     mkpath(directory)
 
     # app.ddlog
@@ -110,7 +114,7 @@ def generate(directory, degree, copies):
 
 
 if __name__ == "__main__":
-    n_var = 1260000
+    n_var = 12600
     for degree in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
         copies = n_var // degree
         generate("/dfs/scratch0/bryanhe/intro_" + str(copies) + "_" + str(degree) + "/", degree, copies)
