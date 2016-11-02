@@ -111,7 +111,6 @@ def generate(directory, degree, copies):
 
 if __name__ == "__main__":
     n_var = 1260000
-    #for degree in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
-    for degree in [1]:
+    for degree in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
         copies = n_var // degree
         generate("/dfs/scratch0/bryanhe/intro_" + str(copies) + "_" + str(degree) + "/", degree, copies)
