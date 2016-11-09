@@ -191,7 +191,8 @@ class NumbSkull(object):
         self.factorGraphs.append(fg)
 
     def loadFactorGraph(self, weight, variable, factor, fmap, domain_mask,
-                        edges, var_copies=1, weight_copies=1, factors_to_skip=np.empty(0, np.int64)):
+                        edges, var_copies=1, weight_copies=1,
+                        factors_to_skip=np.empty(0, np.int64)):
         """TODO."""
         # Note: factors_to_skip must be sorted
         # Assert input arguments correspond to NUMPY arrays
@@ -204,7 +205,8 @@ class NumbSkull(object):
         assert(type(edges) == int or
                type(edges) == long or
                type(edges) == np.int64)
-        assert(type(factors_to_skip) == np.ndarray and factors_to_skip.dtype == np.int64)
+        assert(type(factors_to_skip) == np.ndarray and
+               factors_to_skip.dtype == np.int64)
 
         # Initialize metadata
         meta = {}

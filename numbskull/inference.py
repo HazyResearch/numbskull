@@ -384,7 +384,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             return 0
 
         return value if fmap[ftv_start + v - 1]["vid"] == var_samp else \
-               var_value[var_copy][fmap[ftv_start + v - 1]["vid"]]
+            var_value[var_copy][fmap[ftv_start + v - 1]["vid"]]
 
     ######################
     # FACTOR NOT DEFINED #
