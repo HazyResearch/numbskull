@@ -15,7 +15,7 @@ def dataType(i):
 
 @jit(nopython=True, cache=True)
 def compute_var_map(variables, factors, fmap, vmap, factor_index, domain_mask,
-                    factors_to_skip):
+                    factors_to_skip=np.empty(0, np.int64)):
     """TODO."""
     # Fill in domain values (for mapping when dumping marginals)
     for i, v in enumerate(variables):
