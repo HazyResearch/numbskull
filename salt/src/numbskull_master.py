@@ -194,7 +194,6 @@ class NumbskullMaster:
             endTest = time.time()
             print("EVENT FIRE LOOP TOOK " + str(endTest - beginTest))
 
-
             messages.clear_ufo_values(self.ns.factorGraphs[-1].var_value[0], self.ufo_var_begin)
             if learn:
                 messages.clear_ufo_values(self.ns.factorGraphs[-1].var_value_evid[0], self.ufo_var_begin)
@@ -411,7 +410,6 @@ class NumbskullMaster:
         sql_to_apply_end = time.time()
         print("Done running sql_to_apply: " +
               str(sql_to_apply_end - sql_to_apply_begin))
-
 
     def load_all_fg(self, db_url, cur):
         """TODO."""

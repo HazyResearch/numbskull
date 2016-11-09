@@ -1,0 +1,11 @@
+2016-11-01 15:41:37.802211 ‘run/LATEST.COMPILE’ -> ‘20161101/154137.591966392’
+2016-11-01 15:41:37.802288 ‘run/RUNNING.COMPILE’ -> ‘20161101/154137.591966392’
+2016-11-01 15:41:37.802305 Parsing DeepDive application (/home/bryanhe/numbskull/experiments/partitionable_and_vote) to generate:
+2016-11-01 15:41:37.802315  run/compiled/deepdive.conf
+2016-11-01 15:41:37.802323   from app.ddlog
+2016-11-01 15:41:40.191748 [error] Invalid rule name:
+2016-11-01 15:41:40.191799 @weight(1.0)
+2016-11-01 15:41:40.191814 @name(and_factor)
+2016-11-01 15:41:40.191827 p(p) ^ v(v) ^ v2(v) ^ v3(v) ^ v4(v) ^ v5(v) ^ v6(v) ^ v7(v) ^ v8(v) ^ v9(v) ^ v10(v) :-
+2016-11-01 15:41:40.191860     voter_voted_for(v, p).
+2016-11-01 15:41:40.191877 

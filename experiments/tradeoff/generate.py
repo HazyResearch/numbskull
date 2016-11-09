@@ -10,15 +10,12 @@ import time
 
 child_processes = {}
 
-def generate(directory, propositions, voters_per_proposition, copies, FNULL):
+
+def generate(directory, propositions, voters_per_proposition, copies,
+             FNULL):
     print("Generating " + directory + "...")
     sys.stdout.flush()
 
-    #try:
-    #    shutil.rmtree(directory)
-    #except:
-    #    # exception can be thrown if dir does not exist
-    #    pass
     mkpath(directory)
 
     # app.ddlog
@@ -55,13 +52,16 @@ def generate(directory, propositions, voters_per_proposition, copies, FNULL):
 
     # db.url
     f = open(directory + "/db.url", "w")
-    f.write("postgresql://thodrek@raiders6.stanford.edu:1432/tradeoff_" + str(propositions) + "_" + str(voters_per_proposition) + "_" + str(copies))
+    f.write("postgresql://thodrek@raiders6.stanford.edu:1432/tradeoff_" +
+            str(propositions) + "_" +
+            str(voters_per_proposition) + "_" +
+            str(copies))
     f.close()
-    
+
     # deepdive.conf
     f = open(directory + "/deepdive.conf", "w")
     f.write("deepdive.calibration.holdout_fraction:0.25\n"
-            "deepdive.sampler.sampler_args: \"-l 0 -i 0 --alpha 0.01 --sample_evidence\"\n")
+            "deepdive.sampler.sampler_args: \"-l 0 -i 0 --alpha 0.01\"\n")
     f.close()
 
     # simple.costmodel.txt
@@ -98,14 +98,14 @@ def generate(directory, propositions, voters_per_proposition, copies, FNULL):
     for i in range(propositions):
         f.write(str(i) + "\t\\N\n")
     f.close()
-    
+
     f = open(directory + "/input/voter_voted_for.tsv", "w")
     index = 0
     for i in range(copies):
         for j in range(propositions):
             f.write(str(i) + "\t" + str(j) + "\n")
     f.close()
-    
+
     f = open(directory + "/input/v.tsv", "w")
     for i in range(copies):
         f.write(str(i) + "\t\\N\n")
@@ -113,25 +113,31 @@ def generate(directory, propositions, voters_per_proposition, copies, FNULL):
 
     for i in range(voters_per_proposition):
         try:
-            os.symlink(directory + "/input/v.tsv", directory + "/input/v" + str(i) + ".tsv")
+            os.symlink(directory + "/input/v.tsv",
+                       directory + "/input/v" + str(i) + ".tsv")
         except:
             pass
 
     cmd = ["deepdive", "do", "all"]
-    child_processes[directory] = subprocess.Popen(cmd, cwd=directory, stdout=FNULL)
+    child_processes[directory] = subprocess.Popen(cmd, cwd=directory,
+                                                  stdout=FNULL)
 
 
 if __name__ == "__main__":
     FNULL = open(os.devnull, 'w')
 
-    #generate("/dfs/scratch0/bryanhe/tradeoff_test/", 2, 2, 2, FNULL)
     n_var = 1260000
     propositions = 10
 
-    #for voters_per_proposition in [2, 5, 10, 20, 50]:
-    for voters_per_proposition in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
+    # for voters_per_proposition in [2, 5, 10, 20, 50]:
+    for voters_per_proposition in [1, 2, 3, 4, 5, 10,
+                                   15, 20, 25, 30, 35, 40, 45, 50]:
         copies = n_var // voters_per_proposition
-        generate("/dfs/scratch0/bryanhe/tradeoff_" + str(propositions) + "_" + str(copies) + "_" + str(voters_per_proposition) + "/", propositions, voters_per_proposition, copies, FNULL)
+        generate("/dfs/scratch0/bryanhe/tradeoff_" +
+                 str(propositions) + "_" +
+                 str(copies) + "_" +
+                 str(voters_per_proposition) + "/",
+                 propositions, voters_per_proposition, copies, FNULL)
 
     print(80 * "*")
     done = False

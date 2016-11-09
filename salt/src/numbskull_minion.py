@@ -257,7 +257,6 @@ def start():
             print(ns_minion.ns.factorGraphs[-1].var_value)
             print(ufo_to_master)
 
-
             if tag == messages.INFER:
                 data = {"pid": partition_id,
                         "values": messages.serialize(variables_to_master),

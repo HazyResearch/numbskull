@@ -1,0 +1,58 @@
+\documentclass{standalone}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\renewcommand{\rmdefault}{ptm}
+\renewcommand{\sfdefault}{phv}
+\renewcommand{\ttdefault}{cmtt}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,decorations.markings,math,arrows.meta,decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.11}
+
+\begin{document}
+  \begin{small}
+  \begin{tikzpicture}
+  \begin{axis}[
+    title = {Sequence of Dependencies ($n = 10$)},
+    xlabel = Percentile,
+    ylabel = $t_{\textrm{mix}}$,
+    %xmode = log,
+    %ymode = log,
+    xmin=-5,
+    xmax=105,
+    xtick = {0, 25, 50, 75, 100},
+    ymin = 0,
+    ymax = 150,
+    scale = 0.40
+  ]
+  \addplot[red,x filter/.code={\pgfmathparse{#1/36290}\pgfmathresult}] table [x=n, y=r, col sep=comma] {sequence2.csv};
+  \addplot[brown!75!black ,x filter/.code={\pgfmathparse{#1/36290}\pgfmathresult}] table [x=n, y=s, col sep=comma] {sequence2.csv};
+  \addplot[blue,mark=*,mark size = 0.8] coordinates {(0,10)};
+  \addplot[cyan,mark=*,mark size = 0.8] coordinates {(100,91)};
+  \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+  \begin{axis}[
+    title = {Two Islands ($n = 6$)},
+    xlabel = Percentile,
+    ylabel = $t_{\textrm{mix}}$ (thousands),
+    %xmode = log,
+    %ymode = log,
+    xmin=-5,
+    xmax=105,
+    xtick = {0, 25, 50, 75, 100},
+    ymin = 0,
+    ymax = 3,
+    scale = 0.40
+  ]
+  \addplot[red,x filter/.code={\pgfmathparse{#1/4790016}\pgfmathresult},y filter/.code={\pgfmathparse{#1*0.001}\pgfmathresult}] table [x=n, y=r, col sep=comma] {island_seq.csv};
+  \addplot[brown!75!black ,x filter/.code={\pgfmathparse{#1/4790016}\pgfmathresult},y filter/.code={\pgfmathparse{#1*0.001}\pgfmathresult}] table [x=n, y=s, col sep=comma] {island_seq.csv};
+  \addplot[blue,mark=*,mark size = 0.8] coordinates {(0,0.527)};
+  \addplot[cyan,mark=*,mark size = 0.8] coordinates {(100,2.635)};
+  \end{axis}
+  \end{tikzpicture}
+  \end{small}
+\end{document}
+

@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 
+
 def generate(directory, degree, copies):
     print("Generating " + directory + "...")
     sys.stdout.flush()
@@ -52,13 +53,14 @@ def generate(directory, degree, copies):
 
     # db.url
     f = open(directory + "/db.url", "w")
-    f.write("postgresql://thodrek@raiders6.stanford.edu:1432/intro_" + str(degree) + "_" + str(copies))
+    f.write("postgresql://thodrek@raiders6.stanford.edu:1432/intro_" +
+            str(degree) + "_" + str(copies))
     f.close()
-    
+
     # deepdive.conf
     f = open(directory + "/deepdive.conf", "w")
     f.write("deepdive.calibration.holdout_fraction:0.25\n"
-            "deepdive.sampler.sampler_args: \"-l 0 -i 0 --alpha 0.01 --sample_evidence\"\n")
+            "deepdive.sampler.sampler_args: \"-l 0 -i 0 --alpha 0.01\"\n")
     f.close()
 
     # simple.costmodel.txt
@@ -94,20 +96,21 @@ def generate(directory, degree, copies):
     f = open(directory + "/input/p.tsv", "w")
     f.write("0\t\\N\n")
     f.close()
-    
+
     f = open(directory + "/input/voter_voted_for.tsv", "w")
     index = 0
     for i in range(copies):
         f.write(str(i) + "\t0\n")
     f.close()
-    
+
     f = open(directory + "/input/v.tsv", "w")
     for i in range(copies):
         f.write(str(i) + "\t\\N\n")
     f.close()
 
     for i in range(degree):
-        os.symlink(directory + "/input/v.tsv", directory + "/input/v" + str(i) + ".tsv")
+        os.symlink(directory + "/input/v.tsv",
+                   directory + "/input/v" + str(i) + ".tsv")
 
     cmd = ["deepdive", "do", "all"]
     subprocess.call(cmd, cwd=directory)
@@ -117,4 +120,6 @@ if __name__ == "__main__":
     n_var = 12600
     for degree in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
         copies = n_var // degree
-        generate("/dfs/scratch0/bryanhe/intro_" + str(copies) + "_" + str(degree) + "/", degree, copies)
+        generate("/dfs/scratch0/bryanhe/intro_" +
+                 str(copies) + "_" +
+                 str(degree) + "/", degree, copies)

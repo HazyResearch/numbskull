@@ -119,7 +119,8 @@ def get_factors(cur, views, sql_filter="True"):
     min_fid = np.zeros(len(views), np.int64)
     max_fid = np.zeros(len(views), np.int64)
     for (i, table) in enumerate(views):
-        op = op_template.format(cmd="COUNT(*), MIN(fid), MAX(fid)", table_name=table,
+        op = op_template.format(cmd="COUNT(*), MIN(fid), MAX(fid)",
+                                table_name=table,
                                 filter=sql_filter)
         cur.execute(op)
         info = cur.fetchone()
@@ -137,7 +138,8 @@ def get_factors(cur, views, sql_filter="True"):
     min_fid = min_fid[perm]
     max_fid = max_fid[perm]
     assert(all(max_fid[i] <= max_fid[i + 1] for i in xrange(len(max_fid) - 1)))
-    # TODO: cannot directly apply perm to views (standard array, not numpy array)
+    # TODO: cannot directly apply perm to views
+    # (standard array, not numpy array)
     views_temp = [None for i in range(len(views))]
     for i in range(len(views)):
         views_temp[i] = views[perm[i]]
@@ -178,7 +180,8 @@ def get_factors(cur, views, sql_filter="True"):
                ", fid")
 
         # TODO: should actually put the ORDER BY fid in its own var
-        op = op_template.format(cmd=cmd, table_name=v, filter=sql_filter + "ORDER BY fid")
+        op = op_template.format(cmd=cmd, table_name=v,
+                                filter=sql_filter + "ORDER BY fid")
         cur.execute(op)
         while True:
             row = cur.fetchmany(10000)
@@ -343,6 +346,7 @@ def inverse_map(forward, index):
     assert(forward[ans] == index)
     return ans
 
+
 @numba.jit(nopython=True, cache=True, nogil=True)
 def variable_exists(forward, index):
     """TODO."""
@@ -375,7 +379,8 @@ def get_fg_data(cur, filt, ismaster):
     print("get_views: " + str(time2 - time1))
 
     # Load factors
-    (fid, factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view, filt)
+    (fid, factor, factor_pt, factor_ufo, fmap, edges) = \
+        get_factors(cur, factor_view, filt)
     time1 = time2
     time2 = time.time()
     print("get_factors: " + str(time2 - time1))
@@ -397,7 +402,10 @@ def get_fg_data(cur, filt, ismaster):
     print("var_ufo: ", var_ufo)
     print()
 
-    fmap, vid, variable, var_pt, var_ufo, pf_list, pf_var_begin, pf_ufo_var_list = process_pf(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, ismaster)
+    (fmap, vid, variable, var_pt, var_ufo,
+     pf_list, pf_var_begin, pf_ufo_var_list) = \
+        process_pf(factor, factor_pt, factor_ufo, fmap, fid,
+                   vid, variable, var_pt, var_ufo, ismaster)
     time1 = time2
     time2 = time.time()
     print("process_pf: " + str(time2 - time1))
@@ -416,7 +424,10 @@ def get_fg_data(cur, filt, ismaster):
     print("pf_var_begin: ", pf_var_begin)
     print("pf_ufo_var_list: ", pf_ufo_var_list)
 
-    factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin = process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, pf_ufo_var_list, pf_var_begin)
+    (factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt,
+     var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin) = \
+        process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable,
+                    var_pt, var_ufo, pf_ufo_var_list, pf_var_begin)
     time1 = time2
     time2 = time.time()
     print("process_ufo: " + str(time2 - time1))
@@ -450,20 +461,28 @@ def get_fg_data(cur, filt, ismaster):
     time2 = time.time()
     print("allocate domain_mask: " + str(time2 - time1))
 
-    factors_to_skip, pf_to_send = compute_skipped_factors(factor, factor_pt.view(np.int8), factor_ufo, fmap, fid, vid, variable, var_pt.view(np.int8), var_ufo, pf_list, ismaster)
+    (factors_to_skip, pf_to_send) = \
+        compute_skipped_factors(factor, factor_pt.view(np.int8), factor_ufo,
+                                fmap, fid, vid, variable,
+                                var_pt.view(np.int8),
+                                var_ufo, pf_list, ismaster)
 
     return (weight, variable, factor, fmap, domain_mask, edges, var_pt,
-            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip, pf_to_send)
+            factor_pt, var_ufo, factor_ufo, fid, vid, ufo_send, ufo_recv,
+            ufo_start, ufo_map, ufo_var_begin, pf_list, factors_to_skip,
+            pf_to_send)
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, variable, var_pt, var_ufo, pf_list, ismaster):
+def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid,
+                            variable, var_pt, var_ufo, pf_list, ismaster):
     n_pf_send = 0
     n_pf_skip = 0
     # n_ufo_skip = 0
     # UFO's never have to be skipped?
     # minion will not generate extra factors for UFO
-    # and if master has an extra factor, it will always actually be using the ufo (and may have partial factors for minions)
+    # and if master has an extra factor, it will always actually be
+    # using the ufo (and may have partial factors for minions)
     for i in range(len(factor)):
         if factor_pt[i] == 71:  # "G"
             if not factor_ufo[i] or ismaster:
@@ -473,7 +492,6 @@ def compute_skipped_factors(factor, factor_pt, factor_ufo, fmap, fid, vid, varia
         elif factor_pt[i] == 68:
             if not ismaster and not factor_ufo[i]:
                 n_pf_send += 1
-
 
     # factors_to_skip = np.empty(n_pf_send + n_ufo_skip, np.int64)
     factors_to_skip = np.empty(n_pf_skip, np.int64)
@@ -511,7 +529,8 @@ def deserialize(array, dtype):
         return np.array(array, dtype=dtype)
     except:
         # For UnaryFactorOpt and other complicated dtypes
-        # Salt converts list of tuples into list of lists, which breaks the original version
+        # Salt converts list of tuples into list of lists,
+        # which breaks the original version
         return np.array([tuple(i) for i in array], dtype=dtype)
     # try:
     #     ar = array.decode('utf8').encode('utf16').lstrip(codecs.BOM_UTF16)
@@ -524,7 +543,8 @@ def find_connected_components(conn, cur):
     """TODO."""
     # Open a cursor to perform database operations
     (factor_view, variable_view, weight_view) = get_views(cur)
-    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view)
+    (factor, factor_pt, factor_ufo, fmap, edges) = \
+        get_factors(cur, factor_view)
 
     hyperedges = []
     for f in factor:
@@ -567,33 +587,37 @@ def find_connected_components(conn, cur):
         G.clear()
         return False
 
+
 def find_metis_parts(conn, cur, parts):
     """TODO"""
     # Open a cursor to perform database operations
     (factor_view, variable_view, weight_view) = get_views(cur)
     # Obtain graph
-    (factor, factor_pt, factor_ufo, fmap, edges) = get_factors(cur, factor_view)
+    (factor, factor_pt, factor_ufo, fmap, edges) = \
+        get_factors(cur, factor_view)
 
     hyperedges = []
     for f in factor:
         newedge = []
-        for i in range(f['ftv_offset'], f['ftv_offset']+f['arity']):
+        for i in range(f['ftv_offset'], f['ftv_offset'] + f['arity']):
             newedge.append(fmap[i]['vid'])
         hyperedges.append(newedge)
     G = nx.Graph()
     for e in hyperedges:
         for i in range(len(e)):
-            for j in range(i+1, len(e)):
-                newedge = (e[i],e[j])
+            for j in range(i + 1, len(e)):
+                newedge = (e[i], e[j])
                 G.add_edge(*e)
     # Run metis to obtain partitioning
-    metis_options = nxmetis.MetisOptions(objtype=nxmetis.enums.MetisObjType.vol)
-    cost, partitions = nxmetis.partition(G, parts, options=metis_options)
+    metis_options = \
+        nxmetis.MetisOptions(objtype=nxmetis.enums.MetisObjType.vol)
+    (cost, partitions) = \
+        nxmetis.partition(G, parts, options=metis_options)
     print(80 * "*")
     print(cost)
     print(partitions)
     print(80 * "*")
-    
+
     # Find nodes to master
     master_variables = set([])
     # Get all edges
@@ -609,7 +633,7 @@ def find_metis_parts(conn, cur, parts):
         master_variables.add(n2)
     # Store parition in DB
     try:
-        cur.execute("CREATE TABLE variable_to_cc (dd_id bigint, cc_id bigint);")
+        cur.execute("CREATE TABLE variable_to_cc(dd_id bigint, cc_id bigint);")
     except:
         conn.rollback()
         cur.execute("TRUNCATE variable_to_cc;")
@@ -643,12 +667,14 @@ def find_metis_parts(conn, cur, parts):
     except:
         conn.rollback()
         G.clear()
-        return False    
+        return False
+
 
 @numba.jit(cache=True, nogil=True)
 def remove_noop(factor, factor_pt, factor_ufo, fmap):
 
-    factor_des, fmap_des = remove_noop_helper(factor, factor_pt, factor_ufo, fmap)
+    factor_des, fmap_des = \
+        remove_noop_helper(factor, factor_pt, factor_ufo, fmap)
 
     factor = np.resize(factor, factor_des)
     factor_pt = np.resize(factor_pt, factor_des)
@@ -666,7 +692,8 @@ def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
     ftv_offset = 0
 
     for factor_src in range(len(factor)):
-        if factor[factor_src]["factorFunction"] == numbskull.inference.FUNC_NOOP:
+        if factor[factor_src]["factorFunction"] == \
+           numbskull.inference.FUNC_NOOP:
             continue
 
         factor[factor_des] = factor[factor_src]
@@ -686,7 +713,8 @@ def remove_noop_helper(factor, factor_pt, factor_ufo, fmap):
 
 
 @numba.jit(nopython=True, cache=True, nogil=True)
-def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, pf_ufo_var_list, pf_var_begin):
+def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt,
+             var_ufo, pf_ufo_var_list, pf_var_begin):
     # Count number of factors with UFO
     n_ufo_recv = 0  # Number of ufo to receive
     n_ufo_send = 0  # Number of ufo to send
@@ -696,10 +724,13 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
             for j in range(factor[i]["arity"]):
                 vid1 = fmap[factor[i]["ftv_offset"] + j]["vid"]
                 local_vid = loose_inverse_map(vid, vid1)
-                exist += (local_vid != -1) and (var_pt[local_vid] != 80 or var_ufo[local_vid])
-                # (local_vid != -1) specifies that this var must be on this machine to exist
+                exist += ((local_vid != -1) and
+                          (var_pt[local_vid] != 80 or var_ufo[local_vid]))
+                # (local_vid != -1) specifies that this var must be on this
+                #     machine to exist
                 # (var_pt[local_vid] != 80 or var_ufo[local_vid])
-                # part 1 (check against 80) mean that this is not a partial factor var
+                # part 1 (check against 80) mean that this is not a
+                #     partial factor var
                 # part 2 is a check that it replaced an ufo var
 
             # Must have exactly one or all vars on this machine
@@ -774,6 +805,7 @@ def find_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo
 
     return ufo_send, ufo_recv
 
+
 @numba.jit(nopython=True, cache=True, nogil=True)
 def extra_space(vid, variable, ufo_recv):
     m_factors = len(ufo_recv)
@@ -784,6 +816,7 @@ def extra_space(vid, variable, ufo_recv):
         m_fmap += card
         m_var += card - 1
     return m_factors, m_fmap, m_var
+
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo, ufo_recv, n_factors, n_fmap, n_var, vid_max):
@@ -798,7 +831,7 @@ def set_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_ufo,
 
         factor[n_factors + i]["factorFunction"] = numbskull.inference.FUNC_UFO
         factor[n_factors + i]["weightId"] = ufo["weightId"]
-        factor[n_factors + i]["featureValue"] = 1 # TODO: feature value may not match
+        factor[n_factors + i]["featureValue"] = 1  # TODO: feature value may not match
         factor[n_factors + i]["arity"] = card
         factor[n_factors + i]["ftv_offset"] = ftv_offset
 
@@ -1216,6 +1249,7 @@ def process_ufo(factor, factor_pt, factor_ufo, fmap, vid, variable, var_pt, var_
 
     return factor, factor_pt.view('c'), factor_ufo, fmap, vid, variable, var_pt.view('c'), var_ufo, ufo_send, ufo_recv, ufo_start, ufo_map, ufo_var_begin
 
+
 @numba.jit(nopython=True, cache=True, nogil=True)
 def compute_map_master(vid, var_pt):
     l = 0
@@ -1255,6 +1289,7 @@ def apply_inverse_map(vid, array):
     for i in range(len(array)):
         array[i] = inverse_map(vid, array[i])
 
+
 @numba.jit(nopython=True, cache=True, nogil=True)
 def loose_inverse_map(forward, index):
     """TODO."""
@@ -1292,6 +1327,7 @@ def ufo_to_factor(ufo, ufo_map, n_factors):
         assert(ufo_equal(ufo_map[j], ufo[i]))
         index[i] = n_factors - len(ufo_map) + j
     return index
+
 
 @numba.jit(nopython=True, cache=True, nogil=True)
 def compute_pf_values(factor, fmap, var_value, variable, pf_list, pf):

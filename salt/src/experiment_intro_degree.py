@@ -12,11 +12,13 @@ if __name__ == "__main__":
     learning_epochs = 10
     inference_epochs = 10
     f = open("intro_degree.dat", "w")
-    f.write("degree\tcopies\tmaster_l\tmaster_i\ta_l\ta_i\tb_l\tb_i\tbu_l\tbu_i\tc_l\tc_i\tcu_l\tcu_i\n")
+    f.write("degree\tcopies\tmaster_l\tmaster_i\t" +
+            "a_l\ta_i\tb_l\tb_i\tbu_l\tbu_i\tc_l\tc_i\tcu_l\tcu_i\n")
     f.flush()
     for degree in [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
         copies = n_var // degree
-        application_dir = "/dfs/scratch0/bryanhe/intro_" + str(copies) + "_" + str(degree) + "/"
+        application_dir = "/dfs/scratch0/bryanhe/intro_" + \
+                          str(copies) + "_" + str(degree) + "/"
 
         print(application_dir)
         sys.stdout.flush()
