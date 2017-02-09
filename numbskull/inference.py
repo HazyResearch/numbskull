@@ -130,6 +130,9 @@ FACTORS = {
 
     # h(l_1, l_2) := if l_1 != 0 and l_2 != 0: -1, else: 0
     "DP_GEN_DEP_EXCLUSIVE": 25,
+
+    #h(l_1, l_2) := if l_1 == l_2: 1, else: 0
+    "DP_GEN_DEP_SIMILAR": 26,
 }
 
 for (key, value) in FACTORS.items():
@@ -364,6 +367,12 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         return 0 if l1_index == 1 or l2_index == 1 else -1
+    elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_SIMILAR:
+        l1_index = value if fmap[ftv_start]["vid"] == var_samp else \
+            var_value[var_copy][fmap[ftv_start]["vid"]]
+        l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        return 1 if l1_index == l2_index else 0
     else:  # FUNC_UNDEFINED
         print("Error: Factor Function", factor[factor_id]["factorFunction"],
               "( used in factor", factor_id, ") is not implemented.")
