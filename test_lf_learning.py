@@ -138,7 +138,7 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
 prior = 0
 accuracy = [1, 0.5]
 abstain = [0, 0, 0]
-copies = 1000
+copies = 10
 fg = create_fg(prior, accuracy, abstain, copies)
 print("weight")
 print(fg[0])
