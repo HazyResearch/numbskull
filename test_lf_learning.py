@@ -137,9 +137,10 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
                          reg_param=0.01)
 
 prior = 0
-accuracy = [1, 0.5, 0]
-abstain = [0]
-copies = 100
+accuracy = [1, 0.5]
+abstain = [0, 0, 0]
+copies = 10
+
 fg = create_fg(prior, accuracy, abstain, copies)
 print("weight")
 print(fg[0])
