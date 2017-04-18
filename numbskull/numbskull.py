@@ -89,6 +89,12 @@ arguments = [
          'default': 0.01,
          'type': float,
          'help': 'regularization penalty'}),
+    (('--samples_per_sgd'),
+        {'metavar': 'SAMPLES_PER_SGD',
+         'dest': 'samples_per_sgd',
+         'default': 1,
+         'type': int,
+         'help': 'number of samples to take for each sgd step'}),
     (tuple(['--regularization']),
         {'metavar': 'REGULARIZATION',
          'dest': 'regularization',
@@ -385,7 +391,8 @@ class NumbSkull(object):
                  stepsize, decay, regularization, reg_param, truncation,
                  diagnostics=not self.quiet,
                  verbose=self.verbose,
-                 learn_non_evidence=self.learn_non_evidence)
+                 learn_non_evidence=self.learn_non_evidence,
+                 samples_per_sgd=self.samples_per_sgd)
         if out:
             output_file = os.path.join(
                 self.output_dir, "inference_result.out.weights.text")

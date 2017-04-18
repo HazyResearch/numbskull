@@ -51,6 +51,7 @@ class FactorGraph(object):
             np.tile(self.variable[:]['initialValue'], (var_copies, 1))
         self.weight_value = \
             np.tile(self.weight[:]['initialValue'], (weight_copies, 1))
+        self.weight_value_new = self.weight_value.copy()
 
         if self.variable.size == 0:
             self.Z = np.zeros((workers, 0))
@@ -176,7 +177,7 @@ class FactorGraph(object):
 
     def learn(self, burnin_epochs, epochs, stepsize, decay, regularization,
               reg_param, truncation, diagnostics=False, verbose=False,
-              learn_non_evidence=False, var_copy=0, weight_copy=0):
+              learn_non_evidence=False, var_copy=0, weight_copy=0, samples_per_sgd=1):
         """TODO."""
         # Burn-in
         if burnin_epochs > 0:
@@ -185,6 +186,7 @@ class FactorGraph(object):
         # Run learning
         if diagnostics:
             print("FACTOR " + str(self.fid) + ": STARTED LEARNING")
+        counter = np.zeros(1, np.int64)
         for ep in range(epochs):
             if diagnostics:
                 print("FACTOR " + str(self.fid) + ": EPOCH #" + str(ep))
@@ -198,12 +200,15 @@ class FactorGraph(object):
                         self.variable, self.factor, self.fmap,
                         self.vmap, self.factor_index, self.Z, self.fids,
                         self.var_value, self.var_value_evid,
-                        self.weight_value, learn_non_evidence)
+                        self.weight_value, learn_non_evidence, self.weight_value_new, counter, samples_per_sgd)
                 run_pool(self.threadpool, self.threads, learnthread, args)
             self.learning_epoch_time = timer.interval
             self.learning_total_time += timer.interval
             # Decay stepsize
             stepsize *= decay
+        for i in range(self.weight_value[weight_copy].size):
+            self.weight_value[weight_copy][i] = self.weight_value_new[weight_copy][i]
+
         if diagnostics:
             print("FACTOR " + str(self.fid) + ": DONE WITH LEARNING")
 

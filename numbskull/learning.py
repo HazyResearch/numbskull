@@ -14,7 +14,7 @@ def learnthread(shardID, nshards, step, regularization, reg_param, truncation,
                 var_copy, weight_copy, weight,
                 variable, factor, fmap,
                 vmap, factor_index, Z, fids, var_value, var_value_evid,
-                weight_value, learn_non_evidence):
+                weight_value, learn_non_evidence, weight_value_new, counter, samples_per_sgd):
     """TODO."""
     # Identify start and end variable
     nvar = variable.shape[0]
@@ -28,7 +28,12 @@ def learnthread(shardID, nshards, step, regularization, reg_param, truncation,
                        var_copy, weight_copy, weight, variable,
                        factor, fmap, vmap,
                        factor_index, Z[shardID], fids[shardID], var_value,
-                       var_value_evid, weight_value, learn_non_evidence)
+                       var_value_evid, weight_value, learn_non_evidence, weight_value_new)
+        counter[0] += 1
+        if counter[0] == samples_per_sgd:
+            counter[0] = 0
+            for i in range(weight_value[weight_copy].size):
+                weight_value[weight_copy][i] = weight_value_new[weight_copy][i]
 
 
 @jit(nopython=True, cache=True, nogil=True)
@@ -47,7 +52,7 @@ def get_factor_id_range(variable, vmap, var_samp, val):
 def sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
                    var_copy, weight_copy, weight, variable, factor, fmap,
                    vmap, factor_index, Z, fids, var_value, var_value_evid,
-                   weight_value, learn_non_evidence):
+                   weight_value, learn_non_evidence, weight_value_new):
     """TODO."""
     # If learn_non_evidence sample twice.
     # The method corresponds to expectation-conjugate descent.
@@ -108,7 +113,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
                          var_value)
         gradient = (p1 - p0) * factor[factor_id]["featureValue"]
         # Update weight
-        w = weight_value[weight_copy][weight_id]
+        w = weight_value_new[weight_copy][weight_id]
         if regularization == 2:
             w *= (1.0 / (1.0 + reg_param * step))
             w -= step * gradient
@@ -122,4 +127,4 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
                 w = max(0, w - l1delta) if w > 0 else min(0, w + l1delta)
         else:
             w -= step * gradient
-        weight_value[weight_copy][weight_id] = w
+        weight_value_new[weight_copy][weight_id] = w
