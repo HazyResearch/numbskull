@@ -92,7 +92,7 @@ def sample_and_sgd(var_samp, step, regularization, reg_param, truncation,
         s = range_fids[1] - range_fids[0]
         fids[:s] = factor_index[range_fids[0]:range_fids[1]]
 
-    truncate = random.random() < 1.0 / truncation
+    truncate = random.random() < 1.0 / truncation if regularization == 1 else False
     # go over all factor ids, ignoring dupes
     last_fid = -1  # numba 0.28 would complain if this were None
     for factor_id in fids[:s]:
