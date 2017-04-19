@@ -45,7 +45,7 @@ def create_fg(prior, accuracy, abstain, copies):
 
     n = len(accuracy)  # number of labelling functions
 
-    weights = 1 + n
+    weights = 1 + n + 100
     variables = copies * (1 + n)
     factors = copies * (1 + n)
     edges = copies * (1 + 2 * n)
@@ -140,7 +140,7 @@ ns = numbskull.NumbSkull(n_inference_epoch=100,
 prior = 0
 accuracy = [1, 0.5, 0]
 abstain = [0]
-copies = 10000
+copies = 10
 fg = create_fg(prior, accuracy, abstain, copies)
 print("weight")
 print(fg[0])
