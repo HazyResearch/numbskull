@@ -89,7 +89,7 @@ arguments = [
          'default': 0.01,
          'type': float,
          'help': 'regularization penalty'}),
-    (('--samples_per_sgd'),
+    (('--samples_per_sgd', ),
         {'metavar': 'SAMPLES_PER_SGD',
          'dest': 'samples_per_sgd',
          'default': 1,
