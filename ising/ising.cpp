@@ -214,12 +214,12 @@ int main(int argc, char *argv[])
 
     w.weightId = 1;
     w.isFixed = 0;
-    w.initialValue = 1;
+    w.initialValue = 0;
     weight.push_back(w);
 
     w.weightId = 2;
     w.isFixed = 0;
-    w.initialValue = 1;
+    w.initialValue = 0;
     weight.push_back(w);
 
     long double Z[4];
