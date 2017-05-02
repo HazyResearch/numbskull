@@ -42,6 +42,7 @@ UDF_OFFSET_END = {}
 UdfStart = np.empty(len(UDF_USAGE) + 1, np.int64) # UdfStart[i] = first index corresponding to application [i]
 LfCount = np.empty(len(UDF_USAGE), np.int64) # LfCount[i] = number of LFs in application [i]
 UdfCardinalityStart = np.empty(len(UDF_USAGE) + 1, np.int64)
+UdfMap = np.empty(sum(len(value) for (key, value) in UDF_USAGE.items()), np.int64)
 UdfCardinality = np.empty(sum(len(value) for (key, value) in UDF_USAGE.items()), np.int64)
 index = 0
 ci = 0
@@ -52,6 +53,7 @@ for (key, value) in UDF_USAGE.items():
     LfCount[index] = len(UDF_USAGE[key])
     UdfCardinalityStart[index] = ci
     for i in range(LfCount[index]):
+        UdfMap[ci] = UDF_USAGE[key][i]
         UdfCardinality[ci] = UDF_CARDINALITY[UDF_NAME[UDF_USAGE[key][i]]]
         ci += 1
     udf_offset += len(UDF_USAGE[key]) # LF accuracy
@@ -62,19 +64,12 @@ for (key, value) in UDF_USAGE.items():
     UdfCardinalityStart[index] = ci
     exec(key + "_UDF_OFFSET = " + str(UDF_OFFSET[key]))
 
-print(UDF_OFFSET)
-print(UDF_OFFSET_END)
-print(UdfStart)
-print(LfCount)
-print(UdfCardinalityStart)
-print(UdfCardinality)
-
 # USER: Implement the UDF here
 # The following code can be used to obtain the correct value of a variable:
 # vi = value               if (fmap[ftv_start + i]["vid"] == var_samp) \
 #     else var_value[var_copy][fmap[ftv_start + i]["vid"]]
 @jit(nopython=True, cache=True, nogil=True)
-def udf(udf_index, var_samp, value, var_copy, var_value, ftv_start):
+def udf(udf_index, var_samp, value, var_copy, var_value, fmap, ftv_start):
     if udf_index == TOY_AND:
         v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
             else var_value[var_copy][fmap[ftv_start + 0]["vid"]]

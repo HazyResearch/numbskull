@@ -5,6 +5,7 @@ import numba
 from numba import jit
 import numpy as np
 import math
+from numbskull.udf import *
 
 
 @jit(nopython=True, cache=True, nogil=True)
@@ -373,7 +374,27 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         return 1 if l1_index == l2_index else 0
-    else:  # FUNC_UNDEFINED
+    else:
+        for i in range(UdfStart.shape[0] - 1):
+            if (factor[factor_id]["factorFunction"] >= UdfStart[i]) and (factor[factor_id]["factorFunction"] < UdfStart[i + 1]):
+                # This is a valid UDF
+                fid = factor[factor_id]["factorFunction"] - UdfStart[i]
+                if fid < LfCount[i]:
+                    # LF Accuracy
+                    u = udf(UdfMap[UdfCardinalityStart[i] + fid], var_samp, value, var_copy, var_value, fmap, ftv_start)
+                    y =            value if fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"] == var_samp else \
+                        var_value[var_copy][fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"]]
+
+                    if u == 0:
+                        return 0
+                    if u == y:
+                        return 1
+                    return -1
+                else:
+                    # Correlation
+                    pass
+
+        # FUNC_UNDEFINED
         print("Error: Factor Function", factor[factor_id]["factorFunction"],
               "( used in factor", factor_id, ") is not implemented.")
         raise NotImplementedError("Factor function is not implemented.")
