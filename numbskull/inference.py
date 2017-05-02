@@ -384,6 +384,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
                     u = udf(UdfMap[UdfCardinalityStart[i] + fid], var_samp, value, var_copy, var_value, fmap, ftv_start)
                     y =            value if fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"] == var_samp else \
                         var_value[var_copy][fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"]]
+                    y = 2 * y - 1
 
                     if u == 0:
                         return 0
