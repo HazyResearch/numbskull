@@ -25,7 +25,10 @@ UDF_CARDINALITY = {
     "BT_SHAPE": 3,
     "BT_SOBEL": 2,
     "BT_GLCM": 2,
-    "BT_FIRST": 2 
+    "BT_FIRST": 2,
+    "AN_PB": 2,
+    "AN_DIST": 3,
+    "AN_COLOR_TEMP": 2
 }
 
 # Automatically select a unique index for each UDF (no modification needed)
@@ -46,7 +49,8 @@ UDF_USAGE = {
     "TOY": [TOY_AND, TOY_DIRECT, TOY_DIRECT],
     "DDSM": [TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_SINGLE, TOY_DIRECT_ABSTAIN],
     "VG": [VG_12, VG_12, VG_POS_SIZE_NUM, VG_POS_SIZE_NUM, VG_POS_SIZE_NUM],
-    "BT": [BT_DAUBE, BT_EDGE, BT_LESION, BT_SHAPE, BT_SOBEL, BT_GLCM, BT_FIRST]
+    "BT": [BT_DAUBE, BT_EDGE, BT_LESION, BT_SHAPE, BT_SOBEL, BT_GLCM, BT_FIRST],
+    "AN": [AN_PB, AN_DIST, AN_COLOR_TEMP, AN_COLOR_TEMP]
 }
 
 # USER: There are not modifications necessary here. However, the value
@@ -255,6 +259,47 @@ def udf(udf_index, var_samp, value, var_copy, var_value, fmap, ftv_start):
             if v2 == 2:
                 return 1
             if v2 == 1:
+                return -1
+        return 0
+    
+    #ActivityNet Labeling Functions
+    elif udf_index == AN_PB:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        
+        if v1 == 1:
+            if v2 == 1:
+                return 1
+            else:
+                return -1
+        return 0
+    elif udf_index == AN_DIST:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        v3 = value               if (fmap[ftv_start + 2]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 2]["vid"]]
+        
+        if v1 == 1:
+            if v2 == 1:
+                if v3 == 1:
+                    return 1
+                else:
+                    return -1
+        return 0
+    elif udf_index == AN_COLOR_TEMP:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        
+        if v1 == 1:
+            if v2 == 1:
+                return 1
+            else:
                 return -1
         return 0
     else:
