@@ -134,6 +134,8 @@ FACTORS = {
 
     #h(l_1, l_2) := if l_1 == l_2: 1, else: 0
     "DP_GEN_DEP_SIMILAR": 26,
+
+    "CORAL_GEN_DEP_SIMILAR": 27,
 }
 
 for (key, value) in FACTORS.items():
@@ -374,6 +376,20 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         return 1 if l1_index == l2_index else 0
+    elif factor[factor_id]["factorFunction"] == FUNC_CORAL_GEN_DEP_SIMILAR:
+        v1 = value if fmap[ftv_start]["vid"] == var_samp else \
+            var_value[var_copy][fmap[ftv_start]["vid"]]
+        v2 = value if fmap[ftv_start + 1]["vid"] == var_samp else \
+            var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        card1 = variable[fmap[ftv_start]["vid"]]["cardinality"]
+        card2 = variable[fmap[ftv_start + 1]["vid"]]["cardinality"]
+        assert(card1 == 2 or card1 == 3)
+        assert(card2 == 2 or card2 == 3)
+        if (card1 == card2):
+            return 1 if v1 == v2 else 0
+        if card2 == 2:
+            v1, v2 = v2, v1
+        return 1 if ((v1 == 0) and (v2 == 0)) or ((v1 == 1) and (v2 == 2)) else 0
     else:
         for i in range(UdfStart.shape[0] - 1):
             if (factor[factor_id]["factorFunction"] >= UdfStart[i]) and (factor[factor_id]["factorFunction"] < UdfStart[i + 1]):
