@@ -401,12 +401,7 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
                     y =            value if fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"] == var_samp else \
                         var_value[var_copy][fmap[ftv_start + UdfCardinality[UdfCardinalityStart[i] + fid]]["vid"]]
                     y = 2 * y - 1
-
-                    if u == 0:
-                        return 0
-                    if u == y:
-                        return 1
-                    return -1
+                    return u * y
                 else:
                     # Correlation
                     pass
