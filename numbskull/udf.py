@@ -186,19 +186,12 @@ def udf(udf_index, var_samp, value, var_copy, var_value, fmap, ftv_start):
             else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
         v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
             else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
-        v3 = value               if (fmap[ftv_start + 2]["vid"] == var_samp) \
-            else var_value[var_copy][fmap[ftv_start + 2]["vid"]]
         
         if v1 == 2:
             return -1
         if v1 == 1:
             if v2 == 2:
                 return 1
-            if v2 == 1:
-                if v3 == 2:
-                    return -1
-                if v3 == 1:
-                    return 1
         return 0
     elif udf_index == BT_SHAPE:
         v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
