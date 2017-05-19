@@ -13,6 +13,7 @@ import math
 # USER: insert name of UDF and cardinality here
 UDF_CARDINALITY = {
     # UDFs for toy example
+    "TOY_OR":    2,
     "TOY_AND":    2,
     "TOY_DIRECT": 1,
     "TOY_DIRECT_ABSTAIN": 1,
@@ -48,6 +49,18 @@ for (key, value) in UDF_INDEX.items():
 UDF_USAGE = {
     #"TOY": [TOY_AND, TOY_DIRECT, TOY_DIRECT],
     "TOY": [TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC2_5":  [TOY_OR, TOY_OR, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC3_5":  [TOY_OR, TOY_OR, TOY_OR,     TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC4_5":  [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_DIRECT],
+    "SYNTHETIC5_5":  [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_OR],
+    "SYNTHETIC2_10": [TOY_OR, TOY_OR, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC3_10": [TOY_OR, TOY_OR, TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC4_10": [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC5_10": [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC2_15": [TOY_OR, TOY_OR, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC3_15": [TOY_OR, TOY_OR, TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC4_15": [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
+    "SYNTHETIC5_15": [TOY_OR, TOY_OR, TOY_OR,     TOY_OR,     TOY_OR,     TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
     "DDSM": [TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_ABSTAIN, TOY_DIRECT_SINGLE, TOY_DIRECT_ABSTAIN],
     "VG": [VG_12, VG_12, VG_POS_SIZE_NUM, VG_POS_SIZE_NUM, VG_POS_SIZE_NUM],
     "BT": [BT_DAUBE, BT_EDGE, BT_LESION, BT_SHAPE, BT_SOBEL, BT_GLCM, BT_FIRST],
@@ -89,7 +102,15 @@ for (key, value) in UDF_USAGE.items():
 #     else var_value[var_copy][fmap[ftv_start + i]["vid"]]
 @jit(nopython=True, cache=True, nogil=True)
 def udf(udf_index, var_samp, value, var_copy, var_value, fmap, ftv_start):
-    if udf_index == TOY_AND:
+    if udf_index == TOY_OR:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        if v1 == 1 or v2 == 1:
+            return 1
+        return -1
+    elif udf_index == TOY_AND:
         v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
             else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
         v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
