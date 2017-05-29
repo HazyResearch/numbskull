@@ -299,74 +299,82 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
     # GENERATIVE MODELS #
     #####################
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_CLASS_PRIOR:
+        # NB: this doesn't make sense for categoricals
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
         return 1 if y_index == 1 else -1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_PRIOR:
+        # NB: this doesn't make sense for categoricals
         l_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
-        if l_index == 0:
+        if l_index == 2:
             return -1
-        elif l_index == 1:
+        elif l_index == 0:
             return 0
         else:
             return 1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_PROPENSITY:
         l_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
-        return 0 if l_index == 1 else 1
+        abstain = variable[fmap[ftv_start]["vid"]]["cardinality"] - 1
+        return 0 if l_index == abstain else 1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_LF_ACCURACY:
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
         l_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
-        if l_index == 1:
+        abstain = variable[fmap[ftv_start + 1]["vid"]]["cardinality"] - 1
+        if l_index == abstain:
             return 0
-        # First part of below condition is simpler because
-        # the index for value -1 is 0 for both variables
-        elif y_index == l_index or (y_index == 1 and l_index == 2):
+        elif y_index == l_index:
             return 1
         else:
             return -1
     elif factor[factor_id]["factorFunction"] == \
             FUNC_DP_GEN_LF_CLASS_PROPENSITY:
+        # NB: this doesn't make sense for categoricals
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
         l_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
-        if l_index == 1:
+        abstain = variable[fmap[ftv_start + 1]["vid"]]["cardinality"] - 1
+        if l_index == abstain:
             return 0
         elif y_index == 1:
             return 1
         else:
             return -1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_FIXING:
+        # NB: this doesn't make sense for categoricals
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
         l1_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         l2_index = value if fmap[ftv_start + 2]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 2]["vid"]]
-        if l1_index == 1:
+        abstain = variable[fmap[ftv_start + 1]["vid"]]["cardinality"] - 1
+        if l1_index == abstain:
             return -1 if l2_index != 1 else 0
-        elif l1_index == 0 and l2_index == 2 and y_index == 1:
+        elif l1_index == 0 and l2_index == 1 and y_index == 1:
             return 1
-        elif l1_index == 2 and l2_index == 0 and y_index == 0:
+        elif l1_index == 1 and l2_index == 0 and y_index == 0:
             return 1
         else:
             return 0
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_REINFORCING:
+        # NB: this doesn't make sense for categoricals
         y_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
         l1_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
         l2_index = value if fmap[ftv_start + 2]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 2]["vid"]]
-        if l1_index == 1:
+        abstain = variable[fmap[ftv_start + 1]["vid"]]["cardinality"] - 1
+        if l1_index == abstain:
             return -1 if l2_index != 1 else 0
         elif l1_index == 0 and l2_index == 0 and y_index == 0:
             return 1
-        elif l1_index == 2 and l2_index == 2 and y_index == 1:
+        elif l1_index == 1 and l2_index == 1 and y_index == 1:
             return 1
         else:
             return 0
@@ -375,7 +383,8 @@ def eval_factor(factor_id, var_samp, value, var_copy, variable, factor, fmap,
             var_value[var_copy][fmap[ftv_start]["vid"]]
         l2_index = value if fmap[ftv_start + 1]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start + 1]["vid"]]
-        return 0 if l1_index == 1 or l2_index == 1 else -1
+        abstain = variable[fmap[ftv_start]["vid"]]["cardinality"] - 1
+        return 0 if l1_index == abstain or l2_index == abstain else -1
     elif factor[factor_id]["factorFunction"] == FUNC_DP_GEN_DEP_SIMILAR:
         l1_index = value if fmap[ftv_start]["vid"] == var_samp else \
             var_value[var_copy][fmap[ftv_start]["vid"]]
