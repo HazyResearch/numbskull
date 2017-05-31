@@ -164,8 +164,6 @@ class NumbSkull(object):
         describe : type
             Expanation
         """
-        # Set version
-        self.version = "0.0"
         # Initialize default execution arguments
         arg_defaults = {}
         for arg, opts in arguments:
