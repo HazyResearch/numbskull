@@ -1,8 +1,8 @@
 """For pip."""
 
 from setuptools import setup, find_packages
-from numbskull.version import __version__
 
+exec(open('numbskull/version.py').read())
 setup(
     name='numbskull',
     version=__version__,
