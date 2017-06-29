@@ -1,0 +1,14 @@
+voter_id,issue_id,vote
+1,1,yes
+2,1,yes
+3,1,yes
+4,1,no
+5,1,no
+6,2,yes
+7,2,no
+8,2,no
+9,2,no
+10,3,no
+11,3,yes
+11,3,yes
+12,4,yes
