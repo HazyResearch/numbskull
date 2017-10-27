@@ -29,7 +29,9 @@ UDF_CARDINALITY = {
     "BT_FIRST": 2,
     "AN_PB": 2,
     "AN_DIST": 3,
-    "AN_COLOR_TEMP": 2
+    "AN_COLOR_TEMP": 2,
+    "HEART_POSITIVE": 1,
+    "HEART_NEGATIVE": 1
 }
 
 # Automatically select a unique index for each UDF (no modification needed)
@@ -67,7 +69,8 @@ UDF_USAGE = {
     "VGSYNTH": [TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
     "BT": [BT_DAUBE, BT_EDGE, BT_LESION, BT_SHAPE, BT_SOBEL, BT_GLCM, BT_FIRST],
     "BTSYNTH": [TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT, TOY_DIRECT],
-    "AN": [AN_PB, AN_DIST, AN_COLOR_TEMP, AN_COLOR_TEMP]
+    "AN": [AN_PB, AN_DIST, AN_COLOR_TEMP, AN_COLOR_TEMP],
+    "MRI": [HEART_POSITIVE, HEART_NEGATIVE, HEART_POSITIVE, HEART_POSITIVE]
 }
 
 # USER: There are not modifications necessary here. However, the value
@@ -320,6 +323,31 @@ def udf(udf_index, var_samp, value, var_copy, var_value, fmap, ftv_start):
             else:
                 return -1
         return 0
+
+    #Heart MRI Functions
+    elif udf_index == HEART_POSITIVE:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        
+        if v1 == 2:
+            return 1
+        if v1 == 1:
+            return -1
+        return 0
+    elif udf_index == HEART_NEGATIVE:
+        v1 = value               if (fmap[ftv_start + 0]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 0]["vid"]]
+        v2 = value               if (fmap[ftv_start + 1]["vid"] == var_samp) \
+            else var_value[var_copy][fmap[ftv_start + 1]["vid"]]
+        
+        if v1 == 2:
+            return -1
+        if v1 == 1:
+            return 1
+        return 0
+
     else:
         print("Error: UDF", udf_index,
               "is not implemented.")
