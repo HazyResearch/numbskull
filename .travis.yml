@@ -40,6 +40,7 @@ install:
 
   # conda dependencies that pip does not install
   - pip install enum34
+  - pip install future
 
 
 script:
