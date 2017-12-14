@@ -3,7 +3,7 @@
 """TODO: This is a docstring."""
 
 from __future__ import print_function, absolute_import
-from builtins import int
+from past.builtins import long
 import os
 import sys
 import argparse
@@ -202,6 +202,7 @@ class NumbSkull(object):
         assert(type(domain_mask) == np.ndarray and
                domain_mask.dtype == np.bool)
         assert(type(edges) == int or
+               type(edges) == long or
                type(edges) == np.int64)
         assert(type(factors_to_skip) == np.ndarray and
                factors_to_skip.dtype == np.int64)
