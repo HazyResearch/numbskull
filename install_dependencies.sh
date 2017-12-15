@@ -5,3 +5,4 @@ bash miniconda.sh -b -p $HOME/miniconda
 export PATH="$HOME/miniconda/bin:$PATH"
 
 conda install numba pyzmq futures
+pip install future
