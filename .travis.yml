@@ -1,3 +1,6 @@
+dist: trusty
+sudo: false  # to use container-based infra, see: http://docs.travis-ci.com/user/migrating-from-legacy/
+
 language: python
 python:
   - "2.7"
