@@ -8,7 +8,10 @@ setup(
     version=__version__,
     description='sample away',
     packages=find_packages(),
-    install_requires=['future'],
+    install_requires=[
+        'future',
+        'futures',
+    ],
     entry_points={
         'console_scripts': [
             'numbskull = numbskull.numbskull:main',
