@@ -10,7 +10,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'future',
-        'futures',
+        'futures; python_version == "2.7"',
     ],
     entry_points={
         'console_scripts': [
